@@ -23,6 +23,8 @@
 
 За списывание зануляются все работы. Если используете код из открытых источников, пожалуйста указывайте ссылки.
 
+Домашки будут сдаваться в github classroom. Чтобы получить инвайт, заполните, пожалуйста [**форму**](https://docs.google.com/forms/d/e/1FAIpQLScE3EKAA5Yo8IkWDumVdnVtleb3551ujli9wFpZMK_MINseKA/viewform?usp=sf_link)
+
 # todo какие штрафы за дедлайны?
 
 ## Формула
