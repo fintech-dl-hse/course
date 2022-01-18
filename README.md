@@ -29,7 +29,7 @@
 
 Алгоритм обратного распространения ошибки.
 
-* Лекция
+* [Лекция](./lectures/DL22_lecture1_intro.pdf)
 * [Семинар](./seminars/01_seminar.ipynb)
 * [Бонусная домашка на 0 баллов](./homeworks/HW-00.md)
 * [Обратная связь](https://docs.google.com/forms/d/e/1FAIpQLSerebTHr9eLTNgOgSHcFe9fOXzPgUgrgGcOD0wTo_1CxM2Piw/viewform?usp=sf_link)
