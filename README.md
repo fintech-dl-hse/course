@@ -39,6 +39,7 @@
 
 |   | Домашка        | Количество баллов |
 |---|----------------|-------------------|
+| 0 | Meme Classification | 0                 |
 | 1 | PyTorch basics | 2                 |
 | 2 | NN training    | 2                 |
 | 3 | NN debug       | 2                 |
