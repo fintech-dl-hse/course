@@ -31,8 +31,17 @@
 
 * [Лекция](./lectures/DL22_lecture1_intro.pdf)
 * [Семинар](./seminars/01_seminar_solved.ipynb)
-* [Бонусная домашка на 0 баллов](./homeworks/HW-00.md)
+* Бонусная домашка на 0 баллов (инвайт запинен в телеграме)
 * [Обратная связь](https://docs.google.com/forms/d/e/1FAIpQLSerebTHr9eLTNgOgSHcFe9fOXzPgUgrgGcOD0wTo_1CxM2Piw/viewform?usp=sf_link)
+
+### 2 неделя
+
+Алгоритм обратного распространения ошибки.
+
+* Лекция 
+* [Семинар](./seminars/02_seminar_solved.ipynb)
+* Домашка (2 балла) --- пока что не опубликована
+* [Обратная связь](https://forms.gle/6ErNobuuKn5LGJfr7)
 
 
 ## Домашки
