@@ -38,7 +38,7 @@
 
 Алгоритм обратного распространения ошибки.
 
-* Лекция 
+* [Лекция](./lectures/DL22_lecture2_activations.pdf)
 * [Семинар](./seminars/02_seminar_solved.ipynb)
 * Домашка (2 балла) --- пока что не опубликована
 * [Обратная связь](https://forms.gle/6ErNobuuKn5LGJfr7)
