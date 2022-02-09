@@ -94,3 +94,17 @@
 8. Seq2seq. Механизм внимания. Transformer.
 9. Transfer learning в NLP. BERTology.
 10. Из NLP в CV: Vision Transformers, CLIP.
+
+
+## Полезные материалы
+
+* [Курс Алексея Озерина]( https://github.com/m12sl/dl-hse-2021)
+* [Материалы с курса бакалавриата](https://github.com/aosokin/dl_cshse_ami/tree/master/2021-fall/homeworks_small)
+* [Курс стендфорда](https://cs231n.github.io/) ---  есть не все темы, которые будут на нашем курсе, но материалы очень классные. В частности гифка по сверткам имхо самая понятная визуализация того, как работают свертки с много слойными изображениями и откуда берутся `out_channels`
+* [DLSchool](https://www.dlschool.org/) --- много классных домашек и проект в конце курса, там есть и про NLP, и про CV, на некоторых прогонах затрагивали и работу со звуком (на ютубе можно найти записи прогонов прошлых лет, на степики старые прогоны курса тоже можно найти)
+* [distill.pub](https://distill.pub/) --- блог с красивыми визуализациями разных штук из DL
+* [Lena Voita](https://lena-voita.github.io/) --- классный блог по NLP
+* [Jay Alammar](https://jalammar.github.io/) --- еще один популярный блог со статьями по NLP
+* [Pytorch Docs](https://pytorch.org/docs/stable/index.html)
+
+На саммом деле, эти блоги обычно гуглятся, если вы пытаетесь разобраться в какой-то теме
