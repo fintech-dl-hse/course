@@ -99,12 +99,17 @@
 ## Полезные материалы
 
 * [Курс Алексея Озерина]( https://github.com/m12sl/dl-hse-2021)
-* [Материалы с курса бакалавриата](https://github.com/aosokin/dl_cshse_ami/tree/master/2021-fall/homeworks_small)
-* [Курс стендфорда](https://cs231n.github.io/) ---  есть не все темы, которые будут на нашем курсе, но материалы очень классные. Из этого курса мы тоже переисползьуем материалы и в лекциях, и в семинарах
+* [Материалы с курса бакалавриата](https://github.com/aosokin/dl_cshse_ami/tree/master/2021-fall)
+* [Курс ШАДа](https://github.com/yandexdataschool/Practical_DL)
+* [Курс Стендфорда про CV with DL](https://cs231n.github.io/) --- есть не все темы, которые будут на нашем курсе, но материалы очень классные, используются и в лекциях, и в семинарах первой половины нашего курса.
 * [DLSchool](https://www.dlschool.org/) --- много классных домашек и проект в конце курса, там есть и про NLP, и про CV, на некоторых прогонах затрагивали и работу со звуком (на ютубе можно найти записи прогонов прошлых лет, на степики старые прогоны курса тоже можно найти)
-* [distill.pub](https://distill.pub/) --- блог с красивыми визуализациями разных штук из DL
-* [Lena Voita](https://lena-voita.github.io/) --- классный блог по NLP
-* [Jay Alammar](https://jalammar.github.io/) --- еще один популярный блог со статьями по NLP
-* [Pytorch Docs](https://pytorch.org/docs/stable/index.html)
+* [Курс Стендфорда про NLP with DL](http://web.stanford.edu/class/cs224n/) --- один из лучших курсов про NLP
+* [Lena Voita](https://lena-voita.github.io) --- классный блог и курс по NLP
+* [Jay Alammar](https://jalammar.github.io/), [Sebastian Ruder](https://ruder.io/) --- еще популярные блоги про NLP
+* [distill.pub](https://distill.pub/) --- журнал с красивыми визуализациями
 
-На саммом деле, эти блоги обычно гуглятся, если вы пытаетесь разобраться в какой-то теме
+**Гуглите:** эти и многие другие материалы легко находятся, если вы пытаетесь разобраться в какой-то теме. 
+
+**Читайте документацию:** в [Pytorch Docs](https://pytorch.org/docs/stable/index.html), [Pytorch Tutorials](https://pytorch.org/tutorials/) можно найти и описание методов, и формулы, и ссылки на статьи.
+
+**Читайте статьи:** большинство концептов, которые мы проходим в этом курсе, были опубликованы в статьях, которые доступны на [arxiv](https://arxiv.org/). Где следить за самыми современными методами: конференции NeurIPS, ICML, ICLR, CVPR, ACL, блоги крупных компаний [Google AI](https://ai.googleblog.com/), [DeepMind](https://deepmind.com/blog), [OpenAI](https://openai.com/blog/), [Meta AI](https://ai.facebook.com/blog/).
