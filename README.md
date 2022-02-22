@@ -85,6 +85,7 @@
 * [Lena Voita](https://lena-voita.github.io) --- классный блог и курс по NLP
 * [Jay Alammar](https://jalammar.github.io/), [Sebastian Ruder](https://ruder.io/) --- еще популярные блоги про NLP
 * [distill.pub](https://distill.pub/) --- журнал с красивыми визуализациями
+* [paperswithcode](https://paperswithcode.com/) --- сравнение разных архетектур/задач
 
 **Гуглите:** эти и многие другие материалы легко находятся, если вы пытаетесь разобраться в какой-то теме. 
 
