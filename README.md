@@ -66,9 +66,7 @@
 <img src="https://render.githubusercontent.com/render/math?math=O_%7Bhw%7D%20%3D%20%5Csum_i%20O_%7Bhw_i%7D" height=30>
 <img src="https://render.githubusercontent.com/render/math?math=O_%7Btotal%7D%20%3D%200.7%20*%20O_%7Bhw%7D%20%2B%200.3%20*%20O_%7Bexam%7D" height=30>
 
-Автомат можно получить, если `O_{hw} >= 6.0`. В случае автомата итоговая оценка будет нормированной `O_{hw}`: `O_{total} = 10/12 * O_{hw}`
-
-То есть для минимального автомата идеально сделать первые 3 домашки. Тогда `O_{total} = (2 + 2 + 2) * 10 / 12 = 5`
+Автомат можно получить, если `O_{hw} >= 6.0`. В случае автомата итоговая оценка будет нормированной `O_{hw}`: `O_{total} = 10/14 * O_{hw}`
 
 ## Экзамен
 
