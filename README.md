@@ -38,10 +38,10 @@
 
 |   | Домашка        | Количество баллов | Дата выдачи |
 |---|----------------|-------------------|-------------------|
-| 1 | Activations    | 1                 | 23.01.23          |
-| 2 | Weight Init (todo add seed_all)    | 1                 | 30.01.23          |
-| 3 | Batchnorm Dropout (todo add seed_all) | 2              | 06.02.23          |
-| 4 | PyTorch basics (todo add seed_all) | 2                 | 13.02.23          |
+| 1 | Activations    | 1                 | 23.01.23 (2 занятие)         |
+| 2 | Weight Init    | 1                 | 30.01.23 (3 занятие)         |
+| 3 | Batchnorm Dropout | 2              | 06.02.23 (4 занятие)         |
+| 4 | PyTorch basics | 2                 | 13.02.23 (5 занятие)         |
 | 5 | CV             | 4                 |                   |
 | 6 | NLP            | 4                 |                   |
 
