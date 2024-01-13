@@ -58,8 +58,6 @@
 
 ## Формула
 
-<img src="https://render.githubusercontent.com/render/math?math=O_%7Bhw%7D%20%3D%20%5Csum_i%20O_%7Bhw_i%7D" height=30>
-<img src="https://render.githubusercontent.com/render/math?math=O_%7Btotal%7D%20%3D%200.7%20*%20O_%7Bhw%7D%20%2B%200.3%20*%20O_%7Bexam%7D" height=30>
 
 Автомат можно получить, если `O_{hw} >= 6.0`. В случае автомата итоговая оценка будет нормированной `O_{hw}`: `O_{total} = 10/14(?) * O_{hw}`
 
@@ -70,20 +68,28 @@
 
 ## Примерный план
 
-1. Введение в глубинное обучение.
-2. Обучение нейросетей. Алгоритм обратного распространения ошибки.
-3. Функции активации. Задачи и функции потерь. Инициализация весов.
-4. Оптимизация. Регуляризация.
-5. Сверточные сети.
-6. Задачи Computer Vision.
-7. NLP, Word2vec.
-8. Рекуррентные сети.
-9. Attention, Transformers.
-10. Pretrained transformers in NLP.
-11. Из NLP в CV: Vision Transformers.
-12. Contrastive learning.
-13. Генеративные модели: Авторегрессионные, GAN.
-14. Генеративные модели: VAE, Diffusion.
+| Дата  | Лекция                                                           | Домашка                          |
+|-------|------------------------------------------------------------------|----------------------------------|
+| 15.01 | Введение в глубинное обучение.                                   |                                  |
+| 22.01 | Обучение нейросетей. Алгоритм обратного распространения ошибки.  |                                  |
+| 29.01 | Функции активации. Задачи и функции потерь. Инициализация весов. | weight-init, activations         |
+| 05.02 | Оптимизация. Регуляризация.                                      | optimization, batchnorm, dropout |
+| 12.02 | Сверточные сети.                                                 | pytorch-basics, letters          |
+| 19.02 | -                                                                |                                  |
+| 26.02 | -                                                                |                                  |
+| 04.03 | Задачи Computer Vision.                                          |                                  |
+| 11.03 | -                                                                |                                  |
+| 18.03 | NLP, Word2vec.                                                   |                                  |
+| 25.03 | -  _каникулы_                                                    |                                  |
+| 01.04 | Рекуррентные сети.                                               | hw-rnn-attention                 |
+| 08.04 | Attention, Transformers.                                         | hw-transformer-attention         |
+| 15.04 | Pretrained transformers in NLP.                                  |                                  |
+| 22.04 | Из NLP в CV: Vision Transformers.                                |                                  |
+| 29.04 | -  _майские_                                                     |                                  |
+| 06.05 | Contrastive learning.                                            |                                  |
+| 13.05 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
+| 20.05 | Генеративные модели: VAE, Diffusion.                             | diffusion                        |
+
 
 ## Литература
 
