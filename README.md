@@ -86,11 +86,11 @@ $$ O_{hse} = \frac{1}{20} \sum_{i} O_{hw_i} $$
 | 08.04 | Рекуррентные сети.                                               | hw-rnn-attention                 |
 | 15.04 | Attention, Transformers.                                         | hw-transformer-attention         |
 | 22.04 | Pretrained transformers in NLP.                                  |                                  |
-| 29.04 | Из NLP в CV: Vision Transformers.                                |                                  |
+| 29.04 | Из NLP в CV: Vision Transformers. Contrastive learning.          |                                  |
 | 06.05 | -  _майские_                                                     |                                  |
-| 13.05 | Contrastive learning.                                            |                                  |
-| 20.05 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
-| 27.05 | Генеративные модели: VAE, Diffusion.                             | vae, diffusion                   |
+| 13.05 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
+| 20.05 | Генеративные модели: VAE, Diffusion.                             | vae, diffusion                   |
+| 27.05 | Дополнительные темы                                              |                                  |
 
 
 ## Литература
