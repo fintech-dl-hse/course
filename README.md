@@ -115,6 +115,7 @@ Smola.
 * [Курс Стендфорда про CV with DL](https://cs231n.github.io/)
 * [Курс Стендфорда про NLP with DL](http://web.stanford.edu/class/cs224n/) --- один из лучших курсов про NLP
 * [DLSchool](https://www.dlschool.org/) --- много классных домашек и проект в конце курса, там есть и про NLP, и про CV, на некоторых прогонах затрагивали и работу со звуком (на ютубе можно найти записи прогонов прошлых лет, на степики старые прогоны курса тоже можно найти)
+* [Вводный курс Семена Козлова](http://dlcourse.ai/)
 * [Lena Voita](https://lena-voita.github.io) --- классный блог и курс по NLP
 * [Jay Alammar](https://jalammar.github.io/), [Sebastian Ruder](https://ruder.io/) --- еще популярные блоги про NLP
 * [distill.pub](https://distill.pub/) --- журнал с красивыми визуализациями
