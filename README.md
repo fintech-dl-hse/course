@@ -77,20 +77,20 @@ $$ O_{hse} = \frac{1}{20} \sum_{i} O_{hw_i} $$
 | 05.02 | Оптимизация. Регуляризация.                                      | optimization, batchnorm, dropout |
 | 12.02 | Сверточные сети.                                                 | pytorch-basics                   |
 | 19.02 | -                                                                |                                  |
-| 26.02 | -                                                                |                                  |
-| 04.03 | Задачи Computer Vision.                                          | letters                          |
-| 11.03 | -                                                                |                                  |
+| 26.02 | Задачи Computer Vision (гостевая лекция)                         | letters                          |
+| 04.03 | NLP, Word2vec.                                                   |                                  |
+| 11.03 | Рекуррентные сети.                                               | hw-rnn-attention                 |
 | 18.03 | -                                                                |                                  |
-| 25.03 | NLP, Word2vec.                                                   |                                  |
-| 01.04 | -  _каникулы_                                                    |                                  |
-| 08.04 | Рекуррентные сети.                                               | hw-rnn-attention                 |
-| 15.04 | Attention, Transformers.                                         | hw-transformer-attention         |
-| 22.04 | Pretrained transformers in NLP.                                  |                                  |
-| 29.04 | Из NLP в CV: Vision Transformers. Contrastive learning.          |                                  |
+| 25.03 | -  _каникулы_                                                    |                                  |
+| 01.04 | Attention, Transformers.                                         | hw-transformer-attention         |
+| 08.04 | Pretrained transformers in NLP.                                  |                                  |
+| 15.04 | Из NLP в CV: Vision Transformers. Contrastive learning.          |                                  |
+| 22.04 | Гостевая лекция?                                                 |                                  |
+| 29.04 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
 | 06.05 | -  _майские_                                                     |                                  |
-| 13.05 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
-| 20.05 | Генеративные модели: VAE, Diffusion.                             | vae, diffusion                   |
-| 27.05 | Дополнительные темы                                              |                                  |
+| 13.05 | Генеративные модели: VAE, Diffusion.                             | vae, diffusion                   |
+| 20.05 | Дополнительные темы                                              |                                  |
+| 27.05 |                                                                  |                                  |
 
 
 ## Литература
