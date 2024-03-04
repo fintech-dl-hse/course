@@ -79,10 +79,10 @@ $$ O_{hse} = \frac{1}{20} \sum_{i} O_{hw_i} $$
 | 19.02 | -                                                                |                                  |
 | 26.02 | Задачи Computer Vision (гостевая лекция)                         | letters                          |
 | 04.03 | NLP, Word2vec.                                                   |                                  |
-| 11.03 | Рекуррентные сети.                                               | hw-rnn-attention                 |
+| 11.03 | Рекуррентные сети.                                               |                                  |
 | 18.03 | -                                                                |                                  |
 | 25.03 | -  _каникулы_                                                    |                                  |
-| 01.04 | Attention, Transformers.                                         | hw-transformer-attention         |
+| 01.04 | Attention, Transformers.                                         | hw-transformer-attention, hw-rnn-attention         |
 | 08.04 | Pretrained transformers in NLP.                                  |                                  |
 | 15.04 | Из NLP в CV: Vision Transformers. Contrastive learning.          |                                  |
 | 22.04 | Гостевая лекция?                                                 |                                  |
