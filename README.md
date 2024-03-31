@@ -42,8 +42,8 @@
 | dropout                  | 1                 |      05.03 23:59 (до конца блока CV)    |
 | pytorch-basics           | 2                 |      05.03 23:59 (до конца блока CV)    |
 | letters                  | 4                 |      20.05 23:59 (до последней лекции)  |
-| hw-rnn-attention         | 2                 |      15.04 23:59 (2 недели)             |
-| hw-transformer-attention | 2                 |      22.04 23:59 (2 недели)             |
+| hw-rnn-attention         | 2                 |      13.05 23:59                        |
+| hw-transformer-attention | 2                 |      13.05 23:59                        |
 | vae                      | 2                 |      10.06 23:59 (3 недели)             |
 | diffusion                | 2                 |      10.06 23:59 (3 недели)             |
 
@@ -80,9 +80,9 @@ $$ O_{hse} = \frac{1}{20} \sum_{i} O_{hw_i} $$
 | 26.02 | Задачи Computer Vision (гостевая лекция)                         | letters                          |
 | 04.03 | NLP, Word2vec.                                                   |                                  |
 | 11.03 | Рекуррентные сети. Семинара не будет.                            |                                  |
-| 18.03 | Attention, Transformers. Семинара не будет.                      |                                  |
+| 18.03 | - Отмена занятия                                                 |                                  |
 | 25.03 | -  _каникулы_                                                    |                                  |
-| 01.04 | 2 семинара подряд: RNN, Attantion, Transformers                  | hw-transformer-attention, hw-rnn-attention         |
+| 01.04 | Attention, Transformers. (Саминар RNN, Attantion, Transformers)  | hw-transformer-attention, hw-rnn-attention         |
 | 08.04 | Pretrained transformers in NLP.                                  |                                  |
 | 15.04 | Из NLP в CV: Vision Transformers. Contrastive learning.          |                                  |
 | 22.04 | Гостевая лекция?                                                 |                                  |
