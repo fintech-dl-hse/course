@@ -84,7 +84,7 @@ $$ O_{hse} = \frac{1}{20} \sum_{i} O_{hw_i} $$
 | 25.03 | -  _каникулы_                                                    |                                  |
 | 01.04 | Attention, Transformers. (Семинар RNN, Attention, Transformers)  | hw-transformer-attention, hw-rnn-attention         |
 | 08.04 | Pretrained transformers in NLP.                                  |                                  |
-| 15.04 | Vision Transformers. Contrastive learning.                       |                                  |
+| 15.04 | Vision Transformers. Self-supervised и contrastive learning.     |                                  |
 | 22.04 | Large Language Models (гостевая лекция)                          |                                  |
 | 29.04 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
 | 06.05 | -  _майские_                                                     |                                  |
