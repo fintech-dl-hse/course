@@ -1,5 +1,6 @@
 # Материалы курса Глубинное обучение
 
+* Прогон курса в [2024 году](https://github.com/fintech-dl-hse/course/tree/2024)
 * Прогон курса в [2023 году](https://github.com/fintech-dl-hse/course/tree/2023)
 * Прогон курса в [2022 году](https://github.com/fintech-dl-hse/course/tree/2022)
 * [Разборы семинаров 2022 года](https://youtube.com/playlist?list=PLCNrwCOlxMPxUnJNtthxVdL3eYAj0Lp1Q)
