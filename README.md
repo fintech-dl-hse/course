@@ -79,7 +79,7 @@
 
 $$ O_{hw} = \frac{1}{20} \sum_{i} O_{hw_i} $$
 
-$$ O_{hse} = 0.1 * O_{exam} + 0.9 O_{hw} $$
+$$ O_{hse} = 0.9 \cdot O_{hw} + 0.1 \cdot O_{exam} $$
 
 ## Примерный план
 
