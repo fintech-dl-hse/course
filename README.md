@@ -91,7 +91,7 @@ $$ O_{hse} = 0.9 \cdot O_{hw} + 0.1 \cdot O_{exam} $$
 | 03.02 | Оптимизация. Регуляризация.                                      | optimization, dropout            |
 | 10.02 | Сверточные сети.                                                 | pytorch-basics, batchnorm        |
 | 17.02 | -                                                                |                                  |
-| 24.02 | Задачи Computer Vision.                                          |                                  |
+| 24.02 | Задачи Computer Vision.                                          | letters (бонусная)               |
 | 03.03 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
 | 10.03 | Рекуррентные сети.                                               |                                  |
 | 17.03 | -                                                                |                                  |
@@ -104,7 +104,8 @@ $$ O_{hse} = 0.9 \cdot O_{hw} + 0.1 \cdot O_{exam} $$
 | 05.05 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
 | 12.05 | Генеративные модели: VAE, Diffusion.                             | vae, diffusion                   |
 | 19.05 |                                                                  |                                  |
-| 26.05 |                                                                  |                                  |
+| 26.05 | (! дата может измениться) Устройство GPU. Низкоуровневое программирование на CUDA | custom-cuda-kernel (бонусная) |
+| 02.06 | (! дата может измениться) Мультимодальные модели                 | multimodal-llm (бонусная) |
 | 02.06 |                                                                  |                                  |
 | 09.06 |                                                                  |                                  |
 | 16.06 |                                                                  |                                  |
