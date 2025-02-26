@@ -38,13 +38,13 @@
 | ------------------------ | ----------------- | --------------------------------- |
 | weight-init              | 1                 |      10.02 23:59 (2 недели)             |
 | activations              | 1                 |      10.02 23:59 (2 недели)             |
-| optimization             | 2                 |      05.03 23:59 (до конца блока CV)    |
-| batchnorm                | 1                 |      05.03 23:59 (до конца блока CV)    |
-| dropout                  | 1                 |      05.03 23:59 (до конца блока CV)    |
-| pytorch-basics           | 2                 |      05.03 23:59 (до конца блока CV)    |
-| tokenization             | 2                 |      07.04 23:59                        |
-| rnn-attention            | 2                 |      13.05 23:59                        |
-| transformer-attention    | 2                 |      13.05 23:59                        |
+| optimization             | 2                 |      12.03 23:59 (до конца блока CV)    |
+| batchnorm                | 1                 |      12.03 23:59 (до конца блока CV)    |
+| dropout                  | 1                 |      12.03 23:59 (до конца блока CV)    |
+| pytorch-basics           | 2                 |      12.03 23:59 (до конца блока CV)    |
+| tokenization             | 2                 |      16.04 23:59                        |
+| rnn-attention            | 2                 |      21.05 23:59                        |
+| transformer-attention    | 2                 |      21.05 23:59                        |
 | llm                      | 2                 |      16.06 23:59 (конец курса)          |
 | vae                      | 2                 |      16.06 23:59 (конец курса)          |
 | diffusion                | 2                 |      16.06 23:59 (конец курса)          |
@@ -92,20 +92,20 @@ $$ O_{hse} = 0.9 \cdot O_{hw} + 0.1 \cdot O_{exam} $$
 | 10.02 | Сверточные сети.                                                 | pytorch-basics, batchnorm        |
 | 17.02 | -                                                                |                                  |
 | 24.02 | Задачи Computer Vision.                                          | letters (бонусная)               |
-| 03.03 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
-| 10.03 | Рекуррентные сети.                                               |                                  |
+| 03.03 | -                                                                |                                  |
+| 10.03 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
 | 17.03 | -                                                                |                                  |
 | 24.03 | -                                                                |                                  |
 | 31.04 | -  _сессия_                                                      |                                  |
-| 07.04 | Attention, Transformers.                                         | transformer-attention, rnn-attention  |
-| 14.04 | Pretrained transformers in NLP.                                  |                                  |
-| 21.04 | Vision Transformers. Self-supervised, contrastive learning.      |                                  |
-| 28.04 | Large Language Models.                                           | llm                              |
-| 05.05 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
-| 12.05 | Генеративные модели: VAE, Diffusion.                             | vae, diffusion                   |
-| 19.05 | (! дата может измениться) Мультимодальные модели                 | multimodal-llm (бонусная) |
-| 26.05 | (! дата может измениться) Устройство GPU. Низкоуровневое программирование на CUDA | custom-cuda-kernel (бонусная) |
-| 02.06 |                                                                  |                                  |
+| 07.04 | Рекуррентные сети.                                               |                                  |
+| 14.04 | Attention, Transformers.                                         | transformer-attention, rnn-attention  |
+| 21.04 | Pretrained transformers in NLP.                                  |                                  |
+| 28.04 | Vision Transformers. Self-supervised, contrastive learning.      |                                  |
+| 05.05 | Large Language Models.                                           | llm                              |
+| 12.05 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
+| 19.05 | Генеративные модели: VAE, Diffusion.                             | vae, diffusion                   |
+| 26.05 | (! дата может измениться) Мультимодальные модели                 | multimodal-llm (бонусная) |
+| 02.06 | (! дата может измениться) Устройство GPU. Низкоуровневое программирование на CUDA | custom-cuda-kernel (бонусная) |
 | 02.06 |                                                                  |                                  |
 | 09.06 |                                                                  |                                  |
 | 16.06 |                                                                  |                                  |
