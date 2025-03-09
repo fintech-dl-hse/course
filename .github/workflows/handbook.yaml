@@ -2,8 +2,10 @@ name: Deploy Handbook
 
 on:
   push:
+    branches:
+      - main
     paths:
-      - 'handbook/**'
+      - handbook/**
 
 jobs:
   build-handbook:
@@ -22,7 +24,7 @@ jobs:
 
   deploy-handbook:
     # Add a dependency to the build job
-    needs: build
+    needs: build-handbook
 
     # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
     permissions:
