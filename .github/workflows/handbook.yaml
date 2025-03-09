@@ -22,6 +22,11 @@ jobs:
       - name: Build handbook
         run: yfm --strict -i ./handbook -o ./public/
 
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: ./public
+
   deploy-handbook:
     # Add a dependency to the build job
     needs: build-handbook
