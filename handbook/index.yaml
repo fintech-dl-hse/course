@@ -1,0 +1,8 @@
+title: Fintech DL HSE Handbook
+description: ""
+meta:
+  title: Metadata
+  noIndex: true
+links:
+- title: NLP
+  href: pages/nlp/introduction.md
