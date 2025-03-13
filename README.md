@@ -95,13 +95,13 @@ $$ O_{hse} = 0.9 \cdot O_{hw} + 0.1 \cdot O_{exam} $$
 | 03.03 | -                                                                |                                  |
 | 10.03 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
 | 17.03 | -                                                                |                                  |
-| 24.03 | -                                                                |                                  |
-| 31.04 | -  _сессия_                                                      |                                  |
-| 07.04 | Рекуррентные сети.                                               |                                  |
-| 14.04 | Attention, Transformers.                                         | transformer-attention, rnn-attention  |
-| 21.04 | Pretrained transformers in NLP.                                  |                                  |
-| 28.04 | Vision Transformers. Self-supervised, contrastive learning.      |                                  |
-| 05.05 | Large Language Models.                                           | llm                              |
+| 24.03 | Рекуррентные сети. Attention, Transformers. Positional Encoding. RWKV. Mamba. | transformer-attention, rnn-attention |
+| 31.03 | -  _сессия_                                                      |                                  |
+| 07.04 | -                                                                |                                  |
+| 14.04 | [2 лекции]   Pretrained transformers in NLP. Large Language Models. Scaling Laws. |                                  |
+| 21.04 | [2 семинара] Pretrained transformers in NLP. Large Language Models. Scaling Laws. | llm                              |
+| 28.04 | ?                                                                |                                  |
+| 05.05 | Vision Transformers. Self-supervised, contrastive learning.      |                                  |
 | 12.05 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
 | 19.05 | Генеративные модели: VAE, Diffusion.                             | vae, diffusion                   |
 | 26.05 | (! дата может измениться) Мультимодальные модели                 | multimodal-llm (бонусная) |
