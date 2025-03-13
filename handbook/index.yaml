@@ -1,8 +1,9 @@
 title: Fintech DL HSE Handbook
 description: ""
 meta:
-  title: Metadata
+  title: Index
   noIndex: true
 links:
 - title: NLP
-  href: pages/nlp/introduction.md
+  description: "Глоссарий"
+  href: pages/nlp/glossary.md

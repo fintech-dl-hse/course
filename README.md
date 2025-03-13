@@ -98,9 +98,9 @@ $$ O_{hse} = 0.9 \cdot O_{hw} + 0.1 \cdot O_{exam} $$
 | 24.03 | Рекуррентные сети. Attention, Transformers. Positional Encoding. RWKV. Mamba. | transformer-attention, rnn-attention |
 | 31.03 | -  _сессия_                                                      |                                  |
 | 07.04 | -                                                                |                                  |
-| 14.04 | [2 лекции]   Pretrained transformers in NLP. Large Language Models. Scaling Laws. |                                  |
-| 21.04 | [2 семинара] Pretrained transformers in NLP. Large Language Models. Scaling Laws. | llm                              |
-| 28.04 | PPO. DPO. GRPO. Test-time scaling. Function Calling. Agentic models. |                                  |
+| 14.04 | Pretrained transformers in NLP. Large Language Models. Scaling Laws. | llm                              |
+| 21.04 | PPO. DPO. GRPO. Test-time scaling. Function Calling. Agentic models. |                                  |
+| 28.04 | -                                                                |                                  |
 | 05.05 | Vision Transformers. Self-supervised, contrastive learning.      |                                  |
 | 12.05 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
 | 19.05 | Генеративные модели: VAE, Diffusion.                             | vae, diffusion                   |

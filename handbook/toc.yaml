@@ -3,5 +3,11 @@ href: index.yaml
 items:
   - name: NLP
     items:
-      - name: Introduction
-        href: pages/nlp/introduction.md
+      - name: Глоссарий
+        href: pages/nlp/glossary.md
+
+      - name: Embeddings
+        href: pages/nlp/embeddings.md
+
+      - name: Tokenization
+        href: pages/nlp/tokenization.md
