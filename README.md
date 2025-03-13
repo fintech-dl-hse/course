@@ -100,7 +100,7 @@ $$ O_{hse} = 0.9 \cdot O_{hw} + 0.1 \cdot O_{exam} $$
 | 07.04 | -                                                                |                                  |
 | 14.04 | [2 лекции]   Pretrained transformers in NLP. Large Language Models. Scaling Laws. |                                  |
 | 21.04 | [2 семинара] Pretrained transformers in NLP. Large Language Models. Scaling Laws. | llm                              |
-| 28.04 | ?                                                                |                                  |
+| 28.04 | PPO. DPO. GRPO. Test-time scaling. Function Calling. Agentic models. |                                  |
 | 05.05 | Vision Transformers. Self-supervised, contrastive learning.      |                                  |
 | 12.05 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
 | 19.05 | Генеративные модели: VAE, Diffusion.                             | vae, diffusion                   |
