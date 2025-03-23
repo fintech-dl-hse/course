@@ -95,7 +95,7 @@ $$ O_{hse} = 0.9 \cdot O_{hw} + 0.1 \cdot O_{exam} $$
 | 03.03 | -                                                                |                                  |
 | 10.03 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
 | 17.03 | -                                                                |                                  |
-| 24.03 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE. RWKV. Mamba. | transformer-attention, rnn-attention |
+| 24.03 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE, YaRN. RWKV. Mamba. | transformer-attention, rnn-attention |
 | 31.03 | -  _сессия_                                                      |                                  |
 | 07.04 | -                                                                |                                  |
 | 14.04 | Pretrained transformers in NLP. Large Language Models. Scaling Laws. | llm                              |
