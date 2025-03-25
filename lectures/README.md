@@ -8,10 +8,10 @@
 
 Лекция 4: [Оптимизация](https://github.com/fintech-dl-hse/course/blob/main/lectures/25.02.03.DL04.pdf)
 
-Лекция 5: [Свёртки](https://github.com/fintech-dl-hse/course/blob/main/lectures/25.02.03.DL05.pdf)
+Лекция 5: [Свёртки](https://github.com/fintech-dl-hse/course/blob/main/lectures/25.02.10.DL05.pdf)
 
-Лекция 6: [Компьютерное зрение](https://github.com/fintech-dl-hse/course/blob/main/lectures/25.02.03.DL06.pdf)
+Лекция 6: [Компьютерное зрение](https://github.com/fintech-dl-hse/course/blob/main/lectures/25.02.24.DL06.pdf)
 
-Лекция 7: [Эмбединги](https://github.com/fintech-dl-hse/course/blob/main/lectures/25.02.03.DL07.pdf)
+Лекция 7: [Эмбединги](https://github.com/fintech-dl-hse/course/blob/main/lectures/25.03.10.DL07.pdf)
 
-Лекция 8: [RNN, Трансформеры](https://github.com/fintech-dl-hse/course/blob/main/lectures/25.02.03.DL08.pdf)
+Лекция 8: [RNN, Трансформеры](https://github.com/fintech-dl-hse/course/blob/main/lectures/25.03.25.DL08.pdf)
