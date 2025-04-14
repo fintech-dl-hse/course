@@ -59,7 +59,7 @@
 | multimodal-llm           | 4                 |      16.06 23:59 (конец курса)    |
 | custom-cuda-kernel       | ?                 |      16.06 23:59 (конец курса)    |
 
-Бонусные домашки посложнее, чем обычные домашки, но за них можно получить много баллов.
+Бонусные домашки посложнее, чем обычные домашки, но за них можно получить много баллов. С бонусными домашками можно получить больше 10 баллов за ДЗ.
 
 **Списывание (!):** За списывание зануляются все работы. Если используете код из открытых источников, пожалуйста указывайте ссылки.
 
@@ -95,11 +95,11 @@ $$ O_{hse} = 0.9 \cdot O_{hw} + 0.1 \cdot O_{exam} $$
 | 03.03 | -                                                                |                                  |
 | 10.03 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
 | 17.03 | -                                                                |                                  |
-| 24.03 | Рекуррентные сети. Attention, Transformers. Positional Encoding. RWKV. Mamba. | transformer-attention, rnn-attention |
+| 24.03 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE, YaRN. | transformer-attention, rnn-attention |
 | 31.03 | -  _сессия_                                                      |                                  |
 | 07.04 | -                                                                |                                  |
-| 14.04 | Pretrained transformers in NLP. Large Language Models. Scaling Laws. | llm                              |
-| 21.04 | PPO. DPO. GRPO. Test-time scaling. Function Calling. Agentic models. |                                  |
+| 14.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models. Scaling Laws. In context learning. |                               |
+| 21.04 | PPO. DPO. GRPO. Test-time scaling. Function Calling. Agentic models. MCP. RAG. | llm                                 |
 | 28.04 | -                                                                |                                  |
 | 05.05 | Vision Transformers. Self-supervised, contrastive learning.      |                                  |
 | 12.05 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
