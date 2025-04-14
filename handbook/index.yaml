@@ -4,6 +4,6 @@ meta:
   title: Index
   noIndex: true
 links:
-- title: NLP
-  description: "Глоссарий"
-  href: pages/nlp/glossary.md
+- title: Инструменты исследователя
+  description: "Инструменты для написания кода, работы с литературой, написания текста"
+  href: pages/process/tools.md
