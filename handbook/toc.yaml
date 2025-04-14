@@ -1,13 +1,8 @@
 title: Fintech DL HSE Handbook
 href: index.yaml
 items:
-  - name: NLP
+  - name: Процессы
     items:
-      - name: Глоссарий
-        href: pages/nlp/glossary.md
+      - name: Инструменты
+        href: pages/process/tools.md
 
-      - name: Embeddings
-        href: pages/nlp/embeddings.md
-
-      - name: Tokenization
-        href: pages/nlp/tokenization.md
