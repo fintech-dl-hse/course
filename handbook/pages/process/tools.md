@@ -56,7 +56,7 @@
 
 * [**Semantic Scholar**](https://www.semanticscholar.org/): Позволяет быстро посмотреть аннотацию, ключевые фигуры и таблицы, цитирования.
 * [**AlphaXiv**](https://www.alphaxiv.org): Предоставляет краткие AI-сгенерированные саммари для статей с arXiv.
-* [**ChatGPT (Paper Reviewer for Data Science Papers)**](https://chatgpt.com/g/
+* [**ChatGPT Paper Reviewer**](https://chatgpt.com/g/
 g-8Sfcmardr-paper-reviewer-for-data-science-papers): Специализированный GPT для помощи в анализе статей в области Data Science.
 
 ## Визуализация и создание схем
