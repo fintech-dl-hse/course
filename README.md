@@ -101,12 +101,12 @@ $$ O_{hse} = 0.9 \cdot O_{hw} + 0.1 \cdot O_{exam} $$
 | 14.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models. Scaling Laws. In context learning. |                               |
 | 21.04 | PPO. DPO. GRPO. Test-time scaling. Function Calling. Agentic models. MCP. RAG. | llm                                 |
 | 28.04 | -                                                                |                                  |
-| 05.05 | Vision Transformers. Self-supervised, contrastive learning.      |                                  |
-| 12.05 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
-| 19.05 | Генеративные модели: VAE, SAE, Diffusion.                        | vae, diffusion                   |
-| 26.05 | (! дата может измениться) Мультимодальные модели                 | multimodal-llm (бонусная) |
+| 05.05 | -  _каникулы_                                                    |                                  |
+| 12.05 | Vision Transformers. Self-supervised, contrastive learning.      |                                  |
+| 19.05 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
+| 26.05 | Генеративные модели: VAE, SAE, Diffusion.                        | vae, diffusion                   |
+| 02.06 | (! дата может измениться) Мультимодальные модели                 | multimodal-llm (бонусная) |
 | 02.06 | (! дата может измениться) Устройство GPU. Низкоуровневое программирование на CUDA. Distributed Training. | custom-cuda-kernel (бонусная) |
-| 02.06 |                                                                  |                                  |
 | 09.06 |                                                                  |                                  |
 | 16.06 |                                                                  |                                  |
 
