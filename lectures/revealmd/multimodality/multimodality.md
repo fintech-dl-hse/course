@@ -3,6 +3,10 @@
     .reveal .slides {
         text-align: left;
     }
+
+    .reveal table {
+        font-size: 30px
+    }
 </style>
 
 
@@ -42,6 +46,7 @@ https://vkvideo.ru/playlist/-210514085_1/video-210514085_456239093
 
 ### Модели:
 * Formage
+* BLIP2
 * Llava
 * Flamingo
 
@@ -76,12 +81,12 @@ Discrete Audio Representation for Causal Modeling (and/or audio compression)
 ## Audio Codecs
 
 🤖 **Models:**
-* Encodec
-* Mimi
+* Encodec (2022)
+* Mimi (2024)
 
 ---
 
-## [Encodec](https://arxiv.org/pdf/2210.13438)
+## [Encodec (2022)](https://arxiv.org/pdf/2210.13438)
 
 ### Architecture
 
@@ -92,7 +97,7 @@ Vector Quantization)
 
 ---
 
-## [Encodec](https://arxiv.org/pdf/2210.13438)
+## [Encodec (2022)](https://arxiv.org/pdf/2210.13438)
 
 ### Loss
 
@@ -103,7 +108,7 @@ Reconstruction loss
 
 ---
 
-## [Encodec](https://arxiv.org/pdf/2210.13438)
+## [Encodec (2022)](https://arxiv.org/pdf/2210.13438)
 
 ### Loss
 
@@ -113,7 +118,7 @@ Discriminative Loss
 
 ---
 
-## [Encodec](https://arxiv.org/pdf/2210.13438)
+## [Encodec (2022)](https://arxiv.org/pdf/2210.13438)
 
 ### Loss
 
@@ -124,7 +129,7 @@ RVQ Commitment Loss
 
 ---
 
-## [Encodec](https://arxiv.org/pdf/2210.13438)
+## [Encodec (2022)](https://arxiv.org/pdf/2210.13438)
 
 ### Loss
 
@@ -132,13 +137,32 @@ Balancer
 
 ![](encodec_balancer.png)
 
+---
+
+## [Encodec (2022)](https://arxiv.org/pdf/2210.13438)
+
+### Evaluation
+
+![](encodec_mushra.png)
 
 ---
 
-## Mimi
+## [Mimi (2024)](https://arxiv.org/pdf/2410.00037)
+
+### Architecture
+
+* 🆕 Semantic Features Distillation
+
+![](mimi_acrhitecture.png)
 
 
-TODO
+---
+
+## [Mimi (2024)](https://arxiv.org/pdf/2410.00037)
+
+### Metrics
+
+![](./mimi_evaluation.png)
 
 ---
 
@@ -330,8 +354,19 @@ Zero-shot Speech Generation Benchmarks.
 
 ---
 
+## Simplex / Duplex / Half-duplex
+
+![](simplex_duplex.png)
+
+---
+
 ## [Moshi](https://arxiv.org/pdf/2410.00037)
 ### Architecture.
+
+* Pretrained LLM: Helium-7B
+* Full-duplex
+
+![](moshi_architecture.png)
 
 ---
 
@@ -339,23 +374,33 @@ Zero-shot Speech Generation Benchmarks.
 
 ### Training.
 
-2 training stages:
+3 training stages:
 
-1. **Multitask pretraining**: 🔥 Audio Encoder. ❄️ LLM.
-2. **SFT**: ❄️ Audio Encoder. 🔥 LLM.
+1. 🎤 🗣️ 📚 Audio Pretraining
 
-
----
-
-## [Moshi](https://arxiv.org/pdf/2410.00037)
-### Tasks.
-
+    Also text pretraing to prevent catastrophic forgetting
+2. 🎤 🗣️ ↔️ 📚 Full-Duplex Training (Synth Data)
+3. 🎤 🗣️ ↔️ 🧼 Clean Dialogue Dataset SFT
 
 ---
 
 ## [Moshi](https://arxiv.org/pdf/2410.00037)
 
-### Results.
+### Evaluation.
+
+![](./moshi_metrics.png)
+
+---
+
+## Comparison
+
+
+|  | **Qwen2.5-Audio**              | **Qwen2.5-Omni**              | **Moshi** (OpenAI)                      |
+| ------------------- | ------------------------------ | ----------------------------- | --------------------------------------- |
+| **Audio-In**  | ✅ | ✅ | ✅ |
+| **Audio-Out** |    | ✅ | ✅ |
+| **Image-In**  |    | ✅ |    |
+| **Full-Duplex**  | | | ✅ |
 
 
 ---
