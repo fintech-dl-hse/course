@@ -1,0 +1,73 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:131.0) Gecko/20100101 Firefox/131.0" version="27.1.1">
+  <diagram name="Страница — 1" id="Zcvo0xjpZ6l3LVfa4it9">
+    <mxGraphModel dx="697" dy="476" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-19" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;dashed=1;strokeColor=none;fillStyle=auto;opacity=20;" vertex="1" parent="1">
+          <mxGeometry x="314" y="40" width="180" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-2" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://s11234.pcdn.co/wp-content/uploads/2010/01/waveform_popeye.gif;" vertex="1" parent="1">
+          <mxGeometry x="100" y="80" width="180" height="88.5" as="geometry" />
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-3" value="Waveform (16kHz)" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="130" y="50" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-4" value="44" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="334" y="114.25" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-5" value="200" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="354" y="114.25" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-6" value="&lt;div&gt;10&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="374" y="114.25" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-7" value="5" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="394" y="114.25" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-8" value="19" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="414" y="114.25" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-9" value="&lt;div&gt;76&lt;br&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="434" y="114.25" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-10" value="...." style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="454" y="109.25" width="40" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-11" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://s11234.pcdn.co/wp-content/uploads/2010/01/waveform_popeye.gif;" vertex="1" parent="1">
+          <mxGeometry x="530" y="80" width="180" height="88.5" as="geometry" />
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-12" value="Waveform (16kHz)" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="560" y="50" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-13" value="Discrete Codes (&amp;lt;300Hz)" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="324" y="50" width="160" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-14" value="" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="240" y="200" as="sourcePoint" />
+            <mxPoint x="360" y="200" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-16" value="Compression" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="264" y="168.5" width="90" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-17" value="" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="440" y="198.5" as="sourcePoint" />
+            <mxPoint x="560" y="198.5" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-18" value="Reconstruction" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="454" y="168.5" width="100" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-20" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;dashed=1;strokeColor=#6c8ebf;fillStyle=auto;opacity=20;" vertex="1" parent="1">
+          <mxGeometry x="90" y="40" width="200" height="128.5" as="geometry" />
+        </mxCell>
+        <mxCell id="KIu0YfUJuRrAK1nRoq_F-21" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;dashed=1;strokeColor=#6c8ebf;fillStyle=auto;opacity=20;" vertex="1" parent="1">
+          <mxGeometry x="520" y="35.75" width="200" height="128.5" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
