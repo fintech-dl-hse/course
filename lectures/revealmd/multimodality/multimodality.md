@@ -84,6 +84,8 @@ Discrete Audio Representation for Causal Modeling (and/or audio compression)
 * Encodec (2022)
 * Mimi (2024)
 
+![](audio_codecs_scheme.drawio.png)
+
 ---
 
 ## [Encodec (2022)](https://arxiv.org/pdf/2210.13438)
@@ -145,7 +147,20 @@ Balancer
 
 ![](encodec_mushra.png)
 
+
 ---
+
+## Audio Codecs
+
+🤖 **Models:**
+* ✅ Encodec (2022)
+* Mimi (2024)
+
+![](audio_codecs_scheme.drawio.png)
+
+---
+
+
 
 ## [Mimi (2024)](https://arxiv.org/pdf/2410.00037)
 
@@ -170,6 +185,20 @@ Balancer
 
 * ✅ Encodec
 * ✅ Mimi
+
+![](audio_codecs_scheme.drawio.png)
+
+---
+
+## Audio Codecs
+
+| **Feature**                              | **Mimi**                         | **Encodec** (Meta)               |
+| ---------------------------------------- | ----------------------------------------------------- | -------------------------------------------- |
+| **Input audio sample rate**  | 16 kHz | 24,48 kHz |
+| **Codec sample rate**        | 12.5 Hz | 150-2400 Hz |
+| **Varying bandwidth** | ❌ | ✅ |
+| **Semantic distillation** | ✅ | ❌ |
+
 
 
 ---
@@ -411,6 +440,3 @@ Zero-shot Speech Generation Benchmarks.
 * [**Sesame Conversational Voice**](https://www.sesame.com/research/crossing_the_uncanny_valley_of_voice)
 * Audio Codecs (Mimi, )
 
----
-
----
