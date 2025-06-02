@@ -157,34 +157,87 @@
 
 https://vkvideo.ru/playlist/-210514085_1/video-210514085_456239093
 
-* Early Fusion / Deep Fusion / Late Fusion
+* Late Fusion / Early Fusion / Deep Fusion
 
 Сравнение разных вериантов + примеры моделей , что в каком типе работает
 
 ---
 
 ### Модели:
+* Flamingo
 * Formage
 * BLIP2
 * Llava
-* Flamingo
 
 ---
 
-## Formage
+## [Flamingo (2022)](https://arxiv.org/abs/2204.14198)
+
+* CLIP Image Encoder
+* ❗️ Interleaved Data
+* ❗️ Deep Fusion
+
+![](flamingo_architecture.png)
 
 ---
 
-## BLIP2
+## [Flamingo (2022)](https://arxiv.org/abs/2204.14198)
+
+### ❗️ Perceiver Resampler
+
+* Fixed image embeddings size
+* Learned Query Vectors
+
+![](flaming_perceiver_resampler.png)
 
 ---
 
-## Llava
 
+## [Fromage (2023)](https://arxiv.org/pdf/2301.13823)
+
+* CLIP Image Encoder
+* Opt LLM
+* Early Fusion
+* ❗️Image Retrieval
+
+![](fromage_architecture.png)
 
 ---
 
-## Flamingo
+## [BLIP2 (2023)](https://arxiv.org/pdf/2301.12597)
+
+* CLIP Image Encoder
+* Opt LLM / Flan T5
+* Early Fusion
+* ❗️QFormer for Image Embedding
+* Freezed LLM
+
+![](blip2_architecture.png)
+
+---
+
+## [Llava (2023)](https://arxiv.org/pdf/2304.08485)
+
+* CLIP Image Encoder
+* Vicuna-7B LLM
+* 2-stage training:
+    * Feature Alignment
+    * End-to-End SFT
+
+![](llava_architecture.png)
+
+---
+
+## LLM Image Understanding
+
+### Comparison
+
+| Feature / Model        | **Flamingo**       | **Fromage** | **BLIP2** | **LLaVA** |
+| ---------------------- | ------------------ | ----------- | --------- | --------- |
+| **Fusion Type**        | Deep | Early       | Early     | Early     |
+| **Interleaved Data**   | ✅                  | ❌           | ❌         | ❌         |
+| **Image Retrieval**    | ❌                  | ✅           | ✅         | ❌         |
+| **Instruction Tuning** | ❌                  | ❌           | ✅         | ✅         |
 
 
 ---
@@ -195,6 +248,7 @@ https://vkvideo.ru/playlist/-210514085_1/video-210514085_456239093
 
 * Why **CLIP** ViT is utilized in most MLLM models❓
 * DeepFusion and Encoder-Decoder Transformer Difference❓
+* Flamingo Perceiver Resampler vs Blip2 QFormer❓
 
 ---
 
