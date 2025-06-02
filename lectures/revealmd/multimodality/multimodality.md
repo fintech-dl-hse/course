@@ -166,7 +166,7 @@ https://vkvideo.ru/playlist/-210514085_1/video-210514085_456239093
 ### Модели:
 * Flamingo
 * Formage
-* BLIP2
+* Encodec (2022)
 * Llava
 
 ---
@@ -252,25 +252,86 @@ https://vkvideo.ru/playlist/-210514085_1/video-210514085_456239093
 
 ---
 
-## Generation / editing
+## LLM Image Generation / Editing
 
-* GILL - https://github.com/kohjingyu/gill
-* Mgie - https://github.com/apple/ml-mgie
-* Bagel - https://github.com/ByteDance-Seed/Bagel (тут и понимание, и генерация есть)
-
----
-
-## GILL
-
+* GILL
+* Mgie
+* Bagel
 
 ---
 
-## Mgie
+## [GILL (2023)](https://arxiv.org/pdf/2305.17216)
 
+* Image Understanding
+* Image Retrieval and Generation
+* LLM learns to generate image embeddings for image generation model
+* 8 visual tokens
+
+![](gill_architecture.png)
 
 ---
 
-## Bagel
+## [GILL (2023)](https://arxiv.org/pdf/2305.17216)
+
+* How GillMapper looks like❓
+
+![](gill_inference_and_mapper.png)
+
+---
+
+## [Mgie (2024) Apple](https://arxiv.org/pdf/2309.17102)
+
+* ❗️ Task: Instruction-based editing
+* Expressive Instructions
+* Mostly inspired by GILL
+
+![](mgie_architecture.png)
+
+---
+
+## [Bagel (2025) ByteDance](https://arxiv.org/pdf/2505.14683)
+
+* ❗️ Tasks: Understanding, Editing, Style Transfer, ...
+* Thinking before Generation
+* Data
+* Qwen2.5 LLM
+* SigLIP2 Image Encoder
+* FLUX VAE
+
+
+![](bagel_architecture.webp)
+
+---
+
+## [Bagel (2025) ByteDance](https://arxiv.org/pdf/2505.14683)
+
+### Samples
+
+![](bagel_samples.png)
+
+---
+
+## LLM Image Generation / Editing
+
+* ✅ GILL
+* ✅ Mgie
+* ✅ Bagel
+
+---
+
+## LLM Image Generation / Editing
+
+### Metrics
+
+* Side-by-side User Study
+
+---
+
+## LLM Image Generation / Editing
+
+### Comparison TODO
+
+Image Generation (autoregressive / diffusion / vae)
 
 ---
 
@@ -281,6 +342,7 @@ https://vkvideo.ru/playlist/-210514085_1/video-210514085_456239093
 * [Обзор на русском от Максима мультимодальных подходов](https://github.com/ai-forever/fbc3_aij2023/blob/1f6cff327abe72d409fef8558558d46a7a588c2a/SOTA_SURVEY.md)
 * [Molmo](https://github.com/allenai/molmo) - VLLM от allenai с открытым кодом тренировки
 * [InternVL-2.5](https://internvl.github.io/blog/2024-12-05-InternVL-2.5/) - SOTA VLLM Image Encoder
+* [Malvina](https://habr.com/ru/companies/sberbank/articles/913802/) - как решают задачу pixel-perfect редактирования изображений в команде Gigachat
 
 ---
 
