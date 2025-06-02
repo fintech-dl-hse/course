@@ -389,8 +389,6 @@ Discrete Audio Representation for Causal Modeling (and/or audio compression)
 * Encodec (2022)
 * Mimi (2024)
 
-![](audio_codecs_scheme.drawio.png)
-
 ---
 
 ## [Encodec (2022)](https://arxiv.org/pdf/2210.13438)
@@ -461,10 +459,7 @@ Balancer
 * ✅ Encodec (2022)
 * Mimi (2024)
 
-![](audio_codecs_scheme.drawio.png)
-
 ---
-
 
 
 ## [Mimi (2024)](https://arxiv.org/pdf/2410.00037)
