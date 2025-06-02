@@ -155,11 +155,12 @@
 
 ## Understanding
 
-https://vkvideo.ru/playlist/-210514085_1/video-210514085_456239093
+* Early Fusion - Inputs Concatenation
+* Deep Fusion - Cross Attention
 
-* Late Fusion / Early Fusion / Deep Fusion
+![](fusion_types.png)
 
-Сравнение разных вериантов + примеры моделей , что в каком типе работает
+[Image Credit](https://vkvideo.ru/video-210514085_456239093?t=24m46s)
 
 ---
 
@@ -324,14 +325,6 @@ https://vkvideo.ru/playlist/-210514085_1/video-210514085_456239093
 ### Metrics
 
 * Side-by-side User Study
-
----
-
-## LLM Image Generation / Editing
-
-### Comparison TODO
-
-Image Generation (autoregressive / diffusion / vae)
 
 ---
 
