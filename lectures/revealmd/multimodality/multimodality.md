@@ -85,7 +85,7 @@
 
 ---
 
-## Image Generation
+## Image Generation (not LLM-based)
 
 * Dalle
 * Dalle2
@@ -95,16 +95,40 @@
 
 ## [Dalle (2021)](https://arxiv.org/abs/2102.12092)
 
+* Compress Image to Discrete Latent Space
+* Transformer Causal Modeling Of Text and Images
+
+![](dalle_dvae.png)
+
+
+---
+
+## [Dalle (2021)](https://arxiv.org/abs/2102.12092)
+
+* Compress Image to Discrete Latent Space
+* Transformer Causal Modeling Of Text and Images
+
+![](dalle_architecture.webp)
+
 
 ---
 
 ## [Dalle2 (2022)](https://arxiv.org/pdf/2204.06125)
+
+* Pretrained CLIP (Joint Embedding Space)
+* Prior Model for Text to Image embedding Transfer
+* Diffusion Decoder
+![](dalle2_architecture.png)
 
 
 ---
 
 ## [VAR (2024)](https://arxiv.org/pdf/2404.02905)
 
+* Visual Autoregressive Modeling via Next-Scale Prediction
+* VQVAE for Image Compression
+
+![](var_architecture.png)
 
 ---
 
@@ -121,7 +145,7 @@
 ## Questions
 
 * Dalle{1,2} differences❓
-* Dealing with complex image generation/understanding requests❓
+* How to teach LLMs to generate images❓
 
 ---
 
