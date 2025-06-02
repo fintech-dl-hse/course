@@ -738,5 +738,5 @@ Zero-shot Speech Generation Benchmarks.
 
 * Moshi overview SpeechInfo [\[1/2\]](https://t.me/speechinfo/36), [\[2/2\]](https://t.me/speechinfo/37)
 * [**Sesame Conversational Voice**](https://www.sesame.com/research/crossing_the_uncanny_valley_of_voice)
-* Audio Codecs (Mimi, )
+
 
