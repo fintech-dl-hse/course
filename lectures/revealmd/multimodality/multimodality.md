@@ -9,12 +9,7 @@
     }
 </style>
 
-
-# Image
-
----
-
-# Recap
+## Image Understanding (recap)
 
 * ViT
 * CLIP
@@ -22,19 +17,119 @@
 
 ---
 
-## No LLM - Based
+## [Vision Transformer (2021)](https://arxiv.org/pdf/2010.11929)
+
+* Patchify Image
+* Patch Linear Projection
+* Image Classification
+
+![](vit_architecture.png)
+
+---
+
+## [CLIP (2021)](https://arxiv.org/pdf/2103.00020)
+
+* ViT Image Encoder
+* Text Transformer
+* One vector for each image and text
+* Text-Image Contrastive Loss
+
+![](clip_architecture.png)
+
+---
+
+## [CLIP (2021)](https://arxiv.org/pdf/2103.00020)
+
+
+![](clip_pseudocode.png)
+
+---
+
+## [ImageBind (2023)](https://arxiv.org/pdf/2305.05665)
+
+* Mostly same as CLIP
+* More modalities supported
+
+![](imagebind_architecture.png)
+
+---
+
+## Comparison
+
+| Feature                | **Vision Transformer (ViT)** | **CLIP**         | **ImageBind**          |
+| ---------------------- | ---------------------------- | ---------------------- | ---------------------- |
+| **Training Objective** | Classification               | Image–text contrastive | Multimodal contrastive |
+| **Text Modality**      | ❌                            | ✅                      | ✅                      |
+| **Image Modality**     | ✅                            | ✅                      | ✅                      |
+| **Audio Modality**     | ❌                            | ❌                      | ✅                      |
+
+
+---
+
+## Image Understanding (recap)
+
+* ✅ ViT
+* ✅ CLIP
+* ✅ ImageBind
+
+---
+
+## Image Understanding
+
+### Questions
+
+* What advantages does the transformer architecture bring to image processing compared to CNNs❓
+* How does CLIP's ability to learn from natural language supervision make it more flexible than traditional image classification models❓
+* What is shared embedding space for different modalities❓
+
+
+---
+
+## Image Generation
+
 * Dalle
 * Dalle2
+* VAR
 
 ---
 
+## [Dalle (2021)](https://arxiv.org/abs/2102.12092)
 
-# Approaches LLM-based / no-llm-based / Function calling
 
 ---
 
+## [Dalle2 (2022)](https://arxiv.org/pdf/2204.06125)
 
-# Understanding
+
+---
+
+## [VAR (2024)](https://arxiv.org/pdf/2404.02905)
+
+
+---
+
+## Image Generation
+
+* ✅ Dalle - Autoregressive image generation
+
+* ✅ Dalle2 - Diffusion image generation
+
+* ✅ VAR - Visual Autoregressive Modeling via Next-Scale Prediction
+
+---
+
+## Questions
+
+* Dalle{1,2} differences❓
+* Dealing with complex image generation/understanding requests❓
+
+---
+
+## LLM-based Approaches
+
+---
+
+## Understanding
 
 https://vkvideo.ru/playlist/-210514085_1/video-210514085_456239093
 
@@ -52,10 +147,34 @@ https://vkvideo.ru/playlist/-210514085_1/video-210514085_456239093
 
 ---
 
+## Formage
+
+---
+
+## BLIP2
+
+---
+
+## Llava
+
+
+---
+
+## Flamingo
+
+
+---
+
+## LLM Image Understanding
+
+### Questions
+
+* Why **CLIP** ViT is utilized in most MLLM models❓
+* DeepFusion and Encoder-Decoder Transformer Difference❓
+
+---
 
 ## Generation / editing
-
-# https://vkvideo.ru/playlist/-210514085_1/video-210514085_456239089
 
 * GILL - https://github.com/kohjingyu/gill
 * Mgie - https://github.com/apple/ml-mgie
@@ -63,7 +182,60 @@ https://vkvideo.ru/playlist/-210514085_1/video-210514085_456239093
 
 ---
 
+## GILL
+
+
+---
+
+## Mgie
+
+
+---
+
+## Bagel
+
+---
+
+## Materials
+
+* [Елизавета Гончарова | Мультимодальные подходы и LLM](https://vkvideo.ru/playlist/-210514085_1/video-210514085_456239093)
+* [Максим Куркин | MLLMs](https://vkvideo.ru/playlist/-210514085_1/video-210514085_456239089)
+* [Обзор на русском от Максима мультимодальных подходов](https://github.com/ai-forever/fbc3_aij2023/blob/1f6cff327abe72d409fef8558558d46a7a588c2a/SOTA_SURVEY.md)
+* [Molmo](https://github.com/allenai/molmo) - VLLM от allenai с открытым кодом тренировки
+* [InternVL-2.5](https://internvl.github.io/blog/2024-12-05-InternVL-2.5/) - SOTA VLLM Image Encoder
+
+---
+
 # Audio Modality
+
+---
+
+## Audio Representations
+
+* Waveform
+* Mel-Spectrogram
+
+
+---
+
+## Waveform
+
+* Raw audio samples
+* Time series
+* Sample rate: 16kHz-48kHz
+
+![](waveform.gif)
+
+---
+
+## Mel-Spectrogram
+
+* Semantically compressed (but approximately same size in bytes as waveform)
+* Windowed Fourier Transform
+* Hop size = 10 ms (Time frames)
+* Mel bins = 40 to 128 (Frequency bins)
+
+![](melspectrogram.png)
 
 ---
 
