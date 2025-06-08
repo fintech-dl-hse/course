@@ -139,6 +139,8 @@ training_args = TrainingArguments(
 )
 ```
 
+<br/>
+
 ❓ Why do we need to save and even recompute activations at backward pass?
 
 ---
@@ -167,12 +169,12 @@ training_args = TrainingArguments(
 
 ---
 
-## 🍸 Automatic Mixed Precision
+### 🍸 Automatic Mixed Precision
 
 [**torch.amp**](https://docs.pytorch.org/docs/stable/amp.html)
 
 
-### CUDA Ops that can autocast to float16
+**CUDA Ops that can autocast to float16**
 ```
 __matmul__, addbmm, addmm, addmv, addr,baddbmm, bmm, chain_matmul,
 multi_dot, conv1d, conv2d, conv3d, conv_transpose1d,
@@ -181,7 +183,9 @@ matmul, mm, mv,
 ... and more
 ```
 
-### CUDA Ops that can autocast to float32
+<br/>
+
+**CUDA Ops that can autocast to float32**
 ```
 __pow__, __rdiv__, __rpow__, __rtruediv__,
 acos, asin, cosh,
@@ -197,7 +201,7 @@ norm, normalize,
 ## 🍸 Mixed Precision
 
 * `float32` vs `float16` vs `bfloat16` vs `int8`
-* Trade-offs: Precision, speed, hardware compatibility
+* Trade-offs: Precision, speed
 
 ![](tf32-bf16-fp16-fp32.png)
 
@@ -205,6 +209,7 @@ norm, normalize,
 
 ## 🍸 Mixed Precision
 
+<br/>
 
 ❗️ **Note:**
 * [bfloat16 issues](https://github.com/huggingface/transformers/issues/25420#issuecomment-1775317535) - **bf16** works worse than **fp16** for Llama3.1 models
@@ -266,12 +271,16 @@ for _ in tqdm(range(len(sorted_floats_optim) - 1)):
 
 ## 📈 Optimizers
 
+<br/>
+
 * Adafactor - memory efficient optimizer
 * 8-bit Adam - Keeps Quantized Weights in memory
 
 ---
 
 ## 📦 DataLoaders
+
+<br/>
 
 * `num_workers`
     * Disk IO bottlenecks
@@ -284,9 +293,11 @@ for _ in tqdm(range(len(sorted_floats_optim) - 1)):
 
 ## ∅torch_empty_cache_steps
 
+<br/>
+
 * 💾 Saves memory by clearing CUDA cache
 * ❗️ Slows down training (up to 2x)
-* ❓ Why it slows down?
+* Why it slows down❓
 
 ```
 training_args = TrainingArguments(
@@ -298,6 +309,8 @@ training_args = TrainingArguments(
 ---
 
 ## ⚒️ torch.compile
+
+<br/>
 
 **JIT** - Just-In-Time compilation
 
@@ -313,6 +326,8 @@ training_args = TrainingArguments(
 
 ## ⚒️ torch.compile
 
+<br/>
+
 **Pros:**
 * ✅ Reduces GPU memory usage (why❓)
 * ✅ Speeds up training
@@ -325,6 +340,7 @@ training_args = TrainingArguments(
 
 ## ⚒️ torch.compile
 
+<br/>
 
 **[torch.compile](https://docs.pytorch.org/tutorials/intermediate/torch_compile_tutorial.html)**
 ```python
@@ -344,7 +360,6 @@ training_args = TrainingArguments(
 ## ⚒️ torch.compile
 
 <br/>
-<br/>
 
 ### Resources:
 
@@ -356,6 +371,8 @@ training_args = TrainingArguments(
 
 ## 🔖 PEFT
 
+<br/>
+
 * [Soft Prompts](https://huggingface.co/docs/peft/conceptual_guides/prompting)
 * [LoRA](https://huggingface.co/docs/peft/conceptual_guides/adapter)
 
@@ -363,6 +380,8 @@ training_args = TrainingArguments(
 ---
 
 ## 🔖 [PEFT: Soft Prompts](https://huggingface.co/docs/peft/conceptual_guides/prompting)
+
+<br/>
 
 | Feature                         | Prompt Tuning         | Prefix Tuning               | P-Tuning                             |
 | ------------------------------- | --------------------- | --------------------------- | -------------------------------------- |
@@ -373,12 +392,16 @@ training_args = TrainingArguments(
 
 ## 🔖 [PEFT: Soft Prompts](https://huggingface.co/docs/peft/conceptual_guides/prompting)
 
+<br/>
+
 * What is the difference between Soft Prompt and Hard Prompt❓
 * Why do we need MLP or LSTM over Soft Tokens❓
 
 ---
 
 ## 🔖 [PEFT: LoRA](https://huggingface.co/docs/peft/conceptual_guides/adapter)
+
+<br/>
 
 **Idea:**
 * Add trainable shift for MLPs output
@@ -391,6 +414,8 @@ training_args = TrainingArguments(
 
 ## 🛑 Implementation Efficiency
 
+<br/>
+
 > The first rule of optimization: **<span style="color:red;">Don't do it</span>**
 
 
@@ -398,6 +423,8 @@ training_args = TrainingArguments(
 ---
 
 ## 🛑 Implementation Efficiency
+
+<br/>
 
 > The first rule of optimization: **<span style="color:red;">Don't do it</span>**
 
@@ -502,55 +529,141 @@ print(f"Time taken: {end_time - start_time} seconds")
 
 ## CUDA Architecture
 
+<br/>
+
+* Grid > Block > Thread
+
+![](./cuda_arch.png)
+
+
+---
+
+## CUDA Architecture
+
+
+<br/>
+
+
+| Level      | What It Is           | Can Communicate?            |
+| ---------- | -------------------- | --------------------------- |
+| **Thread** | Basic execution unit | With other threads in block |
+| **Block**  | Group of threads     | Within the block only       |
+| **Grid**   | Group of blocks      | No direct communication     |
+
+**Resources:**
+* [**CUDA Programming Guide**](https://docs.nvidia.com/cuda/cuda-c-programming-guide/)
+* [**GPU Compute and Memory Architecture**](https://0mean1sigma.com/chapter-3-gpu-compute-and-memory-architecture/)
+
+---
+
+## CUDA Memory Hierarchy
+
+<br/>
+
+* Off-chip memory
+* On-chip memory
+
+
+![](./cuda_arch.png)
 
 
 ---
 
 ## CUDA Memory Hierarchy
 
+### Off-chip memory
+
+| Memory Type         | Size | Latency / Bandwidth         | Notes                                                      |
+| ------------------- | ---- | ------------------------------- | --------------------------- | ---------------------------------------------------------- |
+| **Global Memory**   | \~80 GB    | High latency, low bandwidth | Main memory for large data; read/write by all              |
+| **Local Memory**    | Per-thread | High latency                | Private memory space for a thread; stored in global memory |
+| **Constant Memory** | \~64 KB  | Low latency, high bandwidth | Read-only on GPU, optimized via cache                      |
+
+
 ---
 
+## CUDA Memory Hierarchy
+
+### On-chip memory
+
+| Memory Type       | Size (typical) | Latency / Bandwidth         | Notes                                           |
+| ----------------- | ----------------------- | --------------------------- | ----------------------------------------------- |
+| **Shared Memory** | \~16 KB / SM   | Low latency, high bandwidth | Enables inter-thread communication in a block   |
+| **Registers**     | \~8 KB / SM   | Very low latency            | Fastest memory; used for thread-local variables |
+
+---
+
+## CUDA Memory Hierarchy
+
+<br/>
+
+* How should we use this knowledge❓
+* Is there any parallels with CPU memory hierarchy❓
+
+---
+
+## CUDA Memory Hierarchy
+
+### Outlines
+
+* **Off-chip memory** → larger but slower.
+* **On-chip memory** → faster but very limited.
+* **Shared memory** allows collaboration within a block, while **global memory** is accessible across blocks.
+
+
+---
 
 ## CUDA Kernel Life Cycle
 
----
+<br/>
 
-## CUDA Kernel fusion
-
----
-
-## CUDA kernels with Triton
-
----
-
-## CUDA kernels with C++/CUDA
-
----
+| Stage                     | Where it Happens | Output Format  |
+| ------------------------- | ---------------- | -------------- |
+| Writing Kernel Code       | Developer (CPU)  | `.cu` file     |
+| Compiling                 | CPU              | Host obj + PTX |
+| Loading                   | CPU → GPU        | PTX/SASS       |
+| Execution                 | GPU              | Running kernel |
+| Data Handling             | CPU ↔ GPU        | Raw memory     |
 
 
 ---
 
-## Outline
+## CUDA Kernel Fusion
 
-* TODO
+<br/>
+
+What is kernel fusion❓
+<br/>
+<br/>
+
+**Original:**
+```c
+__global__ void kernelA(...) {  }
+__global__ void kernelB(...) { ... }
+```
+
+**Fused:**
+```c
+__global__ void fusedKernel(...) {
+    // do A's work
+    // do B's work
+}
+```
+
 
 ---
 
-## 💬 Wrap-Up & Discussion
+## CUDA Kernel Fusion
 
-### Key Questions:
+<br/>
 
-* Which optimization gave the biggest improvement?
-* When is quantization “worth it”?
-* Where is the “easy win” vs “hard engineering”?
-
-### Deliverables (Optional):
-
-* Mini-report or notebook summarizing profiling results and optimizations.
-* Group discussion on what trade-offs made the biggest impact.
+| Benefit                      | Explanation                            |
+| ---------------------------- | -------------------------------------- |
+| Less kernel launch overhead  | Reduces CPU-GPU sync and setup time    |
+| Better memory locality       | Intermediate data kept in fast memory  |
+| Less global memory traffic   | Avoids slow reads/writes to DRAM       |
 
 ---
-
 
 ## 😢 Out of scope:
 
