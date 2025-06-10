@@ -17,11 +17,15 @@ format: revealjs
 
 ## ⚡️ Efficiency
 
+<br/>
+
+
 ## 🎯 **Goals**
 
-<!-- * Understand different number formats and their trade-offs.
-* Gain hands-on experience optimizing model training for speed and resource use.
-* Learn to profile, analyze, and improve model implementation and data pipelines. -->
+* Learn practical approaches to improve training speed and efficiency
+* Understand CUDA architecture fundamentals and memory hierarchy
+* Master GPU memory management and optimization techniques
+
 
 ---
 
@@ -64,13 +68,17 @@ format: revealjs
 | batch size | ✅ | ✅ |
 | gradient accumulation | ❌ | ✅ |
 | gradient checkpointing | ❌ | ✅ |
-| mixed precision | ✅ | ❌✅ |
+| mixed precision | ✅❗️ | ❌✅ |
 | optimizers | ✅ | ✅ |
 | data preloading | ✅ | ❌ |
 | torch_empty_cache_steps | ❌ | ✅ |
 | torch.compile | ✅ | ❌ |
 | PEFT | ❌ | ✅ |
 | Efficient kernels| ✅ | ✅ |
+
+---
+
+## 1️⃣ Single-GPU Training
 
 </br>
 
@@ -407,6 +415,13 @@ training_args = TrainingArguments(
 * Add trainable shift for MLPs output
 * Trainable params should be small
 
+---
+
+## 🔖 [PEFT: LoRA](https://huggingface.co/docs/peft/conceptual_guides/adapter)
+
+<br/>
+
+
 ![](lora_animated.gif)
 
 
@@ -484,7 +499,6 @@ Still think you need to write C++/CUDA code❓
 
 ![async_cuda.drawio](async_cuda.drawio.png)
 
-<br/>
 
 **Resources:**
 * [Asynchronous Execution (Torch Docs)](https://docs.pytorch.org/docs/stable/notes/cuda.html#asynchronous-execution)
