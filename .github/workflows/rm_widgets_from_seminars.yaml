@@ -1,4 +1,4 @@
-name: Deploy Handbook
+name: Remove widgets from seminars
 
 on:
   push:
