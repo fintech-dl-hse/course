@@ -20,7 +20,7 @@ jobs:
           persist-credentials: false
 
       - name: Remove widgets from seminars
-        run: ./seminars/rm_widgets.sh
+        run: bash ./seminars/rm_widgets.sh
 
       - name: Configure Git
         run: |
