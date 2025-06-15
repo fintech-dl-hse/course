@@ -1,0 +1,38 @@
+name: Deploy Handbook
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - seminars/**
+
+jobs:
+  rm-widgets:
+    name: 'Build handbook'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Remove widgets from seminars
+        run: ./seminars/rm_widgets.sh
+
+      - name: Configure Git
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+      - name: Commit changes
+        run: git add ./seminars && git commit -m "Remove widgets from seminars" || exit 0
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
+
