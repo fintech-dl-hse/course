@@ -1,5 +1,6 @@
 from __future__ import annotations
 import copy
+from collections import defaultdict
 from manim_imports_ext import *
 from _2024.transformers.helpers import *
 from _2024.transformers.embedding import break_into_words
@@ -260,7 +261,7 @@ class SequenceAttentionComputationsNoKVCache(InteractiveScene, CommonFixture):
         self.wait()
 
         generation_step = 1
-
+        arrow_counts = defaultdict(int)
         for word_i in range(prefix_words, len(words_mobs)):
             generation_step_mob = self.generation_step_mob(generation_step)
             generation_step_mob.align_to(mode_no_kv_cache, DOWN + LEFT)
@@ -272,14 +273,20 @@ class SequenceAttentionComputationsNoKVCache(InteractiveScene, CommonFixture):
             arrows = []
             for word_to_arrow in range(word_i+1):
                 for word_from_arrow in range(word_to_arrow):
+                    key = (word_from_arrow, word_to_arrow)
+                    current_count = arrow_counts[key] + 1
+                    # Map count 1 -> WHITE, 5+ -> RED_E linearly
+                    t = min(max((current_count - 1) / 4.0, 0.0), 1.0)
+                    color = interpolate_color(BLUE_B, RED_E, t)
                     arrow = Arrow(
                         words_mobs[word_from_arrow].get_top(), words_mobs[word_to_arrow].get_top(),
-                        path_arc=-150 * DEGREES, buff=0.1, stroke_color=GREY_B,
+                        path_arc=-150 * DEGREES, buff=0.1, stroke_color=color,
                         thickness=1.5,
-                        fill_opacity=0.3,
-                        fill_color=RED_E,
+                        fill_opacity=1.0,
+                        fill_color=color,
                     )
                     arrows.append(arrow)
+                    arrow_counts[key] = current_count
 
             print(len(arrows), 'word_i', word_i)
             self.add(rect, generation_step_mob)
