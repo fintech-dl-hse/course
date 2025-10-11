@@ -164,6 +164,8 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
 
         generation_step = 1
 
+        prefix_words_mobs = []
+
 
         for word_i in range(prefix_words, len(words_mobs)):
             generation_step_mob = self.generation_step_mob(generation_step)
@@ -177,13 +179,15 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
 
             self.add(rect, generation_step_mob)
             self.play(FlashAround(generation_step_mob[str(generation_step)]))
-            self.play(Write(generated_word, stroke_color=BLUE_B))
+            self.play(Transform(prefix_words_mobs, generated_word))
             self.wait()
 
             self.play(Transform(generated_word, word_mob))
             self.add(word_mob)
             generation_step_mob.clear()
             generation_step += 1
+
+            prefix_words_mobs.append(word_mob)
 
             generated_word.clear()
 
