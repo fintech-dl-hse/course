@@ -160,7 +160,6 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
         self.add(VGroup(*all_rects[:prefix_words]))
         self.add(text_mob[:display_characters])
         self.add(recap_mob)
-        self.wait()
 
         generation_step = 1
 
@@ -178,13 +177,29 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
             generated_word = generated_words_mobs[word_i]
 
             self.add(rect, generation_step_mob)
-            self.play(FlashAround(generation_step_mob[str(generation_step)]))
 
             prefix_words_mobs_group = VGroup(*copy.deepcopy(prefix_words_mobs))
-            self.play(Transform(prefix_words_mobs_group, generated_word))
-            self.wait()
 
-            self.play(Transform(generated_word, word_mob))
+            blocks = machine[0]
+            self.play(
+                FlashAround(generation_step_mob[str(generation_step)], run_time=0.5),
+                Transform(prefix_words_mobs_group, generated_word, run_time=0.5),
+                LaggedStart(
+                    (
+                        block.animate.set_color(
+                            block.get_color() if block is blocks[-1] else TEAL
+                        ).set_anim_args(rate_func=there_and_back)
+                        for block in blocks
+                    ),
+                    lag_ratio=0.1,
+                    run_time=0.5,
+                ),
+                Animation(machine[1:]),
+            )
+            self.wait(0.1)
+
+            self.play(Transform(generated_word, word_mob, run_time=0.5))
+
             self.add(word_mob)
             generation_step_mob.clear()
             generation_step += 1
