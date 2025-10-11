@@ -33,7 +33,7 @@ from _2024.transformers.embedding import get_piece_rectangles
 #
 
 
-class KVCache(InteractiveScene):
+class SimpleAutoregressiveGeneration(InteractiveScene):
 
     def create_word_rect(self, word_mob, text_height=None, text_y=None):
 
@@ -54,8 +54,15 @@ class KVCache(InteractiveScene):
 
     def construct(self):
         # Add sentence
+        recap_mob = Text(
+            "Recap:\nАвторегрессивная генерация.\nНа каждом шаге трансформер\nна вход получает предыдущие токены\nи генерирует один новый токен.",
+            font_size=20,
+            alignment='LEFT',
+        )
+        recap_mob.to_corner(LEFT + UP).fix_in_frame()
+
         text = "The cat sat on the mat."
-        text_mob = Text(text, font_size=30).move_to(2 * UP)
+        text_mob = Text(text, font_size=30, fill_color=BLUE_A).move_to(2 * UP)
 
         prefix_words = 2
         display_characters = sum(len(word) for word in text.split(" ")[:prefix_words])
@@ -82,6 +89,7 @@ class KVCache(InteractiveScene):
 
         self.add(VGroup(*all_rects[:prefix_words]))
         self.add(text_mob[:display_characters])
+        self.add(recap_mob)
         self.wait()
 
         for word_i in range(prefix_words, len(words_mobs)):
