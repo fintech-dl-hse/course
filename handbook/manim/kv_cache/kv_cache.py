@@ -170,7 +170,7 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
         for word_i in range(prefix_words, len(words_mobs)):
             generation_step_mob = self.generation_step_mob(generation_step)
             generation_step_mob.align_to(recap_mob, DOWN + LEFT)
-            generation_step_mob.shift(generation_step_mob.get_height() * 3 * DOWN)
+            generation_step_mob.shift(generation_step_mob.get_height() * 2 * DOWN)
 
             word_mob = words_mobs[word_i]
             rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y)
