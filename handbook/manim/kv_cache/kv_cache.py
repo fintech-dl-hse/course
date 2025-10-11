@@ -52,19 +52,27 @@ class SimpleAutoregressiveGeneration(InteractiveScene):
         rect.set_fill(GREY, 0.25)
         return rect
 
+    def generation_step_mob(self, generation_step):
+        return Text(
+            f"Шаг генерации: {generation_step}",
+            font_size=20,
+            alignment='LEFT',
+            fill_color=GREEN_A,
+        )
+
     def construct(self):
         # Add sentence
         recap_mob = Text(
-            "Recap:\nАвторегрессивная генерация.\nНа каждом шаге трансформер\nна вход получает предыдущие токены\nи генерирует один новый токен.",
+            "Авторегрессивная генерация.\n\nНа каждом шаге трансформер\nна вход получает предыдущие токены\nи генерирует один новый токен.",
             font_size=20,
             alignment='LEFT',
         )
         recap_mob.to_corner(LEFT + UP).fix_in_frame()
 
         text = "The cat sat on the mat."
-        text_mob = Text(text, font_size=30, fill_color=BLUE_A).move_to(2 * UP)
+        text_mob = Text(text, font_size=30, fill_color=BLUE_A)
 
-        prefix_words = 2
+        prefix_words = 1
         display_characters = sum(len(word) for word in text.split(" ")[:prefix_words])
 
         full_text_height = text_mob.get_height()
@@ -92,7 +100,15 @@ class SimpleAutoregressiveGeneration(InteractiveScene):
         self.add(recap_mob)
         self.wait()
 
+
+        generation_step = 1
+
+
         for word_i in range(prefix_words, len(words_mobs)):
+            generation_step_mob = self.generation_step_mob(generation_step)
+            generation_step_mob.align_to(recap_mob, DOWN + LEFT)
+            generation_step_mob.shift(generation_step_mob.get_height() * 2 * DOWN)
+
             word_mob = words_mobs[word_i]
             rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y)
 
@@ -106,10 +122,13 @@ class SimpleAutoregressiveGeneration(InteractiveScene):
                 for i in range(word_i)
             )
 
-            self.add(rect, adj_arrows)
+            self.add(rect, adj_arrows, generation_step_mob)
             self.play(Write(word_mob, stroke_color=BLUE_B))
             self.wait()
 
             adj_arrows.clear()
+
+            generation_step_mob.clear()
+            generation_step += 1
 
         self.wait()
