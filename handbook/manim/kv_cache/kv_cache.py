@@ -48,6 +48,7 @@ class KVCache(InteractiveScene):
 
         # Create word rects
 
+        # TODO add animation update func? Or explicitly draw boxes on next tokens generation.
         processed_letters = 0
         words = text.split(" ")
         all_rects = []
@@ -57,11 +58,11 @@ class KVCache(InteractiveScene):
             rect = SurroundingRectangle(word_mob)
             processed_letters += word_len
 
-            # rect.set_height(word_mob.get_height() + SMALL_BUFF, stretch=True)
-            # rect.set_width(word_mob.get_width() - SMALL_BUFF, stretch=True)
+            rect.set_height(text_mob.get_height() + SMALL_BUFF, stretch=True)
+            rect.set_width(word_mob.get_width() + (SMALL_BUFF / 5), stretch=True)
             rect.match_y(text_mob)
-            rect.set_stroke(GREY, 2)
-            rect.set_fill(GREY, 0.2)
+            rect.set_stroke(GREY, 1)
+            rect.set_fill(GREY, 0.25)
             all_rects.append(rect)
 
         self.add(VGroup(*all_rects[:prefix_words]))
