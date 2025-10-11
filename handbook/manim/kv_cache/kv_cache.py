@@ -54,7 +54,7 @@ class SimpleAutoregressiveGeneration(InteractiveScene):
 
     def generation_step_mob(self, generation_step):
         return Text(
-            f"Шаг генерации: {generation_step}",
+            f"Generation step: {generation_step}",
             font_size=20,
             alignment='LEFT',
             fill_color=GREEN_A,
@@ -63,7 +63,7 @@ class SimpleAutoregressiveGeneration(InteractiveScene):
     def construct(self):
         # Add sentence
         recap_mob = Text(
-            "Авторегрессивная генерация.\n\nНа каждом шаге трансформер\nна вход получает предыдущие токены\nи генерирует один новый токен.",
+            "Autoregressive generation.",
             font_size=20,
             alignment='LEFT',
         )
@@ -100,9 +100,7 @@ class SimpleAutoregressiveGeneration(InteractiveScene):
         self.add(recap_mob)
         self.wait()
 
-
         generation_step = 1
-
 
         for word_i in range(prefix_words, len(words_mobs)):
             generation_step_mob = self.generation_step_mob(generation_step)
