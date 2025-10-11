@@ -32,12 +32,7 @@ from _2024.transformers.embedding import get_piece_rectangles
 #     - TODO посчитать график для 3B, 8B модели
 #
 
-
-class SimpleAutoregressiveGeneration(InteractiveScene):
-
-    machine_name = "Transformer"
-    machine_phi = 10 * DEGREES
-    machine_theta = 12 * DEGREES
+class CommonFixture:
 
     def create_word_rect(self, word_mob, text_height=None, text_y=None):
 
@@ -63,6 +58,14 @@ class SimpleAutoregressiveGeneration(InteractiveScene):
             alignment='LEFT',
             fill_color=GREEN_A,
         )
+
+
+
+class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
+
+    machine_name = "Transformer"
+    machine_phi = 10 * DEGREES
+    machine_theta = 12 * DEGREES
 
     def get_transformer_drawing(self):
         self.camera.light_source.move_to([-5, 5, 10])
@@ -145,6 +148,83 @@ class SimpleAutoregressiveGeneration(InteractiveScene):
 
         self.add(machine)
         self.add(VGroup(*all_rects[:prefix_words]))
+        self.add(text_mob[:display_characters])
+        self.add(recap_mob)
+        self.wait()
+
+        generation_step = 1
+
+        for word_i in range(prefix_words, len(words_mobs)):
+            generation_step_mob = self.generation_step_mob(generation_step)
+            generation_step_mob.align_to(recap_mob, DOWN + LEFT)
+            generation_step_mob.shift(generation_step_mob.get_height() * 3 * DOWN)
+
+            word_mob = words_mobs[word_i]
+            rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y)
+
+            adj_arrows = VGroup(
+                Arrow(
+                    words_mobs[i].get_top(), word_mob.get_top(),
+                    path_arc=-150 * DEGREES, buff=0.1, stroke_color=GREY_B,
+                    thickness=1.0,
+
+                )
+                for i in range(word_i)
+            )
+
+            self.add(rect, adj_arrows, generation_step_mob)
+            self.play(Write(word_mob, stroke_color=BLUE_B))
+            self.wait()
+
+            adj_arrows.clear()
+
+            generation_step_mob.clear()
+            generation_step += 1
+
+        self.wait()
+
+
+class SequenceAttentionComputations(InteractiveScene, CommonFixture):
+
+    def construct(self):
+
+        # Add sentence
+        recap_mob = Text(
+            "Autoregressive generation.",
+            font_size=30,
+            alignment='LEFT',
+        )
+        recap_mob.to_corner(LEFT + UP).fix_in_frame()
+
+        text = "The cat sat on the mat."
+        text_mob = Text(text, font_size=30, fill_color=BLUE_A)
+
+        text_mob.shift(text_mob.get_height() * 2 * DOWN)
+
+        prefix_words = 1
+        display_characters = sum(len(word) for word in text.split(" ")[:prefix_words])
+
+        full_text_height = text_mob.get_height()
+        full_text_y = text_mob.get_y()
+
+        # Create word rects
+        processed_letters = 0
+        words = text.split(" ")
+        all_rects = []
+        words_mobs = []
+        for word_i, word in enumerate(words):
+            word_len = len(word)
+            word_mob = text_mob[processed_letters:processed_letters + word_len]
+            words_mobs.append(word_mob)
+            processed_letters += word_len
+
+            if word_i >= prefix_words:
+                continue
+
+            rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y)
+            all_rects.append(rect)
+
+
         self.add(text_mob[:display_characters])
         self.add(recap_mob)
         self.wait()
