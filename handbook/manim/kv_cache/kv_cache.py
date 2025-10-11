@@ -35,6 +35,23 @@ from _2024.transformers.embedding import get_piece_rectangles
 
 class KVCache(InteractiveScene):
 
+    def create_word_rect(self, word_mob, text_height=None, text_y=None):
+
+        rect = SurroundingRectangle(word_mob)
+
+        if text_height is None:
+            text_height = word_mob.get_height()
+
+        if text_y is None:
+            text_y = word_mob.get_y()
+
+        rect.set_height(text_height + SMALL_BUFF, stretch=True)
+        rect.set_width(word_mob.get_width() + SMALL_BUFF, stretch=True)
+        rect.set_y(text_y)
+        rect.set_stroke(GREY, 1)
+        rect.set_fill(GREY, 0.25)
+        return rect
+
     def construct(self):
         # Add sentence
         text = "The cat sat on the mat."
@@ -42,6 +59,9 @@ class KVCache(InteractiveScene):
 
         prefix_words = 2
         display_characters = sum(len(word) for word in text.split(" ")[:prefix_words])
+
+        full_text_height = text_mob.get_height()
+        full_text_y = text_mob.get_y()
 
         # Create word rects
         processed_letters = 0
@@ -57,32 +77,23 @@ class KVCache(InteractiveScene):
             if word_i >= prefix_words:
                 continue
 
-            rect = SurroundingRectangle(word_mob)
-            rect.set_height(text_mob.get_height() + SMALL_BUFF, stretch=True)
-            rect.set_width(word_mob.get_width() + (SMALL_BUFF / 5), stretch=True)
-            rect.match_y(text_mob)
-            rect.set_stroke(GREY, 1)
-            rect.set_fill(GREY, 0.25)
+            rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y)
             all_rects.append(rect)
 
         self.add(VGroup(*all_rects[:prefix_words]))
-        self.play(Write(text_mob[:display_characters], stroke_color=BLUE_B))
+        self.add(text_mob[:display_characters])
         self.wait()
 
         for word_i in range(prefix_words, len(words_mobs)):
             word_mob = words_mobs[word_i]
-            rect = SurroundingRectangle(word_mob)
-            rect.set_height(word_mob.get_height() + SMALL_BUFF, stretch=True)
-            rect.set_width(word_mob.get_width() + (SMALL_BUFF / 2), stretch=True)
-            rect.match_y(word_mob)
-            rect.set_stroke(GREY, 1)
-            rect.set_fill(GREY, 0.25)
+            rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y)
 
             adj_arrows = VGroup(
                 Arrow(
                     words_mobs[i].get_top(), word_mob.get_top(),
                     path_arc=-150 * DEGREES, buff=0.1, stroke_color=GREY_B,
-                    thickness=1.0
+                    thickness=1.0,
+
                 )
                 for i in range(word_i)
             )
