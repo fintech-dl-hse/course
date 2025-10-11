@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import copy
 from manim_imports_ext import *
 from _2024.transformers.helpers import *
 from _2024.transformers.embedding import break_into_words
@@ -164,7 +164,7 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
 
         generation_step = 1
 
-        prefix_words_mobs = []
+        prefix_words_mobs = copy.deepcopy(words_mobs[:prefix_words])
 
 
         for word_i in range(prefix_words, len(words_mobs)):
@@ -179,7 +179,9 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
 
             self.add(rect, generation_step_mob)
             self.play(FlashAround(generation_step_mob[str(generation_step)]))
-            self.play(Transform(prefix_words_mobs, generated_word))
+
+            prefix_words_mobs_group = VGroup(*copy.deepcopy(prefix_words_mobs))
+            self.play(Transform(prefix_words_mobs_group, generated_word))
             self.wait()
 
             self.play(Transform(generated_word, word_mob))
@@ -190,6 +192,7 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
             prefix_words_mobs.append(word_mob)
 
             generated_word.clear()
+            prefix_words_mobs_group.clear()
 
         self.wait()
 
