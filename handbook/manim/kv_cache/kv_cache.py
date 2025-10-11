@@ -118,9 +118,14 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
 
         text = "The cat sat on the mat."
         text_mob = Text(text, font_size=30, fill_color=BLUE_A)
-
         text_mob.align_to(machine, DOWN)
         text_mob.shift(text_mob.get_height() * 3 * DOWN)
+
+        generated_text = "The cat sat on the mat."
+        generated_text_mob = Text(text, font_size=30, fill_color=BLUE_A)
+        generated_text_mob.align_to(machine, UP)
+        generated_text_mob.shift(generated_text_mob.get_height() * 3 * UP)
+
 
         prefix_words = 1
         display_characters = sum(len(word) for word in text.split(" ")[:prefix_words])
@@ -133,11 +138,16 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
         words = text.split(" ")
         all_rects = []
         words_mobs = []
+        generated_words_mobs = []
         for word_i, word in enumerate(words):
             word_len = len(word)
             word_mob = text_mob[processed_letters:processed_letters + word_len]
             words_mobs.append(word_mob)
+
+            generated_words_mobs.append(generated_text_mob[processed_letters:processed_letters + word_len])
+
             processed_letters += word_len
+
 
             if word_i >= prefix_words:
                 continue
@@ -154,6 +164,7 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
 
         generation_step = 1
 
+
         for word_i in range(prefix_words, len(words_mobs)):
             generation_step_mob = self.generation_step_mob(generation_step)
             generation_step_mob.align_to(recap_mob, DOWN + LEFT)
@@ -162,24 +173,18 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
             word_mob = words_mobs[word_i]
             rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y)
 
-            adj_arrows = VGroup(
-                Arrow(
-                    words_mobs[i].get_top(), word_mob.get_top(),
-                    path_arc=-150 * DEGREES, buff=0.1, stroke_color=GREY_B,
-                    thickness=1.0,
+            generated_word = generated_words_mobs[word_i]
 
-                )
-                for i in range(word_i)
-            )
-
-            self.add(rect, adj_arrows, generation_step_mob)
-            self.play(Write(word_mob, stroke_color=BLUE_B))
+            self.add(rect, generation_step_mob)
+            self.play(Write(generated_word, stroke_color=BLUE_B))
             self.wait()
 
-            adj_arrows.clear()
-
+            self.play(Transform(generated_word, word_mob))
+            self.add(word_mob)
             generation_step_mob.clear()
             generation_step += 1
+
+            generated_word.clear()
 
         self.wait()
 
