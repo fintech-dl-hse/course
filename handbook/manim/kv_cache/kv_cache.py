@@ -176,6 +176,7 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
             generated_word = generated_words_mobs[word_i]
 
             self.add(rect, generation_step_mob)
+            self.play(FlashAround(generation_step_mob[str(generation_step)]))
             self.play(Write(generated_word, stroke_color=BLUE_B))
             self.wait()
 
