@@ -35,6 +35,10 @@ from _2024.transformers.embedding import get_piece_rectangles
 
 class SimpleAutoregressiveGeneration(InteractiveScene):
 
+    machine_name = "Transformer"
+    machine_phi = 10 * DEGREES
+    machine_theta = 12 * DEGREES
+
     def create_word_rect(self, word_mob, text_height=None, text_y=None):
 
         rect = SurroundingRectangle(word_mob)
@@ -55,22 +59,65 @@ class SimpleAutoregressiveGeneration(InteractiveScene):
     def generation_step_mob(self, generation_step):
         return Text(
             f"Generation step: {generation_step}",
-            font_size=20,
+            font_size=30,
             alignment='LEFT',
             fill_color=GREEN_A,
         )
+
+    def get_transformer_drawing(self):
+        self.camera.light_source.move_to([-5, 5, 10])
+        self.frame.set_field_of_view(20 * DEGREES)
+        blocks = VGroup(
+            VPrism(3, 2, 0.2)
+            for n in range(4)
+        )
+        blocks.set_fill(PURPLE_E, 1)
+        blocks.set_stroke(width=0)
+        blocks.set_shading(0.25, 0.5, 0.2)
+        blocks.arrange(OUT)
+        blocks.move_to(ORIGIN, OUT)
+        blocks.rotate(self.machine_phi, RIGHT, about_edge=OUT)
+        blocks.rotate(self.machine_theta, UP, about_edge=OUT)
+
+        blocks.deactivate_depth_test()
+        for block in blocks:
+            block.sort(lambda p: p[2])
+
+        word = Text(self.machine_name, alignment="LEFT")
+        word.next_to(blocks[-1], UP)
+        word.shift(0.1 * UP + 0.4 * LEFT)
+        word.move_to(blocks[-1])
+        word.set_backstroke(BLACK, 5)
+        out_arrow = Vector(
+            0.5 * RIGHT, stroke_width=10,
+            max_tip_length_to_length_ratio=0.5,
+            max_width_to_length_ratio=12
+        )
+        out_arrow.next_to(blocks[-1], RIGHT, buff=SMALL_BUFF)
+        out_arrow.set_opacity(0)
+
+        result = VGroup(blocks, word, out_arrow)
+        return result
+
 
     def construct(self):
         # Add sentence
         recap_mob = Text(
             "Autoregressive generation.",
-            font_size=20,
+            font_size=30,
             alignment='LEFT',
         )
         recap_mob.to_corner(LEFT + UP).fix_in_frame()
 
+        machine = self.get_transformer_drawing()
+        machine.center()
+        machine.shift(RIGHT * 0.2)
+
         text = "The cat sat on the mat."
         text_mob = Text(text, font_size=30, fill_color=BLUE_A)
+
+        text_mob.align_to(machine, DOWN)
+        text_mob.shift(text_mob.get_height() * 3 * DOWN)
 
         prefix_words = 1
         display_characters = sum(len(word) for word in text.split(" ")[:prefix_words])
@@ -95,6 +142,8 @@ class SimpleAutoregressiveGeneration(InteractiveScene):
             rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y)
             all_rects.append(rect)
 
+
+        self.add(machine)
         self.add(VGroup(*all_rects[:prefix_words]))
         self.add(text_mob[:display_characters])
         self.add(recap_mob)
@@ -105,7 +154,7 @@ class SimpleAutoregressiveGeneration(InteractiveScene):
         for word_i in range(prefix_words, len(words_mobs)):
             generation_step_mob = self.generation_step_mob(generation_step)
             generation_step_mob.align_to(recap_mob, DOWN + LEFT)
-            generation_step_mob.shift(generation_step_mob.get_height() * 2 * DOWN)
+            generation_step_mob.shift(generation_step_mob.get_height() * 3 * DOWN)
 
             word_mob = words_mobs[word_i]
             rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y)
