@@ -282,13 +282,100 @@ class SequenceAttentionComputationsNoKVCache(InteractiveScene, CommonFixture):
                         words_mobs[word_from_arrow].get_top(), words_mobs[word_to_arrow].get_top(),
                         path_arc=-150 * DEGREES, buff=0.1, stroke_color=color,
                         thickness=1.5,
-                        fill_opacity=1.0,
+                        fill_opacity=0.9,
                         fill_color=color,
                     )
                     arrows.append(arrow)
                     arrow_counts[key] = current_count
 
-            print(len(arrows), 'word_i', word_i)
+            self.add(rect, generation_step_mob)
+            self.play(
+                *[GrowArrow(arrow) for arrow in arrows],
+                Write(word_mob, stroke_color=BLUE_B)
+            )
+            self.wait()
+
+            generation_step_mob.clear()
+            generation_step += 1
+
+        self.wait()
+
+
+class SequenceAttentionComputationsWithKVCache(InteractiveScene, CommonFixture):
+
+    def construct(self):
+
+        # Add sentence
+        mode_with_kv_cache = Text(
+            "With KV Cache",
+            font_size=30,
+            alignment='LEFT',
+            fill_color=GREEN_E,
+        )
+        mode_with_kv_cache.to_corner(LEFT + UP).fix_in_frame()
+
+        text = "The cat sat on the mat."
+        text_mob = Text(text, font_size=30, fill_color=BLUE_A)
+
+        text_mob.align_to(mode_with_kv_cache, DOWN + LEFT)
+        text_mob.shift(text_mob.get_height() * 12 * DOWN)
+
+        prefix_words = 1
+        display_characters = sum(len(word) for word in text.split(" ")[:prefix_words])
+
+        full_text_height = text_mob.get_height()
+        full_text_y = text_mob.get_y()
+
+        # Create word rects
+        processed_letters = 0
+        words = text.split(" ")
+        all_rects = []
+        words_mobs = []
+        for word_i, word in enumerate(words):
+            word_len = len(word)
+            word_mob = text_mob[processed_letters:processed_letters + word_len]
+            words_mobs.append(word_mob)
+            processed_letters += word_len
+
+            if word_i >= prefix_words:
+                continue
+
+            rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y)
+            all_rects.append(rect)
+
+
+        self.add(text_mob[:display_characters])
+        self.add(mode_with_kv_cache)
+        self.wait()
+
+        generation_step = 1
+        arrow_counts = defaultdict(int)
+        for word_i in range(prefix_words, len(words_mobs)):
+            generation_step_mob = self.generation_step_mob(generation_step)
+            generation_step_mob.align_to(mode_with_kv_cache, DOWN + LEFT)
+            generation_step_mob.shift(generation_step_mob.get_height() * 3 * DOWN)
+
+            word_mob = words_mobs[word_i]
+            rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y)
+
+            arrows = []
+            word_to_arrow = word_i
+            for word_from_arrow in range(word_to_arrow):
+                key = (word_from_arrow, word_to_arrow)
+                current_count = arrow_counts[key] + 1
+                # Map count 1 -> WHITE, 5+ -> RED_E linearly
+                t = min(max((current_count - 1) / 4.0, 0.0), 1.0)
+                color = interpolate_color(BLUE_B, RED_E, t)
+                arrow = Arrow(
+                    words_mobs[word_from_arrow].get_top(), words_mobs[word_to_arrow].get_top(),
+                    path_arc=-150 * DEGREES, buff=0.1, stroke_color=color,
+                    thickness=1.5,
+                    fill_opacity=0.9,
+                    fill_color=color,
+                )
+                arrows.append(arrow)
+                arrow_counts[key] = current_count
+
             self.add(rect, generation_step_mob)
             self.play(
                 *[GrowArrow(arrow) for arrow in arrows],
