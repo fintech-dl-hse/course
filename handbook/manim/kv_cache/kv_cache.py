@@ -120,9 +120,47 @@ class CommonFixture:
                 rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y)
                 all_rects.append(rect)
 
+        # Bars axis and per-token recomputation bars/labels
+        num_words = len(words_mobs)
+        # Upper bound for recomputations per token without KV cache is (num_words - 1)
+        bars_axes = Axes(
+            x_range=[0, num_words, 1],
+            y_range=[0, max(1, num_words - 1), 1],
+            width=text_mob.get_width(),
+            height=2.5,
+            axis_config={"include_tip": False, "include_ticks": True},
+        )
+        bars_axes.next_to(text_mob, DOWN, buff=1.0)
+
+        bar_width_units = 0.8
+        bar_color = GREEN_E if use_kv_cache else RED_E
+        bars = VGroup()
+        for i in range(num_words):
+            # Start with ~0 height to avoid zero-height rectangle issues
+            init_height_units = 1e-3
+            rect = Rectangle(
+                width=bars_axes.get_x_axis().get_unit_size() * bar_width_units,
+                height=bars_axes.get_y_axis().get_unit_size() * init_height_units,
+                stroke_width=1,
+                stroke_color=GREY_A,
+                fill_color=bar_color,
+                fill_opacity=0.85,
+            )
+            rect.move_to(bars_axes.c2p(i + 0.5, 0), DOWN)
+            bars.add(rect)
+
+        # Numeric recomputation counters under each word
+        recompute_counts = [0 for _ in range(num_words)]
+        count_labels = VGroup()
+        for i, word_mob in enumerate(words_mobs):
+            lbl = Text("0", font_size=26, fill_color=WHITE)
+            lbl.next_to(word_mob, DOWN, buff=0.25)
+            count_labels.add(lbl)
+
         # Initial draws
         self.add(text_mob[:display_characters])
         self.add(header)
+        self.add(bars_axes, bars, count_labels)
         self.wait()
 
         # Iterate words and draw arrows
@@ -173,9 +211,34 @@ class CommonFixture:
                         arrow_counts[key] = current_count
 
             self.add(rect, step_mob)
+            # Prepare bar and counter updates (no-KV case increments past tokens)
+            bar_anims = []
+            label_anims = []
+            if not use_kv_cache:
+                for j in range(word_i):
+                    recompute_counts[j] += 1
+                    new_h_units = recompute_counts[j]
+                    # New rectangle with updated height, anchored at y=0
+                    new_rect = Rectangle(
+                        width=bars_axes.get_x_axis().get_unit_size() * bar_width_units,
+                        height=bars_axes.get_y_axis().get_unit_size() * max(new_h_units, 1e-3),
+                        stroke_width=1,
+                        stroke_color=GREY_A,
+                        fill_color=bar_color,
+                        fill_opacity=0.85,
+                    )
+                    new_rect.move_to(bars_axes.c2p(j + 0.5, 0), DOWN)
+                    bar_anims.append(Transform(bars[j], new_rect))
+
+                    new_lbl = Text(str(recompute_counts[j]), font_size=26, fill_color=WHITE)
+                    new_lbl.next_to(words_mobs[j], DOWN, buff=0.25)
+                    label_anims.append(Transform(count_labels[j], new_lbl))
+
             self.play(
                 *[GrowArrow(arrow) for arrow in arrows],
-                Write(word_mob, stroke_color=BLUE_B)
+                Write(word_mob, stroke_color=BLUE_B),
+                *bar_anims,
+                *label_anims,
             )
             self.wait()
 
