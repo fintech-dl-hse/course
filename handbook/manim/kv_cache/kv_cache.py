@@ -128,13 +128,17 @@ class CommonFixture:
             y_range=[0, max(1, num_words - 1), 1],
             width=text_mob.get_width(),
             height=2.5,
-            axis_config={"include_tip": False, "include_ticks": True},
+            x_axis_config={"include_tip": False, "include_ticks": False},
+            y_axis_config={"include_tip": False, "include_ticks": True},
         )
         bars_axes.next_to(text_mob, DOWN, buff=1.0)
 
         bar_width_units = 0.8
         bar_color = GREEN_E if use_kv_cache else RED_E
         bars = VGroup()
+        # Precompute alignment helpers
+        baseline_y = bars_axes.c2p(0, 0)[1]
+        word_centers_x = [mob.get_center()[0] for mob in words_mobs]
         for i in range(num_words):
             # Start with ~0 height to avoid zero-height rectangle issues
             init_height_units = 1e-3
@@ -146,21 +150,29 @@ class CommonFixture:
                 fill_color=bar_color,
                 fill_opacity=0.85,
             )
-            rect.move_to(bars_axes.c2p(i + 0.5, 0), DOWN)
+            rect.move_to(np.array([word_centers_x[i], baseline_y, 0.0]), DOWN)
             bars.add(rect)
 
         # Numeric recomputation counters under each word
         recompute_counts = [0 for _ in range(num_words)]
-        count_labels = VGroup()
-        for i, word_mob in enumerate(words_mobs):
-            lbl = Text("0", font_size=26, fill_color=WHITE)
-            lbl.next_to(word_mob, DOWN, buff=0.25)
-            count_labels.add(lbl)
+
+        # X-axis labels with words, positioned under the axis and aligned with words
+        x_word_labels = VGroup()
+        for i, word in enumerate(words):
+            wlbl = Text(word, font_size=22, fill_color=GREY_B)
+            # Place at word center x, slightly below axis baseline
+            wlbl.move_to([word_centers_x[i], baseline_y - 0.35, 0])
+            x_word_labels.add(wlbl)
+
+        # Y-axis title
+        y_title = Text("Recomputations", font_size=24, fill_color=GREY_B)
+        y_title.rotate(PI / 2)
+        y_title.next_to(bars_axes.get_y_axis(), LEFT, buff=0.1)
 
         # Initial draws
         self.add(text_mob[:display_characters])
         self.add(header)
-        self.add(bars_axes, bars, count_labels)
+        self.add(bars_axes, bars, x_word_labels, y_title)
         self.wait()
 
         # Iterate words and draw arrows
@@ -227,12 +239,9 @@ class CommonFixture:
                         fill_color=bar_color,
                         fill_opacity=0.85,
                     )
-                    new_rect.move_to(bars_axes.c2p(j + 0.5, 0), DOWN)
+                    new_rect.move_to(np.array([word_centers_x[j], baseline_y, 0.0]), DOWN)
                     bar_anims.append(Transform(bars[j], new_rect))
 
-                    new_lbl = Text(str(recompute_counts[j]), font_size=26, fill_color=WHITE)
-                    new_lbl.next_to(words_mobs[j], DOWN, buff=0.25)
-                    label_anims.append(Transform(count_labels[j], new_lbl))
 
             self.play(
                 *[GrowArrow(arrow) for arrow in arrows],
