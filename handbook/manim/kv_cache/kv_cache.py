@@ -93,6 +93,7 @@ class CommonFixture:
             fill_color=header_color,
         )
         header.to_corner(LEFT + UP).fix_in_frame()
+        header.shift(0.1 * RIGHT)
 
         # Sentence
         text = sentence_text
@@ -125,7 +126,7 @@ class CommonFixture:
         # Upper bound for recomputations per token without KV cache is (num_words - 1)
         bars_axes = Axes(
             x_range=[0, num_words, 1],
-            y_range=[0, max(1, num_words - 1), 1],
+            y_range=[0, max(1, num_words), 1],
             width=text_mob.get_width(),
             height=2.5,
             x_axis_config={"include_tip": False, "include_ticks": False},
@@ -133,8 +134,7 @@ class CommonFixture:
         )
         bars_axes.next_to(text_mob, DOWN, buff=1.0)
 
-        bar_width_units = 0.8
-        bar_color = GREEN_E if use_kv_cache else RED_E
+        bar_width_units = 0.4
         bars = VGroup()
         # Precompute alignment helpers
         baseline_y = bars_axes.c2p(0, 0)[1]
@@ -142,12 +142,14 @@ class CommonFixture:
         for i in range(num_words):
             # Start with ~0 height to avoid zero-height rectangle issues
             init_height_units = 1e-3
+            init_t = 0.0  # start color like arrows at lowest count
+            init_color = interpolate_color(BLUE_B, RED_E, init_t)
             rect = Rectangle(
                 width=bars_axes.get_x_axis().get_unit_size() * bar_width_units,
                 height=bars_axes.get_y_axis().get_unit_size() * init_height_units,
                 stroke_width=1,
-                stroke_color=GREY_A,
-                fill_color=bar_color,
+                stroke_color=init_color,
+                fill_color=init_color,
                 fill_opacity=0.85,
             )
             rect.move_to(np.array([word_centers_x[i], baseline_y, 0.0]), DOWN)
@@ -155,6 +157,9 @@ class CommonFixture:
 
         # Numeric recomputation counters under each word
         recompute_counts = [0 for _ in range(num_words)]
+
+        for i in range(prefix_words):
+            recompute_counts[i] = 1
 
         # X-axis labels with words, positioned under the axis and aligned with words
         x_word_labels = VGroup()
@@ -178,7 +183,10 @@ class CommonFixture:
         # Iterate words and draw arrows
         generation_step = 1
         arrow_counts = defaultdict(int)
+
+
         for word_i in range(prefix_words, len(words_mobs)):
+
             step_mob = self.generation_step_mob(generation_step)
             step_mob.align_to(header, DOWN + LEFT)
             step_mob.shift(step_mob.get_height() * 3 * DOWN)
@@ -190,6 +198,8 @@ class CommonFixture:
             if use_kv_cache:
                 # Only from past to current
                 word_to_arrow = word_i
+                recompute_counts[word_i] += 1
+
                 for word_from_arrow in range(word_to_arrow):
                     key = (word_from_arrow, word_to_arrow)
                     current_count = arrow_counts[key] + 1
@@ -199,7 +209,7 @@ class CommonFixture:
                         words_mobs[word_from_arrow].get_top(), words_mobs[word_to_arrow].get_top(),
                         path_arc=-150 * DEGREES, buff=0.1, stroke_color=color,
                         thickness=1.5,
-                        fill_opacity=0.9,
+                        fill_opacity=1.0,
                         fill_color=color,
                     )
                     arrows.append(arrow)
@@ -207,6 +217,8 @@ class CommonFixture:
             else:
                 # All pairwise up to current word
                 for word_to_arrow in range(word_i + 1):
+                    recompute_counts[word_to_arrow] += 1
+
                     for word_from_arrow in range(word_to_arrow):
                         key = (word_from_arrow, word_to_arrow)
                         current_count = arrow_counts[key] + 1
@@ -216,7 +228,7 @@ class CommonFixture:
                             words_mobs[word_from_arrow].get_top(), words_mobs[word_to_arrow].get_top(),
                             path_arc=-150 * DEGREES, buff=0.1, stroke_color=color,
                             thickness=1.5,
-                            fill_opacity=0.9,
+                            fill_opacity=1.0,
                             fill_color=color,
                         )
                         arrows.append(arrow)
@@ -226,35 +238,41 @@ class CommonFixture:
             # Prepare bar and counter updates (no-KV case increments past tokens)
             bar_anims = []
             label_anims = []
-            if not use_kv_cache:
-                for j in range(word_i):
-                    recompute_counts[j] += 1
-                    new_h_units = recompute_counts[j]
-                    # New rectangle with updated height, anchored at y=0
-                    new_rect = Rectangle(
-                        width=bars_axes.get_x_axis().get_unit_size() * bar_width_units,
-                        height=bars_axes.get_y_axis().get_unit_size() * max(new_h_units, 1e-3),
-                        stroke_width=1,
-                        stroke_color=GREY_A,
-                        fill_color=bar_color,
-                        fill_opacity=0.85,
-                    )
-                    new_rect.move_to(np.array([word_centers_x[j], baseline_y, 0.0]), DOWN)
-                    bar_anims.append(Transform(bars[j], new_rect))
+
+            for j in range(word_i+1):
+                new_h_units = recompute_counts[j]
+                # Match arrow color schedule based on count
+                t = min(max((new_h_units - 1) / 4.0, 0.0), 1.0)
+                new_color = interpolate_color(BLUE_B, RED_E, t)
+                # New rectangle with updated height, anchored at y=0
+                new_rect = Rectangle(
+                    width=bars_axes.get_x_axis().get_unit_size() * bar_width_units,
+                    height=bars_axes.get_y_axis().get_unit_size() * max(new_h_units, 1e-3),
+                    stroke_width=1,
+                    stroke_color=new_color,
+                    fill_color=new_color,
+                    fill_opacity=0.85,
+                )
+                new_rect.move_to(np.array([word_centers_x[j], baseline_y, 0.0]), DOWN)
+                bar_anims.append(Transform(bars[j], new_rect))
 
 
             self.play(
-                *[GrowArrow(arrow) for arrow in arrows],
+                *[GrowArrow(arrow, run_time=0.2) for arrow in arrows],
                 Write(word_mob, stroke_color=BLUE_B),
                 *bar_anims,
                 *label_anims,
             )
-            self.wait()
+            # self.wait()
+
+            if not use_kv_cache:
+                self.play(*[FadeOut(arrow, run_time=0.2) for arrow in arrows])
+                # self.wait()
 
             step_mob.clear()
             generation_step += 1
 
-        self.wait()
+        self.wait(0.1)
 
 
 class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
