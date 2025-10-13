@@ -274,6 +274,29 @@ class CommonFixture:
 
         self.wait(0.1)
 
+        # Transform recomputation axis and bars into complexity formula
+        if use_kv_cache:
+            formula = Tex(r"O(n)\ \text{as}\ \sum_{k=1}^{n} 1", font_size=30)
+        else:
+            formula = Tex(
+                r"O(n^2)\ \text{as}\ \sum_{k=1}^{n} k\ =\ \frac{(n-1)n}{2}\ =\ \frac{n^2 - n}{2}",
+                font_size=30,
+            )
+        formula.move_to(bars_axes)
+
+        title = Text("Computation Complexity", font_size=30)
+        title.move_to(bars_axes, UP)
+        # title.shift(1 * LEFT)
+
+        self.play(
+            ReplacementTransform(VGroup(bars_axes, bars, x_word_labels, y_title), formula),
+            Write(title),
+            run_time=2.0,
+        )
+
+        self.wait(0.1)
+
+
 
 class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
 
