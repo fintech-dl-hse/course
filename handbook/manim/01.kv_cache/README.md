@@ -29,7 +29,8 @@ $$ P(x_t | x_1, x_2, ..., x_{t-1}) $$
 
 Итого:
 
-||             || Memory        || Per token Computation ||
+|             | Per Layer Memory     | Per token Computation |
+| --- | --- | --- |
 | No KV-Cache  |  O(1)          | O(n^2)       |
 | KV-Cache     |  O(n)          | O(n)         |
 
