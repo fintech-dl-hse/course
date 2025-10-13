@@ -1,3 +1,5 @@
 .DS_Store
 public/
 export/
+__pycache__/
+videos/
