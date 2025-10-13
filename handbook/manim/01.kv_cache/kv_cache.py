@@ -70,7 +70,7 @@ class CommonFixture:
 
         # Sentence
         text = sentence_text
-        text_mob = Text(text, font_size=30, fill_color=BLUE_A)
+        text_mob = Text(text, font_size=30, fill_color=YELLOW_D)
         text_mob.align_to(header, DOWN + LEFT)
         text_mob.shift(text_mob.get_height() * 12 * DOWN)
 
@@ -232,7 +232,7 @@ class CommonFixture:
 
             self.play(
                 *[GrowArrow(arrow, run_time=0.2) for arrow in arrows],
-                Write(word_mob, stroke_color=BLUE_B),
+                Write(word_mob),
                 *bar_anims,
                 *label_anims,
             )
@@ -254,14 +254,20 @@ class CommonFixture:
         mem_title.shift(0.4 * LEFT)
         # mem_title.next_to(title, DOWN, buff=0.4)
 
+        tex_kwargs = {
+            't2c': {
+                'n': BLUE_C,
+                'k': TEAL_C,
+            }
+        }
+
         if use_kv_cache:
-            mem_formula = Tex(r"O(n)", font_size=30)
+            mem_formula = Tex(r"O(n)", font_size=30, **tex_kwargs)
         else:
-            mem_formula = Tex(r"O(1)", font_size=30)
+            mem_formula = Tex(r"O(1)", font_size=30, **tex_kwargs)
         mem_formula.next_to(mem_title, DOWN, buff=0.2)
         mem_formula.align_to(mem_title, LEFT)
         mem_formula.shift(0.5 * RIGHT)
-        mem_formula['n'].set_color(BLUE_A)
 
 
         title = Text("Computation Complexity", font_size=25)
@@ -271,16 +277,20 @@ class CommonFixture:
 
         # Transform recomputation axis and bars into complexity formula
         if use_kv_cache:
-            formula = Tex(r"O(n)\ \text{as}\ \sum_{k=1}^{n} 1", font_size=30)
+            formula = Tex(
+                r"O(n)\ \text{as}\ \sum_{k=1}^{n} 1",
+                font_size=30,
+                **tex_kwargs,
+            )
         else:
             formula = Tex(
                 'O(n^2)\ \\text{as}',
                 font_size=30,
+                **tex_kwargs,
             )
         formula.next_to(title, DOWN, buff=0.2)
         formula.align_to(mem_title, LEFT)
         formula.shift(0.5 * RIGHT)
-        formula['n'].set_color(BLUE_A)
 
         target_objects = [formula, mem_formula]
 
@@ -288,6 +298,7 @@ class CommonFixture:
             formula_extended = Tex(
                 '\sum_{k=1}^{n} k\ =\ \\frac{(n-1)n}{2}\ =\ \\frac{n^2 - n}{2}',
                 font_size=20,
+                **tex_kwargs,
             )
             formula_extended.next_to(formula, DOWN, buff=0.2)
             formula_extended.align_to(formula, LEFT)
@@ -318,7 +329,7 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
             VPrism(3, 2, 0.2)
             for n in range(4)
         )
-        blocks.set_fill(PURPLE_E, 1)
+        blocks.set_fill(MAROON_E, 1)
         blocks.set_stroke(width=0)
         blocks.set_shading(0.25, 0.5, 0.2)
         blocks.arrange(OUT)
@@ -335,6 +346,21 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
         word.shift(0.1 * UP + 0.4 * LEFT)
         word.move_to(blocks[-1])
         word.set_backstroke(BLACK, 5)
+
+        formula = Tex(
+            'x_t \sim P_{\\theta}(x_t | x_1, ..., x_{t-1})',
+            font_size=24,
+            t2c={
+                'x_t': GREEN_E,
+                'x_1, ..., x_{t-1}': YELLOW_D,
+            },
+            # stroke_width=1.1,
+            fill_border_width=1.0
+        )
+        formula.next_to(word, DOWN, buff=0.2)
+        formula.set_backstroke(BLACK, 3)
+        # formula.align_to(word, LEFT)
+
         out_arrow = Vector(
             0.5 * RIGHT, stroke_width=10,
             max_tip_length_to_length_ratio=0.5,
@@ -343,7 +369,7 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
         out_arrow.next_to(blocks[-1], RIGHT, buff=SMALL_BUFF)
         out_arrow.set_opacity(0)
 
-        result = VGroup(blocks, word, out_arrow)
+        result = VGroup(blocks, word, out_arrow, formula)
         return result
 
 
@@ -366,7 +392,7 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
         text_mob.shift(text_mob.get_height() * 3 * DOWN)
 
         generated_text = "The cat sat on the mat."
-        generated_text_mob = Text(text, font_size=30, fill_color=BLUE_A)
+        generated_text_mob = Text(text, font_size=30, fill_color=GREEN_E)
         generated_text_mob.align_to(machine, UP)
         generated_text_mob.shift(generated_text_mob.get_height() * 3 * UP)
 
@@ -461,7 +487,7 @@ class SequenceAttentionComputationsNoKVCache(InteractiveScene, CommonFixture):
     def construct(self):
         self.render_attention_sequence(
             header_text="No KV Cache",
-            header_color=YELLOW_E,
+            header_color=GREEN_E,
             sentence_text="The cat sat on the mat.",
             prefix_words=1,
             use_kv_cache=False,
