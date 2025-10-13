@@ -274,23 +274,57 @@ class CommonFixture:
 
         self.wait(0.1)
 
+        # Add memory complexity below
+        mem_title = Text("Memory Complexity", font_size=25)
+        mem_title.move_to(bars_axes, UP)
+        mem_title.set_color(GREEN_C)
+        mem_title.shift(0.4 * LEFT)
+        # mem_title.next_to(title, DOWN, buff=0.4)
+
+        if use_kv_cache:
+            mem_formula = Tex(r"O(n)", font_size=30)
+        else:
+            mem_formula = Tex(r"O(1)", font_size=30)
+        mem_formula.next_to(mem_title, DOWN, buff=0.2)
+        mem_formula.align_to(mem_title, LEFT)
+        mem_formula.shift(0.5 * RIGHT)
+        mem_formula['n'].set_color(BLUE_A)
+
+
+        title = Text("Computation Complexity", font_size=25)
+        title.set_color(GREEN_C)
+        title.next_to(mem_formula, DOWN, buff=0.4)
+        title.align_to(mem_title, LEFT)
+
         # Transform recomputation axis and bars into complexity formula
         if use_kv_cache:
             formula = Tex(r"O(n)\ \text{as}\ \sum_{k=1}^{n} 1", font_size=30)
         else:
             formula = Tex(
-                r"O(n^2)\ \text{as}\ \sum_{k=1}^{n} k\ =\ \frac{(n-1)n}{2}\ =\ \frac{n^2 - n}{2}",
+                'O(n^2)\ \\text{as}',
                 font_size=30,
             )
-        formula.move_to(bars_axes)
+        formula.next_to(title, DOWN, buff=0.2)
+        formula.align_to(mem_title, LEFT)
+        formula.shift(0.5 * RIGHT)
+        formula['n'].set_color(BLUE_A)
 
-        title = Text("Computation Complexity", font_size=30)
-        title.move_to(bars_axes, UP)
-        # title.shift(1 * LEFT)
+        target_objects = [formula, mem_formula]
+
+        if not use_kv_cache:
+            formula_extended = Tex(
+                '\sum_{k=1}^{n} k\ =\ \\frac{(n-1)n}{2}\ =\ \\frac{n^2 - n}{2}',
+                font_size=20,
+            )
+            formula_extended.next_to(formula, DOWN, buff=0.2)
+            formula_extended.align_to(formula, LEFT)
+            formula_extended.shift(0.3 * RIGHT)
+
+            target_objects.append(formula_extended)
 
         self.play(
-            ReplacementTransform(VGroup(bars_axes, bars, x_word_labels, y_title), formula),
-            Write(title),
+            ReplacementTransform(VGroup(bars_axes, bars, x_word_labels, y_title), VGroup(*target_objects)),
+            Write(VGroup(title, mem_title)),
             run_time=2.0,
         )
 
@@ -454,7 +488,7 @@ class SequenceAttentionComputationsNoKVCache(InteractiveScene, CommonFixture):
     def construct(self):
         self.render_attention_sequence(
             header_text="No KV Cache",
-            header_color=RED_E,
+            header_color=YELLOW_E,
             sentence_text="The cat sat on the mat.",
             prefix_words=1,
             use_kv_cache=False,
