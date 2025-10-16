@@ -105,28 +105,37 @@ def measure_attention_per_layer_ms(
     input_ids = torch.full((1, int(n_tokens)), int(token_id), device=device, dtype=torch.long)
     attn_mask = torch.ones((1, int(n_tokens)), device=device, dtype=torch.long)
 
-    with torch.inference_mode():
+    with torch.no_grad():
         synchronize(device)
 
         past = None
         next_ids = input_ids
         next_mask = attn_mask
-        if no_kv_cache:
+        if not no_kv_cache:
+            print("Creating StaticCache, prefill", n_tokens)
             past = StaticCache(config=model.config, max_cache_len=n_tokens + warmup + iters + 2)
-            outputs = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past)
-            past = getattr(outputs, "past_key_values", None)
+            outputs = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past, logits_to_keep=1)
+            past = outputs.past_key_values
 
             next_ids = torch.full((1, 1), int(token_id), device=device, dtype=torch.long)
             next_mask = torch.ones((1, int(n_tokens) + 1), device=device, dtype=torch.long)
 
-        for _ in range(max(0, warmup)):
-            _ = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past)
+            del outputs
+            torch.cuda.empty_cache()
 
+        print("Warmup", n_tokens)
+        for _ in range(max(0, warmup)):
+            outputs = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past, logits_to_keep=1)
+            del outputs
+            # torch.cuda.empty_cache()
+
+        print("Measure", n_tokens)
         times_ms: List[float] = []
         for iter_i in range(iters + 1):
             synchronize(device)
             t0 = time.perf_counter()
-            _ = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past)
+            outputs = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past, logits_to_keep=1)
+            del outputs
             synchronize(device)
             t1 = time.perf_counter()
             if iter_i == 0:
@@ -145,8 +154,8 @@ def main() -> int:
     parser.add_argument("--model_name", type=str, required=True, help="HF model id (e.g., meta-llama/Llama-3.1-8B)")
     parser.add_argument("--device", type=str, default="", help="cuda|cpu (auto if empty)")
     parser.add_argument("--dtype", type=str, default="float16", help="float16|bfloat16|float32")
-    parser.add_argument("--prefix-lengths", type=int, nargs="*", default=[10_000, 50_000, 100_000], help="Prefix lengths to test")
-    parser.add_argument("--trials", type=int, default=10, help="Trials per measurement")
+    parser.add_argument("--prefix-lengths", type=int, nargs="*", default=[25_000, 50_000, 75_000, 100_000 ], help="Prefix lengths to test")
+    parser.add_argument("--trials", type=int, default=2, help="Trials per measurement")
     parser.add_argument("--warmup", type=int, default=2, help="Warmup runs before timing (per measurement)")
     parser.add_argument("--out", type=str, default="count_latency_results.json", help="Output JSON path (relative to this directory by default)")
     parser.add_argument("--plot", action="store_true", help="Also save a plot comparing KV vs No-KV latencies")
@@ -171,7 +180,7 @@ def main() -> int:
     else:
         kv_bytes_per_elem = 2
     per_token_kv_bytes = kv_cache_bytes_per_token_from_cfg(cfg, kv_bytes_per_elem)
-    model: Any = AutoModelForCausalLM.from_pretrained(args.model_name, torch_dtype=torch_dtype)  # type: ignore[call-arg]
+    model: Any = AutoModelForCausalLM.from_pretrained(args.model_name, torch_dtype=torch_dtype, attn_implementation="sdpa")  # type: ignore[call-arg,]
     model.to(device)
 
     report: Dict = {

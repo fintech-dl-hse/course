@@ -1,0 +1,93 @@
+{
+  "meta": {
+    "device": "cuda",
+    "dtype": "torch.bfloat16",
+    "model_name": "unsloth/Meta-Llama-3.1-8B",
+    "hidden_size": 4096,
+    "num_layers": 32,
+    "num_attention_heads": 32,
+    "cwd": "/mnt/virtual_ai0001053-00054_SR004-nfs2/d.tarasov/fintech-dl-hse/course"
+  },
+  "prefix_lengths": [
+    25000,
+    50000,
+    75000,
+    100000
+  ],
+  "trials": 10,
+  "warmup": 2,
+  "with_kv_cache": {
+    "per_prefix": {
+      "25000": {
+        "times_ms": [
+          90.63786175101995
+        ],
+        "mean_ms": 90.63786175101995,
+        "stdev_ms": 0.0
+      },
+      "50000": {
+        "times_ms": [
+          166.43441002815962
+        ],
+        "mean_ms": 166.43441002815962,
+        "stdev_ms": 0.0
+      },
+      "75000": {
+        "times_ms": [
+          247.08049558103085
+        ],
+        "mean_ms": 247.08049558103085,
+        "stdev_ms": 0.0
+      },
+      "100000": {
+        "times_ms": [
+          323.6825745552778
+        ],
+        "mean_ms": 323.6825745552778,
+        "stdev_ms": 0.0
+      }
+    }
+  },
+  "without_kv_cache": {
+    "fit_per_trial": [],
+    "per_prefix": {
+      "25000": {
+        "times_ms": [
+          90.63786175101995
+        ],
+        "mean_ms": 90.63786175101995,
+        "stdev_ms": 0.0
+      },
+      "50000": {
+        "times_ms": [
+          166.43441002815962
+        ],
+        "mean_ms": 166.43441002815962,
+        "stdev_ms": 0.0
+      },
+      "75000": {
+        "times_ms": [
+          247.08049558103085
+        ],
+        "mean_ms": 247.08049558103085,
+        "stdev_ms": 0.0
+      },
+      "100000": {
+        "times_ms": [
+          323.6825745552778
+        ],
+        "mean_ms": 323.6825745552778,
+        "stdev_ms": 0.0
+      }
+    }
+  },
+  "kv_cache_size": {
+    "bytes_per_token": 131072,
+    "per_prefix_bytes": {
+      "100000": 13107200000,
+      "75000": 9830400000,
+      "50000": 6553600000,
+      "25000": 3276800000
+    }
+  }
+}
