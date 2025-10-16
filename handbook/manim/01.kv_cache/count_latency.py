@@ -101,8 +101,8 @@ def measure_attention_per_layer_ms(
 
         times_ms: List[float] = []
         for iter_i in range(iters + 1):
-            # next_ids = torch.full((1, 1), int(token_id), device=device, dtype=torch.long)
-            # next_mask = torch.ones((1, int(n_tokens) + 1), device=device, dtype=torch.long)
+            next_ids = torch.full((1, 1), int(token_id), device=device, dtype=torch.long)
+            next_mask = torch.ones((1, int(n_tokens) + 1), device=device, dtype=torch.long)
             synchronize(device)
             t0 = time.perf_counter()
             _ = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past)
@@ -251,6 +251,8 @@ def main() -> int:
             no_kv_per_layer_ms_est = estimate_no_kv_time_ms_from_fit(int(n), a_ms_per_token, b_ms)
             no_kv_time_ms = no_kv_per_layer_ms_est * float(num_layers)
             no_kv_times_per_prefix[int(n)].append(no_kv_time_ms)
+
+            torch.cuda.empty_cache()
 
     # Aggregate statistics
     for n, arr in with_kv_times_per_prefix.items():
