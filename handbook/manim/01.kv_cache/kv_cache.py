@@ -392,7 +392,7 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
         machine.shift(RIGHT * 0.2)
 
         text = "The cat sat on the mat."
-        text_mob = Text(text, font_size=30, fill_color=BLUE_A)
+        text_mob = Text(text, font_size=30, fill_color=YELLOW_D)
         text_mob.align_to(machine, DOWN)
         text_mob.shift(text_mob.get_height() * 3 * DOWN)
 
@@ -821,3 +821,101 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         xs, ys = gather_speeds_from_latency_map(models[0], "latency_no_kv")
         seconds_per_token = int(1 / ys[-1])
         tokens = (xs[-1]/1000)
+
+
+class KVCacheComplexityComparison(InteractiveScene):
+
+    def construct(self):
+        # Header
+        header = Text(
+            "Complexity Comparison",
+            font_size=28,
+            alignment='LEFT',
+            fill_color=GREEN_E,
+        )
+        header.to_corner(LEFT + UP).fix_in_frame()
+        header.shift(0.1 * RIGHT)
+
+        # Colors consistent with other scenes
+        NO_KV_COLOR = ORANGE
+        WITH_KV_COLOR = TEAL
+
+        # Table sizing (reduced to fit frame)
+        table_total_width = 4.6
+        label_col_width = 1.6
+        num_data_cols = 2
+        data_col_width = (table_total_width - label_col_width) / num_data_cols
+        row_height = 0.45
+
+        def make_cell(
+            cell_width: float,
+            cell_height: float,
+            content,
+            *,
+            font_size: int = 16,
+            text_color=WHITE,
+            fill_color=None,
+            fill_opacity: float = 0.05,
+        ):
+            rect = Rectangle(
+                width=cell_width,
+                height=cell_height,
+                stroke_width=1,
+                stroke_color=GREY_B,
+                fill_opacity=(fill_opacity if fill_color is not None else 0.05),
+                fill_color=(fill_color if fill_color is not None else BLACK),
+            )
+            if isinstance(content, (str,)):
+                txt = Text(content, font_size=font_size)
+                txt.set_color(text_color)
+                txt.move_to(rect.get_center())
+                return VGroup(rect, txt)
+            else:
+                # Assume Manim mobject (e.g., Tex)
+                mob = content
+                mob.scale(1.0)
+                mob.move_to(rect.get_center())
+                return VGroup(rect, mob)
+
+        tex_kwargs = {
+            't2c': {
+                'n': BLUE_C,
+            }
+        }
+
+        # Header row
+        header_row = VGroup()
+        header_row.add(make_cell(label_col_width, row_height, "", font_size=18, text_color=GREEN_E))
+        header_row.add(make_cell(data_col_width, row_height, "Memory", font_size=18, text_color=GREEN_E))
+        header_row.add(make_cell(data_col_width, row_height, "Computation", font_size=18, text_color=GREEN_E))
+
+        # No KV-Cache row
+        no_kv_row = VGroup()
+        no_kv_row.add(make_cell(label_col_width, row_height, "No KV-Cache", font_size=18, text_color=NO_KV_COLOR))
+        no_kv_row.add(make_cell(data_col_width, row_height, Tex(r"O(1)", font_size=26, **tex_kwargs)))
+        no_kv_row.add(make_cell(data_col_width, row_height, Tex(r"O(n^2)", font_size=26, **tex_kwargs)))
+
+        # With KV-Cache row
+        with_kv_row = VGroup()
+        with_kv_row.add(make_cell(label_col_width, row_height, "KV-Cache", font_size=18, text_color=WITH_KV_COLOR))
+        with_kv_row.add(make_cell(data_col_width, row_height, Tex(r"O(n)", font_size=26, **tex_kwargs)))
+        with_kv_row.add(make_cell(data_col_width, row_height, Tex(r"O(n)", font_size=26, **tex_kwargs)))
+
+        # Layout
+        for row in (header_row, no_kv_row, with_kv_row):
+            row.arrange(RIGHT, buff=0)
+
+        table = VGroup(header_row, no_kv_row, with_kv_row)
+        table.arrange(DOWN, buff=0)
+        table.center()
+        # Ensure table fits within frame with margin
+        max_width = FRAME_WIDTH - 1.0
+        if table.get_width() > max_width:
+            table.set_width(max_width)
+        # Slight downward shift so header doesn't overlap
+        table.shift(0.2 * DOWN)
+
+        # Add and animate
+        self.add(header)
+        self.play(FadeIn(table))
+        self.wait(1.0)
