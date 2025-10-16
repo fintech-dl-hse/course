@@ -701,13 +701,13 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
 
         self.add(legend)
         self.play(*[ShowCreation(line) for line in lines])
-        self.wait(2.0)
+        self.wait(1.0)
 
         # ----------------------------
         # Second plot: Generation speed vs prefix length (tokens/s)
         # Appears below once the KV-Cache animation is finished
         # ----------------------------
-        speed_header = Text("Generation speed", font_size=20)
+        speed_header = Text("Generation speed (tokens per second)", font_size=20)
         # Position this title just above the lower axes we will create
         # Create axes for speed plot
         # Determine y-range from data across all models
@@ -750,38 +750,55 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         no_kv_map = model["latency_no_kv"]
 
         # Table sizing
-        table_total_width = 2.4
-        label_col_width = 1.0
+        table_total_width = 3.0
+        label_col_width = 1.1
         num_data_cols = max(1, len(cols))
         data_col_width = (table_total_width - label_col_width) / num_data_cols
-        row_height = 0.4
+        row_height = 0.5
 
-        def make_cell(cell_width: float, cell_height: float, text_str: str, font_size: int = 12):
-            rect = Rectangle(width=cell_width, height=cell_height, stroke_width=1, stroke_color=GREY_B, fill_opacity=0.05, fill_color=BLACK)
+        def make_cell(
+            cell_width: float,
+            cell_height: float,
+            text_str: str,
+            font_size: int = 14,
+            fill_color=None,
+            fill_opacity: float = 0.05,
+            text_color=WHITE,
+        ):
+            rect = Rectangle(
+                width=cell_width,
+                height=cell_height,
+                stroke_width=1,
+                stroke_color=GREY_B,
+                fill_opacity=(fill_opacity if fill_color is not None else 0.05),
+                fill_color=(fill_color if fill_color is not None else BLACK),
+            )
             txt = Text(text_str, font_size=font_size)
+            txt.set_color(text_color)
             # Center text inside the rectangle
             txt.move_to(rect.get_center())
             return VGroup(rect, txt)
 
         # Build rows: header + two data rows
         header_row = VGroup()
-        header_row.add(make_cell(label_col_width, row_height, ""))
+        header_text_color = GREEN_E
+        header_row.add(make_cell(label_col_width, row_height, "", font_size=14, text_color=header_text_color))
         for n in cols:
-            header_row.add(make_cell(data_col_width, row_height, abbrev(int(n))))
+            header_row.add(make_cell(data_col_width, row_height, abbrev(int(n)), font_size=14, text_color=header_text_color))
 
         with_row = VGroup()
-        with_row.add(make_cell(label_col_width, row_height, "With KV-Cache"))
+        with_row.add(make_cell(label_col_width, row_height, "With KV-Cache", font_size=14, text_color=TEAL))
         for n in cols:
             val = speed_from_map(kv_map, n)
             txt = "-" if val <= 0 else f"{val:.2f}"
-            with_row.add(make_cell(data_col_width, row_height, txt))
+            with_row.add(make_cell(data_col_width, row_height, txt, font_size=14))
 
         without_row = VGroup()
-        without_row.add(make_cell(label_col_width, row_height, "No KV-Cache"))
+        without_row.add(make_cell(label_col_width, row_height, "No KV-Cache", font_size=14, text_color=NO_KV_COLOR))
         for n in cols:
             val = speed_from_map(no_kv_map, n)
             txt = "-" if val <= 0 else f"{val:.2f}"
-            without_row.add(make_cell(data_col_width, row_height, txt))
+            without_row.add(make_cell(data_col_width, row_height, txt, font_size=14))
 
         # Arrange the table
         for row in (header_row, with_row, without_row):
@@ -792,7 +809,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         table_group.center().shift(2.0 * DOWN)
 
         speed_header.next_to(table_group, UP, buff=0.2)
-        speed_header.align_to(header, LEFT)
+        speed_header.shift( -speed_header.get_center()[0] * RIGHT )
 
         self.play(FadeIn(VGroup(speed_header, table_group)))
 
@@ -804,7 +821,3 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         xs, ys = gather_speeds_from_latency_map(models[0], "latency_no_kv")
         seconds_per_token = int(1 / ys[-1])
         tokens = (xs[-1]/1000)
-
-        text = Text(f"No KV Cache: {seconds_per_token} seconds per 1 token at {tokens}k prefix", font_size=16).to_edge(DOWN).shift(0.5 * LEFT)
-        self.play(Write(text))
-        self.wait(3.0)
