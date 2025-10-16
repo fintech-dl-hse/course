@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 import torch
-from transformers import AutoConfig, AutoModelForCausalLM
+from transformers import AutoConfig, AutoModelForCausalLM, StaticCache
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
@@ -88,6 +88,7 @@ def measure_attention_per_layer_ms(
     torch_dtype,
     warmup: int,
     iters: int,
+    no_kv_cache=False,
 ) -> List[float]:
     """Measure per-layer time (ms) to generate one token using a HF model with KV cache.
 
@@ -106,18 +107,23 @@ def measure_attention_per_layer_ms(
 
     with torch.inference_mode():
         synchronize(device)
-        outputs = model(input_ids=input_ids, attention_mask=attn_mask, use_cache=True)
-        past = getattr(outputs, "past_key_values", None)
 
-        for _ in range(max(0, warmup)):
+        past = None
+        next_ids = input_ids
+        next_mask = attn_mask
+        if no_kv_cache:
+            past = StaticCache(config=model.config, max_cache_len=n_tokens + warmup + iters + 2)
+            outputs = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past)
+            past = getattr(outputs, "past_key_values", None)
+
             next_ids = torch.full((1, 1), int(token_id), device=device, dtype=torch.long)
             next_mask = torch.ones((1, int(n_tokens) + 1), device=device, dtype=torch.long)
+
+        for _ in range(max(0, warmup)):
             _ = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past)
 
         times_ms: List[float] = []
         for iter_i in range(iters + 1):
-            next_ids = torch.full((1, 1), int(token_id), device=device, dtype=torch.long)
-            next_mask = torch.ones((1, int(n_tokens) + 1), device=device, dtype=torch.long)
             synchronize(device)
             t0 = time.perf_counter()
             _ = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past)
@@ -133,31 +139,6 @@ def measure_attention_per_layer_ms(
     return [t / float(num_layers) for t in times_ms]
 
 
-def fit_linear(xs: List[float], ys: List[float]) -> Tuple[float, float]:
-    """Least squares fit y ≈ a*x + b. Returns (a, b)."""
-    n = float(len(xs))
-    if n < 2:
-        return 0.0, ys[0] if ys else 0.0
-    sx = sum(xs)
-    sy = sum(ys)
-    sxx = sum(x * x for x in xs)
-    sxy = sum(x * y for x, y in zip(xs, ys))
-    denom = n * sxx - sx * sx
-    if abs(denom) < 1e-9:
-        return 0.0, sy / n
-    a = (n * sxy - sx * sy) / denom
-    b = (sy - a * sx) / n
-    return a, b
-
-
-def estimate_no_kv_time_ms_from_fit(n_tokens: int, a: float, b: float) -> float:
-    """Given per-layer KV time model y ≈ a*n + b (in ms), estimate per-layer no-KV time:
-    sum_{t=1..n} (a*t + b) = a * n*(n+1)/2 + b * n (in ms).
-    """
-    n = float(n_tokens)
-    return a * n * (n + 1.0) / 2.0 + b * n
-
-
 @torch.no_grad()
 def main() -> int:
     parser = argparse.ArgumentParser(description="Measure per-token generation latency with/without KV-Cache.")
@@ -167,10 +148,7 @@ def main() -> int:
     parser.add_argument("--prefix-lengths", type=int, nargs="*", default=[10_000, 50_000, 100_000], help="Prefix lengths to test")
     parser.add_argument("--trials", type=int, default=10, help="Trials per measurement")
     parser.add_argument("--warmup", type=int, default=2, help="Warmup runs before timing (per measurement)")
-    parser.add_argument("--calib-lengths", type=int, nargs="*", default=[4096, 8192, 16384], help="Prefix lengths to calibrate linear KV model")
     parser.add_argument("--out", type=str, default="count_latency_results.json", help="Output JSON path (relative to this directory by default)")
-    parser.add_argument("--skip-large-direct", action="store_true", help="Estimate KV time for very large n instead of measuring directly")
-    parser.add_argument("--measure_threshold_tokens", type=int, default=150_000, help="If n > threshold and skip-large-direct, use estimation for KV")
     parser.add_argument("--plot", action="store_true", help="Also save a plot comparing KV vs No-KV latencies")
     parser.add_argument("--plot-out", type=str, default="count_latency_plot.png", help="Where to save the plot image")
     parser.add_argument("--plot-kv-size-out", type=str, default="kv_cache_size_plot.png", help="Where to save KV size vs length plot")
@@ -209,13 +187,10 @@ def main() -> int:
         "prefix_lengths": list(args.prefix_lengths),
         "trials": int(args.trials),
         "warmup": int(args.warmup),
-        "calibration_lengths": list(args.calib_lengths),
         "with_kv_cache": {
-            "method": "measured_or_estimated",
             "per_prefix": {},
         },
         "without_kv_cache": {
-            "method": "estimated_from_linear_fit",
             "fit_per_trial": [],
             "per_prefix": {},
         },
@@ -230,61 +205,38 @@ def main() -> int:
     no_kv_times_per_prefix: Dict[int, List[float]] = {n: [] for n in args.prefix_lengths}
 
     # Per-trial: calibrate linear model on small lengths, then measure/estimate per prefix
-    for trial_idx in tqdm(range(args.trials), desc="Trials"):
-        # Calibrate linear fit for per-layer KV time
-        calib_xs: List[float] = []
-        calib_ys_ms: List[float] = []
-        for n in args.calib_lengths:
-            per_layer_times_ms = measure_attention_per_layer_ms(
+    for n in tqdm(sorted(args.prefix_lengths, reverse=True), desc="Prefix lengths"):
+            kv_per_layer_times_ms = measure_attention_per_layer_ms(
                 model=model,
                 n_tokens=int(n),
                 device=device,
                 torch_dtype=torch_dtype,
-                warmup=args.warmup if trial_idx == 0 else 0,
-                iters=1,
+                warmup=args.trials,
+                iters=20,
             )
-            # Average over iters=1 is itself
-            calib_xs.append(float(n))
-            calib_ys_ms.append(float(per_layer_times_ms[0]))
-
-        a_ms_per_token, b_ms = fit_linear(calib_xs, calib_ys_ms)
-        report["without_kv_cache"]["fit_per_trial"].append({
-            "a_per_token_ms": a_ms_per_token,
-            "b_ms": b_ms,
-            "calibration_points": [{"n": int(x), "per_layer_ms": y} for x, y in zip(calib_xs, calib_ys_ms)],
-        })
-
-        # For each requested prefix length: measure KV (or estimate if requested), estimate no-KV
-        for n in tqdm(sorted(args.prefix_lengths, reverse=True), desc="Prefix lengths"):
-            measure_direct = not args.skip_large_direct or (int(n) <= int(args.measure_threshold_tokens))
-
-            if measure_direct:
-                # Measure KV per-layer via real model, then scale by num_layers
-                kv_per_layer_times_ms = measure_attention_per_layer_ms(
-                    model=model,
-                    n_tokens=int(n),
-                    device=device,
-                    torch_dtype=torch_dtype,
-                    warmup=args.warmup if trial_idx == 0 else 0,
-                    iters=1,
-                )
-                kv_time_ms = float(kv_per_layer_times_ms[0]) * float(num_layers)
-            else:
-                # Estimate KV via linear fit
-                kv_per_layer_ms_est = a_ms_per_token * float(n) + b_ms
-                kv_time_ms = kv_per_layer_ms_est * float(num_layers)
+            kv_time_ms = float(kv_per_layer_times_ms[0]) * float(num_layers)
 
             with_kv_times_per_prefix[int(n)].append(kv_time_ms)
-            # KV size: linear in n
             report["kv_cache_size"]["per_prefix_bytes"][str(int(n))] = int(per_token_kv_bytes * int(n))
-
-            # Estimate no-KV via summed linear model
-            no_kv_per_layer_ms_est = estimate_no_kv_time_ms_from_fit(int(n), a_ms_per_token, b_ms)
-            no_kv_time_ms = no_kv_per_layer_ms_est * float(num_layers)
-            no_kv_times_per_prefix[int(n)].append(no_kv_time_ms)
 
             if device == "cuda":
                 torch.cuda.empty_cache()
+
+            no_kv_per_layer_times_ms = measure_attention_per_layer_ms(
+                model=model,
+                n_tokens=int(n),
+                device=device,
+                torch_dtype=torch_dtype,
+                warmup=args.warmup,
+                iters=args.trials,
+                no_kv_cache=True,
+            )
+            no_kv_per_layer_times_ms = float(kv_per_layer_times_ms[0]) * float(num_layers)
+            no_kv_times_per_prefix[int(n)].append(no_kv_per_layer_times_ms)
+
+            if device == "cuda":
+                torch.cuda.empty_cache()
+
 
     # Aggregate statistics
     for n, arr in with_kv_times_per_prefix.items():
