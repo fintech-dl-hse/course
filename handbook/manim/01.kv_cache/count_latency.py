@@ -66,6 +66,20 @@ def extract_model_dims(cfg: Dict) -> Tuple[int, int, int]:
     return int(hidden_size), int(num_layers), int(num_heads)
 
 
+def kv_cache_bytes_per_token_from_cfg(cfg: Dict, bytes_per_elem: int) -> int:
+    """Approximate KV cache bytes per token using config fields.
+
+    Uses: 2 * num_key_value_heads * head_dim * num_layers * bytes_per_element
+    Assumes float16/bfloat16 => 2 bytes per element; float32 => 4.
+    """
+    hidden_size = int(cfg.get("hidden_size") or cfg.get("n_embd") or cfg.get("d_model") or 0)
+    num_layers = int(cfg.get("num_hidden_layers") or cfg.get("n_layer") or 0)
+    num_heads = int(cfg.get("num_attention_heads") or cfg.get("n_head") or 0)
+    num_kv_heads = int(cfg.get("num_key_value_heads") or cfg.get("n_head_kv") or cfg.get("n_key_value_heads") or num_heads or 0)
+    head_dim = hidden_size // max(1, num_heads)
+    return int(2 * num_kv_heads * head_dim * num_layers * bytes_per_elem)
+
+
 def measure_attention_per_layer_ms(
     *,
     model: Any,
@@ -84,7 +98,8 @@ def measure_attention_per_layer_ms(
     model.eval()
     token_id = model.config.bos_token_id
     if token_id is None:
-        token_id = model.config.eos_token_id if model.config.eos_token_id is not None else 1
+        token_id = model.config.eos_token_id if getattr(model.config, "eos_token_id", None) is not None else 1
+    token_id = int(token_id)
 
     input_ids = torch.full((1, int(n_tokens)), int(token_id), device=device, dtype=torch.long)
     attn_mask = torch.ones((1, int(n_tokens)), device=device, dtype=torch.long)
@@ -158,6 +173,7 @@ def main() -> int:
     parser.add_argument("--measure_threshold_tokens", type=int, default=150_000, help="If n > threshold and skip-large-direct, use estimation for KV")
     parser.add_argument("--plot", action="store_true", help="Also save a plot comparing KV vs No-KV latencies")
     parser.add_argument("--plot-out", type=str, default="count_latency_plot.png", help="Where to save the plot image")
+    parser.add_argument("--plot-kv-size-out", type=str, default="kv_cache_size_plot.png", help="Where to save KV size vs length plot")
     args = parser.parse_args()
 
     base_dir = Path(__file__).resolve().parent
@@ -166,8 +182,17 @@ def main() -> int:
     torch_dtype = map_dtype(args.dtype, device)
 
     # Load pretrained config and model
-    cfg = AutoConfig.from_pretrained(args.model_name)
-    hidden_size, num_layers, num_attention_heads = extract_model_dims(cfg.to_dict())
+    cfg_obj = AutoConfig.from_pretrained(args.model_name)
+    cfg = cfg_obj.to_dict()
+    hidden_size, num_layers, num_attention_heads = extract_model_dims(cfg)
+    # Infer bytes-per-element from dtype
+    if torch_dtype in (torch.float16, torch.bfloat16):
+        kv_bytes_per_elem = 2
+    elif torch_dtype == torch.float32:
+        kv_bytes_per_elem = 4
+    else:
+        kv_bytes_per_elem = 2
+    per_token_kv_bytes = kv_cache_bytes_per_token_from_cfg(cfg, kv_bytes_per_elem)
     model: Any = AutoModelForCausalLM.from_pretrained(args.model_name, torch_dtype=torch_dtype)  # type: ignore[call-arg]
     model.to(device)
 
@@ -193,6 +218,10 @@ def main() -> int:
             "method": "estimated_from_linear_fit",
             "fit_per_trial": [],
             "per_prefix": {},
+        },
+        "kv_cache_size": {
+            "bytes_per_token": per_token_kv_bytes,
+            "per_prefix_bytes": {},
         },
     }
 
@@ -246,13 +275,16 @@ def main() -> int:
                 kv_time_ms = kv_per_layer_ms_est * float(num_layers)
 
             with_kv_times_per_prefix[int(n)].append(kv_time_ms)
+            # KV size: linear in n
+            report["kv_cache_size"]["per_prefix_bytes"][str(int(n))] = int(per_token_kv_bytes * int(n))
 
             # Estimate no-KV via summed linear model
             no_kv_per_layer_ms_est = estimate_no_kv_time_ms_from_fit(int(n), a_ms_per_token, b_ms)
             no_kv_time_ms = no_kv_per_layer_ms_est * float(num_layers)
             no_kv_times_per_prefix[int(n)].append(no_kv_time_ms)
 
-            torch.cuda.empty_cache()
+            if device == "cuda":
+                torch.cuda.empty_cache()
 
     # Aggregate statistics
     for n, arr in with_kv_times_per_prefix.items():
@@ -304,6 +336,26 @@ def main() -> int:
         fig.savefig(plot_path)
         plt.close(fig)
         print(f"Saved plot to: {plot_path}")
+
+        # KV cache size plot
+        xs_kv = sorted(int(n) for n in report["kv_cache_size"]["per_prefix_bytes"].keys())
+        ys_kv_bytes = [int(report["kv_cache_size"]["per_prefix_bytes"][str(n)]) for n in xs_kv]
+        ys_kv_gb = [y / 1e9 for y in ys_kv_bytes]
+
+        fig2, ax2 = plt.subplots(figsize=(8, 4.5), dpi=150)
+        ax2.plot(xs_kv, ys_kv_gb, "-o", label="KV-Cache size")
+        ax2.set_xlabel("Sequence length (tokens)")
+        ax2.set_ylabel("KV-Cache size (GB)")
+        ax2.set_title(f"KV-Cache size vs sequence length — {args.model_name}")
+        ax2.grid(True, alpha=0.3)
+        ax2.legend()
+        plot_kv_path = Path(args.plot_kv_size_out)
+        if not plot_kv_path.is_absolute():
+            plot_kv_path = base_dir / plot_kv_path
+        fig2.tight_layout()
+        fig2.savefig(plot_kv_path)
+        plt.close(fig2)
+        print(f"Saved KV size plot to: {plot_kv_path}")
     return 0
 
 
