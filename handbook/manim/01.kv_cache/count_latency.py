@@ -108,13 +108,17 @@ def measure_attention_per_layer_ms(
     with torch.no_grad():
         synchronize(device)
 
+        use_cache = True
+        if no_kv_cache:
+            use_cache = False
+
         past = None
         next_ids = input_ids
         next_mask = attn_mask
         if not no_kv_cache:
             print("Creating StaticCache, prefill", n_tokens)
             past = StaticCache(config=model.config, max_cache_len=n_tokens + warmup + iters + 2)
-            outputs = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past, logits_to_keep=1)
+            outputs = model(input_ids=next_ids, attention_mask=next_mask, use_cache=use_cache, past_key_values=past, logits_to_keep=1)
             past = outputs.past_key_values
 
             next_ids = torch.full((1, 1), int(token_id), device=device, dtype=torch.long)
@@ -125,16 +129,16 @@ def measure_attention_per_layer_ms(
 
         print("Warmup", n_tokens)
         for _ in range(max(0, warmup)):
-            outputs = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past, logits_to_keep=1)
+            outputs = model(input_ids=next_ids, attention_mask=next_mask, use_cache=use_cache, past_key_values=past, logits_to_keep=1)
             del outputs
             # torch.cuda.empty_cache()
 
-        print("Measure", n_tokens)
+        print("Measure", n_tokens, 'use_cache', use_cache, 'past', past)
         times_ms: List[float] = []
         for iter_i in range(iters + 1):
             synchronize(device)
             t0 = time.perf_counter()
-            outputs = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past, logits_to_keep=1)
+            outputs = model(input_ids=next_ids, attention_mask=next_mask, use_cache=use_cache, past_key_values=past, logits_to_keep=1)
             del outputs
             synchronize(device)
             t1 = time.perf_counter()
@@ -154,7 +158,8 @@ def main() -> int:
     parser.add_argument("--model_name", type=str, required=True, help="HF model id (e.g., meta-llama/Llama-3.1-8B)")
     parser.add_argument("--device", type=str, default="", help="cuda|cpu (auto if empty)")
     parser.add_argument("--dtype", type=str, default="float16", help="float16|bfloat16|float32")
-    parser.add_argument("--prefix-lengths", type=int, nargs="*", default=[25_000, 50_000, 75_000, 100_000 ], help="Prefix lengths to test")
+    parser.add_argument("--prefix-lengths", type=int, nargs="*", default=[10_000, 20_000 ], help="Prefix lengths to test")
+    # parser.add_argument("--prefix-lengths", type=int, nargs="*", default=[25_000, 50_000, 75_000, 100_000 ], help="Prefix lengths to test")
     parser.add_argument("--trials", type=int, default=2, help="Trials per measurement")
     parser.add_argument("--warmup", type=int, default=2, help="Warmup runs before timing (per measurement)")
     parser.add_argument("--out", type=str, default="count_latency_results.json", help="Output JSON path (relative to this directory by default)")
