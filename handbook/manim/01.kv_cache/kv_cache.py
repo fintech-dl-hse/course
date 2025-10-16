@@ -738,87 +738,63 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         if log_max_power < 0:
             log_max_power = 0
 
-        axes2 = Axes(
-            x_range=[0, max_tokens, max(1, max_tokens // 5)],
-            y_range=[log_min_power, log_max_power, 1],
-            width=2,
-            height=2,
-            x_axis_config={"include_tip": False, "include_ticks": False},
-            y_axis_config={"include_tip": False, "include_ticks": False},
-        )
-        axes2.center().shift(2.0 * DOWN)
+        # Replace lower plot with a simple table of speeds (tokens/s)
+        model = models[0]
+        cols = sorted(model["prefix_lengths"])  # prefix lengths
 
-        speed_header.next_to(axes2, UP, buff=0.2)
+        def speed_from_map(lat_map: dict, n: int) -> float:
+            mean_ms, _ = lat_map.get(n, (0.0, 0.0))
+            return 1000.0 / mean_ms if mean_ms > 0 else 0.0
+
+        kv_map = model["latency_kv"]
+        no_kv_map = model["latency_no_kv"]
+
+        # Table sizing
+        table_total_width = 2.4
+        label_col_width = 1.0
+        num_data_cols = max(1, len(cols))
+        data_col_width = (table_total_width - label_col_width) / num_data_cols
+        row_height = 0.4
+
+        def make_cell(cell_width: float, cell_height: float, text_str: str, font_size: int = 12):
+            rect = Rectangle(width=cell_width, height=cell_height, stroke_width=1, stroke_color=GREY_B, fill_opacity=0.05, fill_color=BLACK)
+            txt = Text(text_str, font_size=font_size)
+            # Center text inside the rectangle
+            txt.move_to(rect.get_center())
+            return VGroup(rect, txt)
+
+        # Build rows: header + two data rows
+        header_row = VGroup()
+        header_row.add(make_cell(label_col_width, row_height, ""))
+        for n in cols:
+            header_row.add(make_cell(data_col_width, row_height, str(n)))
+
+        with_row = VGroup()
+        with_row.add(make_cell(label_col_width, row_height, "With KV-Cache"))
+        for n in cols:
+            val = speed_from_map(kv_map, n)
+            txt = "-" if val <= 0 else f"{val:.2f}"
+            with_row.add(make_cell(data_col_width, row_height, txt))
+
+        without_row = VGroup()
+        without_row.add(make_cell(label_col_width, row_height, "No KV-Cache"))
+        for n in cols:
+            val = speed_from_map(no_kv_map, n)
+            txt = "-" if val <= 0 else f"{val:.2f}"
+            without_row.add(make_cell(data_col_width, row_height, txt))
+
+        # Arrange the table
+        for row in (header_row, with_row, without_row):
+            row.arrange(RIGHT, buff=0)
+
+        table_group = VGroup(header_row, with_row, without_row)
+        table_group.arrange(DOWN, buff=0)
+        table_group.center().shift(2.0 * DOWN)
+
+        speed_header.next_to(table_group, UP, buff=0.2)
         speed_header.align_to(header, LEFT)
 
-        x2_label = Text("Sequence length (tokens)", font_size=16)
-        x2_label.next_to(axes2, DOWN, buff=0.3)
-        y2_label = Text("Tokens per second (log)", font_size=16)
-        y2_label.rotate(PI / 2)
-        y2_label.next_to(axes2.get_y_axis(), LEFT, buff=0.3)
-
-        # Ticks for axes2 (same style as above)
-        x2_step = max(1, int(math.ceil(max_tokens / 5.0)))
-        x2_vals = [k * x2_step for k in range(0, int(math.floor(max_tokens / x2_step)) + 1)]
-        print("x2_vals", x2_vals)
-        x2_ticks = VGroup()
-        for xv in x2_vals:
-            p = axes2.c2p(xv, 0)
-            tick = Line(p + 0.05 * UP, p + 0.05 * DOWN, stroke_color=GREY_B, stroke_width=2)
-            label = Text(abbrev(int(xv)), font_size=12)
-            label.next_to(tick, DOWN, buff=0.05)
-            x2_ticks.add(VGroup(tick, label))
-
-        # Log-decade ticks on Y
-        y2_ticks = VGroup()
-        for pwr in range(log_min_power, log_max_power + 1):
-            p = axes2.c2p(0, pwr)
-            tick = Line(p + 0.05 * LEFT, p + 0.05 * RIGHT, stroke_color=GREY_B, stroke_width=2)
-            val = 10 ** pwr
-            label_txt = f"{val:g}" if val >= 1 else f"{val:.3g}"
-            label = Text(label_txt, font_size=12)
-            label.next_to(tick, LEFT, buff=0.05)
-            y2_ticks.add(VGroup(tick, label))
-
-        # Speed lines (with KV-Cache)
-        speed_lines = VGroup()
-        for m in models:
-            xs, ys = gather_speeds_from_latency_map(m, "latency_kv")
-            print("latency_kv xs", xs)
-            print("latency_kv ys", ys)
-            if not xs:
-                continue
-            pts = [axes2.c2p(x, math.log10(y)) for x, y in zip(xs, ys) if y > 0]
-            line = VMobject()
-            line.set_stroke(color=m["color"], width=6)
-            line.set_points_as_corners(pts)
-            speed_lines.add(line)
-
-        # Speed lines (without KV-Cache) shown as dashed between points
-        speed_lines_no_kv = VGroup()
-        for m in models:
-            xs, ys = gather_speeds_from_latency_map(m, "latency_no_kv")
-            print("latency_no_kv xs", xs)
-            print("latency_no_kv ys", ys)
-
-            if len(xs) < 2:
-                continue
-            segs = VGroup()
-            for i in range(len(xs) - 1):
-                if ys[i] <= 0 or ys[i + 1] <= 0:
-                    continue
-                p0 = axes2.c2p(xs[i], math.log10(ys[i]))
-                p1 = axes2.c2p(xs[i + 1], math.log10(ys[i + 1]))
-                seg = Line(p0, p1, stroke_color=NO_KV_COLOR, stroke_width=4)
-                segs.add(seg)
-            speed_lines_no_kv.add(segs)
-
-        # Animate lower plot after finishing top plot animations
-        self.play(FadeIn(VGroup(axes2, x2_label, y2_label, speed_header)))
-        self.add(x2_ticks, y2_ticks)
-        self.play(*[ShowCreation(line) for line in speed_lines])
-        # Show the no-KV dashed curves (different color)
-        self.play(*[ShowCreation(segs) for segs in speed_lines_no_kv])
+        self.play(FadeIn(VGroup(speed_header, table_group)))
 
         # Draw separate no-KV line on the KV size plot (zero baseline)
         zero_line = Line(axes.c2p(0, 0), axes.c2p(max_tokens, 0), stroke_color=NO_KV_COLOR, stroke_width=4)
