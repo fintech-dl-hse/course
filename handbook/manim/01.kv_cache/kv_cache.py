@@ -2,6 +2,7 @@ from __future__ import annotations
 import copy
 from collections import defaultdict
 import json
+import math
 from pathlib import Path
 from manim_imports_ext import *
 from _2024.transformers.helpers import *
@@ -529,6 +530,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
 
         models = []
         max_tokens = 0
+        counts_union = set()
         for path, color in files:
             if not path.exists():
                 raise ValueError(f"Model file not found: {path}")
@@ -536,6 +538,9 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
             a, b, meta = self.load_coeff(path)
             display_name = meta.get("model", path.stem)
             counts = meta.get("counts", [1_000_000])
+            for c in counts:
+                if isinstance(c, (int, float)):
+                    counts_union.add(int(c))
             max_tokens = max(max_tokens, max(counts))
             models.append({
                 "name": display_name,
@@ -573,6 +578,45 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
 
         self.add(header)
         self.add(axes, x_label, y_label)
+
+        # Explicit ticks and labels
+        def abbrev(n: int) -> str:
+            if n >= 1_000_000:
+                return f"{n // 1_000_000}M"
+            if n >= 1_000:
+                return f"{n // 1_000}k"
+            return str(n)
+
+        # X ticks from counts (plus 0)
+        x_ticks_vals = sorted(v for v in counts_union if 0 < v <= max_tokens)
+        if not x_ticks_vals:
+            x_ticks_vals = [max_tokens // 10, max_tokens // 2, max_tokens]
+        x_ticks_vals = [0] + x_ticks_vals
+
+        x_ticks = VGroup()
+        for xv in x_ticks_vals:
+            p = axes.c2p(xv, 0)
+            tick = Line(p + 0.05 * UP, p + 0.05 * DOWN, stroke_color=GREY_B, stroke_width=2)
+            label = Text(abbrev(int(xv)), font_size=12)
+            label.next_to(tick, DOWN, buff=0.05)
+            x_ticks.add(VGroup(tick, label))
+
+        # Y ticks at ~5 intervals (GB)
+        y_step = max(1.0, math.ceil(y_max / 5.0))
+        y_vals = [k * y_step for k in range(0, int(math.floor(y_max / y_step)) + 1)]
+
+        y_ticks = VGroup()
+        for yv in y_vals:
+            p = axes.c2p(0, yv)
+            tick = Line(p + 0.05 * LEFT, p + 0.05 * RIGHT, stroke_color=GREY_B, stroke_width=2)
+            if yv > 0:
+                label = Text(f"{int(yv)}", font_size=12)
+                label.next_to(tick, LEFT, buff=0.05)
+                y_ticks.add(VGroup(tick, label))
+            else:
+                y_ticks.add(tick)
+
+        self.add(x_ticks, y_ticks)
 
         # Plot lines (linear: size_bytes = a * n + b). Convert to GB for plotting
         lines = VGroup()
