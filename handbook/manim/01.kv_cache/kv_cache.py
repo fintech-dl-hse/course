@@ -1,6 +1,8 @@
 from __future__ import annotations
 import copy
 from collections import defaultdict
+import json
+from pathlib import Path
 from manim_imports_ext import *
 from _2024.transformers.helpers import *
 from _2024.transformers.embedding import break_into_words
@@ -505,3 +507,101 @@ class SequenceAttentionComputationsWithKVCache(InteractiveScene, CommonFixture):
             prefix_words=1,
             use_kv_cache=True,
         )
+
+
+class KVCacheSizeVsSequenceLength(InteractiveScene):
+
+    def load_coeff(self, path: Path):
+        with open(path, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+        a = int(payload["a_bytes_per_token"])  # bytes per token
+        b = int(payload.get("b_bytes", 0))
+        meta = payload.get("meta", {})
+        return a, b, meta
+
+    def construct(self):
+        # Locate JSON coefficient files next to this script
+        base_dir = Path(__file__).resolve().parent
+        files = [
+            (base_dir / "kv_cache_coeffs_llama3.1-7B.json", TEAL),
+            (base_dir / "kv_cache_coeffs_llama3.2-3B.json", MAROON_A),
+        ]
+
+        models = []
+        max_tokens = 0
+        for path, color in files:
+            if not path.exists():
+                raise ValueError(f"Model file not found: {path}")
+
+            a, b, meta = self.load_coeff(path)
+            display_name = meta.get("model", path.stem)
+            counts = meta.get("counts", [1_000_000])
+            max_tokens = max(max_tokens, max(counts))
+            models.append({
+                "name": display_name,
+                "a": a,
+                "b": b,
+                "color": color,
+            })
+
+        # Compute y range in GB with headroom
+        max_bytes = max(m["a"] * max_tokens + m["b"] for m in models)
+        max_gb = max_bytes / 1e9
+        y_max = max(1.0, max_gb * 1.1)
+
+        # Header
+        header = Text("KV-Cache size vs sequence length", font_size=20)
+        header.to_corner(LEFT + UP).fix_in_frame()
+
+        # Axes
+        axes = Axes(
+            x_range=[0, max_tokens, max(1, max_tokens // 5)],
+            y_range=[0, y_max, max(0.5, y_max / 5)],
+            width=2,
+            height=2,
+            x_axis_config={"include_tip": False, "include_ticks": True},
+            y_axis_config={"include_tip": False, "include_ticks": True},
+            # ticks
+        )
+        axes.center().shift(0.5 * DOWN)
+
+        x_label = Text("Sequence length (tokens)", font_size=16)
+        x_label.next_to(axes, DOWN, buff=0.3)
+        y_label = Text("KV-Cache size (GB)", font_size=16)
+        y_label.rotate(PI / 2)
+        y_label.next_to(axes.get_y_axis(), LEFT, buff=0.3)
+
+        self.add(header)
+        self.add(axes, x_label, y_label)
+
+        # Plot lines (linear: size_bytes = a * n + b). Convert to GB for plotting
+        lines = VGroup()
+        for m in models:
+            a = m["a"]
+            b = m["b"]
+            start = axes.c2p(0, b / 1e9)
+            end = axes.c2p(max_tokens, (a * max_tokens + b) / 1e9)
+            line = Line(start, end, stroke_color=m["color"], stroke_width=6)
+            lines.add(line)
+
+        self.play(*[ShowCreation(line) for line in lines])
+
+        # Legend
+        legend_items = VGroup()
+        for i, m in enumerate(models):
+            swatch = Line(ORIGIN, 0.2 * RIGHT, stroke_color=m["color"], stroke_width=8)
+            label = Text(m["name"], font_size=14)
+            item = VGroup(swatch, label)
+            item.arrange(RIGHT, buff=0.1)
+            legend_items.add(item)
+
+        legend_items.arrange(DOWN, aligned_edge=LEFT, buff=0.1)
+        legend_bg = SurroundingRectangle(legend_items, buff=0.1)
+        legend_bg.set_stroke(GREY_B, 1)
+        legend_bg.set_fill(BLACK, 0.2)
+        legend = VGroup(legend_bg, legend_items)
+        legend.to_corner(RIGHT + UP).shift(0.5 * LEFT + 0.5 * DOWN)
+        legend.fix_in_frame()
+
+        self.add(legend)
+        self.wait(0.5)
