@@ -4,6 +4,7 @@ from collections import defaultdict
 import json
 import math
 from pathlib import Path
+from tkinter import RIGHT
 from manim_imports_ext import *
 from _2024.transformers.helpers import *
 from _2024.transformers.embedding import break_into_words
@@ -521,33 +522,75 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         return a, b, meta
 
     def construct(self):
-        # Locate JSON coefficient files next to this script
+        # Locate latency result files next to this script and use them for plots
         base_dir = Path(__file__).resolve().parent
-        files = [
-            (base_dir / "kv_cache_coeffs_llama3.1-7B.json", TEAL),
-            (base_dir / "kv_cache_coeffs_llama3.2-3B.json", MAROON_A),
+        latency_files = [
+            (base_dir / "count_latency_results_llama3.1_7B.json", TEAL),
+            # (base_dir / "count_latency_results_llama3.2-3B.json", MAROON_A),
+            # (base_dir / "count_latency_results_llama3.2-1B.json", BLUE_C),
         ]
 
-        models = []
-        max_tokens = 0
-        counts_union = set()
-        for path, color in files:
-            if not path.exists():
-                raise ValueError(f"Model file not found: {path}")
+        def load_latency_report(path: Path):
+            with open(path, "r", encoding="utf-8") as f:
+                rep = json.load(f)
+            meta = rep.get("meta", {})
+            model_full = meta.get("model_name") or meta.get("model") or path.stem
+            # Shorten model name if looks like "org/name"
+            if isinstance(model_full, str) and "/" in model_full:
+                model_short = model_full.split("/")[-1]
+                model_short = model_short.removeprefix("Meta-")
+            else:
+                model_short = str(model_full)
+            bytes_per_token = int(rep.get("kv_cache_size", {}).get("bytes_per_token", 0))
+            prefix_lengths = [int(n) for n in rep.get("prefix_lengths", [])]
+            with_kv = rep.get("with_kv_cache", {}).get("per_prefix", {})
+            without_kv = rep.get("without_kv_cache", {}).get("per_prefix", {})
+            # Map n -> (mean_ms, stdev_ms)
+            latency_kv = {}
+            for k, v in with_kv.items():
+                try:
+                    n = int(k)
+                except Exception:
+                    continue
+                latency_kv[n] = (
+                    float(v.get("mean_ms", 0.0)),
+                    float(v.get("stdev_ms", 0.0)),
+                )
+            latency_no_kv = {}
+            for k, v in without_kv.items():
+                try:
+                    n = int(k)
+                except Exception:
+                    continue
+                latency_no_kv[n] = (
+                    float(v.get("mean_ms", 0.0)),
+                    float(v.get("stdev_ms", 0.0)),
+                )
 
-            a, b, meta = self.load_coeff(path)
-            display_name = meta.get("model", path.stem)
-            counts = meta.get("counts", [1_000_000])
-            for c in counts:
+            # print('latency_kv', latency_kv)
+            # print('latency_no_kv', latency_no_kv)
+            return {
+                "name": model_short,
+                "a": bytes_per_token,
+                "b": 0,
+                "prefix_lengths": sorted(prefix_lengths),
+                "latency_kv": latency_kv,
+                "latency_no_kv": latency_no_kv,
+            }
+
+        # Load models from latency reports
+        models = []
+        counts_union = set()
+        for path, color in latency_files:
+            if not path.exists():
+                raise ValueError(f"Latency file not found: {path}")
+            rec = load_latency_report(path)
+            rec["color"] = color
+            models.append(rec)
+            for c in rec["prefix_lengths"]:
                 if isinstance(c, (int, float)):
                     counts_union.add(int(c))
-            max_tokens = max(max_tokens, max(counts))
-            models.append({
-                "name": display_name,
-                "a": a,
-                "b": b,
-                "color": color,
-            })
+        max_tokens = max(counts_union) if counts_union else 100_000
 
         # Compute y range in GB with headroom
         max_bytes = max(m["a"] * max_tokens + m["b"] for m in models)
@@ -555,8 +598,9 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         y_max = max(1.0, max_gb * 1.1)
 
         # Header
-        header = Text("KV-Cache size vs sequence length", font_size=20)
+        header = Text("KV-Cache size", font_size=20)
         header.to_corner(LEFT + UP).fix_in_frame()
+        header.shift( -header.get_center()[0] * RIGHT )
 
         # Axes
         axes = Axes(
@@ -637,6 +681,16 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
             item.arrange(RIGHT, buff=0.1)
             legend_items.add(item)
 
+        # Add separate legend entry for no-KV cache
+        assert len(models) == 1, "Only one model is supported for no kv cache plots"
+
+        NO_KV_COLOR = ORANGE
+        no_kv_swatch = Line(ORIGIN, 0.2 * RIGHT, stroke_color=NO_KV_COLOR, stroke_width=8)
+        no_kv_label = Text(models[0]['name'] + " no KV-Cache", font_size=14)
+        no_kv_item = VGroup(no_kv_swatch, no_kv_label)
+        no_kv_item.arrange(RIGHT, buff=0.1)
+        legend_items.add(no_kv_item)
+
         legend_items.arrange(DOWN, aligned_edge=LEFT, buff=0.1)
         legend_bg = SurroundingRectangle(legend_items, buff=0.1)
         legend_bg.set_stroke(GREY_B, 1)
@@ -647,36 +701,127 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
 
         self.add(legend)
         self.play(*[ShowCreation(line) for line in lines])
+        self.wait(2.0)
+
+        # ----------------------------
+        # Second plot: Generation speed vs prefix length (tokens/s)
+        # Appears below once the KV-Cache animation is finished
+        # ----------------------------
+        speed_header = Text("Generation speed", font_size=20)
+        # Position this title just above the lower axes we will create
+        # Create axes for speed plot
+        # Determine y-range from data across all models
+        def gather_speeds_from_latency_map(m, key: str):
+            lat_map = m[key]
+            xs = sorted(set(m["prefix_lengths"]) & set(lat_map.keys()))
+            ys = []
+            for x in xs:
+                mean_ms, _ = lat_map.get(x, (0.0, 0.0))
+                speed_tps = 1000.0 / mean_ms if mean_ms > 0 else 0.0
+                ys.append(speed_tps)
+            return xs, ys
+
+        all_speed_vals = []
+        for m in models:
+            _, ys = gather_speeds_from_latency_map(m, "latency_kv")
+            all_speed_vals.extend(ys)
+            _, ys2 = gather_speeds_from_latency_map(m, "latency_no_kv")
+            all_speed_vals.extend(ys2)
+        max_speed = max(all_speed_vals) if all_speed_vals else 1.0
+        y2_max = max(1.0, math.ceil(max_speed * 1.1))
+
+        axes2 = Axes(
+            x_range=[0, max_tokens, max(1, max_tokens // 5)],
+            y_range=[0, y2_max, max(1.0, y2_max / 5)],
+            width=2,
+            height=2,
+            x_axis_config={"include_tip": False, "include_ticks": False},
+            y_axis_config={"include_tip": False, "include_ticks": False},
+        )
+        axes2.center().shift(2.0 * DOWN)
+
+        speed_header.next_to(axes2, UP, buff=0.2)
+        speed_header.align_to(header, LEFT)
+
+        x2_label = Text("Sequence length (tokens)", font_size=16)
+        x2_label.next_to(axes2, DOWN, buff=0.3)
+        y2_label = Text("Tokens per second", font_size=16)
+        y2_label.rotate(PI / 2)
+        y2_label.next_to(axes2.get_y_axis(), LEFT, buff=0.3)
+
+        # Ticks for axes2 (same style as above)
+        x2_step = max(1, int(math.ceil(max_tokens / 5.0)))
+        x2_vals = [k * x2_step for k in range(0, int(math.floor(max_tokens / x2_step)) + 1)]
+        print("x2_vals", x2_vals)
+        x2_ticks = VGroup()
+        for xv in x2_vals:
+            p = axes2.c2p(xv, 0)
+            tick = Line(p + 0.05 * UP, p + 0.05 * DOWN, stroke_color=GREY_B, stroke_width=2)
+            label = Text(abbrev(int(xv)), font_size=12)
+            label.next_to(tick, DOWN, buff=0.05)
+            x2_ticks.add(VGroup(tick, label))
+
+        y2_step = max(1.0, math.ceil(y2_max / 5.0))
+        y2_vals = [k * y2_step for k in range(0, int(math.floor(y2_max / y2_step)) + 1)]
+        print("y2_vals", y2_vals)
+        y2_ticks = VGroup()
+        for yv in y2_vals:
+            p = axes2.c2p(0, yv)
+            tick = Line(p + 0.05 * LEFT, p + 0.05 * RIGHT, stroke_color=GREY_B, stroke_width=2)
+            if yv > 0:
+                label = Text(f"{int(yv)}", font_size=12)
+                label.next_to(tick, LEFT, buff=0.05)
+                y2_ticks.add(VGroup(tick, label))
+            else:
+                y2_ticks.add(tick)
+
+        # Speed lines (with KV-Cache)
+        speed_lines = VGroup()
+        for m in models:
+            xs, ys = gather_speeds_from_latency_map(m, "latency_kv")
+            print("latency_kv xs", xs)
+            print("latency_kv ys", ys)
+            if not xs:
+                continue
+            pts = [axes2.c2p(x, y) for x, y in zip(xs, ys)]
+            line = VMobject()
+            line.set_stroke(color=m["color"], width=6)
+            line.set_points_as_corners(pts)
+            speed_lines.add(line)
+
+        # Speed lines (without KV-Cache) shown as dashed between points
+        speed_lines_no_kv = VGroup()
+        for m in models:
+            xs, ys = gather_speeds_from_latency_map(m, "latency_no_kv")
+            print("latency_no_kv xs", xs)
+            print("latency_no_kv ys", ys)
+
+            if len(xs) < 2:
+                continue
+            segs = VGroup()
+            for i in range(len(xs) - 1):
+                p0 = axes2.c2p(xs[i], ys[i])
+                p1 = axes2.c2p(xs[i + 1], ys[i + 1])
+                seg = Line(p0, p1, stroke_color=NO_KV_COLOR, stroke_width=4)
+                segs.add(seg)
+            speed_lines_no_kv.add(segs)
+
+        # Animate lower plot after finishing top plot animations
+        self.play(FadeIn(VGroup(axes2, x2_label, y2_label, speed_header)))
+        self.add(x2_ticks, y2_ticks)
+        self.play(*[ShowCreation(line) for line in speed_lines])
+        # Show the no-KV dashed curves (different color)
+        self.play(*[ShowCreation(segs) for segs in speed_lines_no_kv])
+
+        # Draw separate no-KV line on the KV size plot (zero baseline)
+        zero_line = Line(axes.c2p(0, 0), axes.c2p(max_tokens, 0), stroke_color=NO_KV_COLOR, stroke_width=4)
+        self.play(ShowCreation(zero_line))
         self.wait(3.0)
 
-        # Animate x-axis ticks from tokens -> approximate A4 sheets
-        def pages_from_tokens(tok: int) -> float:
-            return (tok * 1400.0) / 1_000_000.0
+        xs, ys = gather_speeds_from_latency_map(models[0], "latency_no_kv")
+        min_per_token = int(1 / ys[-1] / 60)
+        tokens = (xs[-1]/1000)
 
-        def abbrev_pages(p: float) -> str:
-            # Prefer integers when close, else one decimal
-            if p >= 1000:
-                return f"{p / 1000:.1f}k"
-            if abs(p - round(p)) < 0.1:
-                return f"{int(round(p))}"
-            return f"{p:.1f}"
-
-        # Create replacement labels
-        tick_label_transforms = []
-        for i, tick_group in enumerate(x_ticks):
-            tick_line, old_label = tick_group
-            pages = pages_from_tokens(int(x_vals[i]))
-            new_label = Text(abbrev_pages(pages), font_size=12)
-            new_label.next_to(tick_line, DOWN, buff=0.05)
-            tick_label_transforms.append(Transform(old_label, new_label))
-
-        # Animate x-axis title change
-        new_x_label = Text("Sequence length (~A4 sheets, 12pt)", font_size=16)
-        new_x_label.move_to(x_label)
-
-        self.play(
-            Transform(x_label, new_x_label),
-            *tick_label_transforms,
-            run_time=1.5,
-        )
-        self.wait(0.5)
+        text = Text(f"No KV Cache: {min_per_token} minutes per 1 token at {tokens}k prefix", font_size=16).to_edge(DOWN).shift(0.5 * LEFT)
+        self.play(Write(text))
+        self.wait(3.0)
