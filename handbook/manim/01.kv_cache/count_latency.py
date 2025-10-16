@@ -26,6 +26,7 @@ from typing import Any, Dict, List, Tuple
 import torch
 from transformers import AutoConfig, AutoModelForCausalLM
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 
 def pick_device(user_device: str) -> str:
@@ -99,14 +100,16 @@ def measure_attention_per_layer_ms(
             _ = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past)
 
         times_ms: List[float] = []
-        for _ in range(iters):
-            next_ids = torch.full((1, 1), int(token_id), device=device, dtype=torch.long)
-            next_mask = torch.ones((1, int(n_tokens) + 1), device=device, dtype=torch.long)
+        for iter_i in range(iters + 1):
+            # next_ids = torch.full((1, 1), int(token_id), device=device, dtype=torch.long)
+            # next_mask = torch.ones((1, int(n_tokens) + 1), device=device, dtype=torch.long)
             synchronize(device)
             t0 = time.perf_counter()
             _ = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past)
             synchronize(device)
             t1 = time.perf_counter()
+            if iter_i == 0:
+                continue
             times_ms.append((t1 - t0) * 1e3)
 
     num_layers = int(getattr(model.config, "num_hidden_layers", None) or getattr(model.config, "n_layer", 1))
@@ -140,12 +143,13 @@ def estimate_no_kv_time_ms_from_fit(n_tokens: int, a: float, b: float) -> float:
     return a * n * (n + 1.0) / 2.0 + b * n
 
 
+@torch.no_grad()
 def main() -> int:
     parser = argparse.ArgumentParser(description="Measure per-token generation latency with/without KV-Cache.")
     parser.add_argument("--model_name", type=str, required=True, help="HF model id (e.g., meta-llama/Llama-3.1-8B)")
     parser.add_argument("--device", type=str, default="", help="cuda|cpu (auto if empty)")
     parser.add_argument("--dtype", type=str, default="float16", help="float16|bfloat16|float32")
-    parser.add_argument("--prefix-lengths", type=int, nargs="*", default=[10_000, 100_000, 250_000], help="Prefix lengths to test")
+    parser.add_argument("--prefix-lengths", type=int, nargs="*", default=[10_000, 50_000, 100_000, 150_000, 200_000], help="Prefix lengths to test")
     parser.add_argument("--trials", type=int, default=10, help="Trials per measurement")
     parser.add_argument("--warmup", type=int, default=2, help="Warmup runs before timing (per measurement)")
     parser.add_argument("--calib-lengths", type=int, nargs="*", default=[4096, 8192, 16384], help="Prefix lengths to calibrate linear KV model")
@@ -197,7 +201,7 @@ def main() -> int:
     no_kv_times_per_prefix: Dict[int, List[float]] = {n: [] for n in args.prefix_lengths}
 
     # Per-trial: calibrate linear model on small lengths, then measure/estimate per prefix
-    for trial_idx in range(args.trials):
+    for trial_idx in tqdm(range(args.trials), desc="Trials"):
         # Calibrate linear fit for per-layer KV time
         calib_xs: List[float] = []
         calib_ys_ms: List[float] = []
@@ -222,7 +226,7 @@ def main() -> int:
         })
 
         # For each requested prefix length: measure KV (or estimate if requested), estimate no-KV
-        for n in args.prefix_lengths:
+        for n in tqdm(args.prefix_lengths, desc="Prefix lengths"):
             measure_direct = not args.skip_large_direct or (int(n) <= int(args.measure_threshold_tokens))
 
             if measure_direct:
