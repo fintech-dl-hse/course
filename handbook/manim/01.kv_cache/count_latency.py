@@ -133,18 +133,42 @@ def measure_attention_per_layer_ms(
             del outputs
             # torch.cuda.empty_cache()
 
-        print("Measure", n_tokens, 'use_cache', use_cache, 'past', past)
+        print("Measure", n_tokens, 'use_cache', use_cache, 'past', past, 'next_ids', next_ids.shape)
         times_ms: List[float] = []
         for iter_i in range(iters + 1):
-            synchronize(device)
-            t0 = time.perf_counter()
-            outputs = model(input_ids=next_ids, attention_mask=next_mask, use_cache=use_cache, past_key_values=past, logits_to_keep=1)
-            del outputs
-            synchronize(device)
-            t1 = time.perf_counter()
+            if device == "cuda":
+                torch.cuda.synchronize()
+                start_event = torch.cuda.Event(enable_timing=True)
+                end_event = torch.cuda.Event(enable_timing=True)
+                start_event.record()
+                outputs = model(
+                    input_ids=next_ids,
+                    attention_mask=next_mask,
+                    use_cache=use_cache,
+                    past_key_values=past,
+                    logits_to_keep=1,
+                )
+                del outputs
+                end_event.record()
+                torch.cuda.synchronize()
+                elapsed_ms = start_event.elapsed_time(end_event)
+            else:
+                synchronize(device)
+                t0 = time.time()
+                outputs = model(
+                    input_ids=next_ids,
+                    attention_mask=next_mask,
+                    use_cache=use_cache,
+                    past_key_values=past,
+                    logits_to_keep=1,
+                )
+                del outputs
+                synchronize(device)
+                t1 = time.time()
+                elapsed_ms = (t1 - t0) * 1e3
             if iter_i == 0:
                 continue
-            times_ms.append((t1 - t0) * 1e3)
+            times_ms.append(elapsed_ms)
 
     num_layers = int(getattr(model.config, "num_hidden_layers", None) or getattr(model.config, "n_layer", 1))
     if num_layers <= 0:
@@ -225,8 +249,8 @@ def main() -> int:
                 n_tokens=int(n),
                 device=device,
                 torch_dtype=torch_dtype,
-                warmup=args.trials,
-                iters=20,
+                warmup=args.warmup,
+                iters=args.trials,
             )
             kv_time_ms = float(kv_per_layer_times_ms[0]) * float(num_layers)
 
@@ -245,7 +269,7 @@ def main() -> int:
                 iters=args.trials,
                 no_kv_cache=True,
             )
-            no_kv_per_layer_times_ms = float(kv_per_layer_times_ms[0]) * float(num_layers)
+            no_kv_per_layer_times_ms = float(no_kv_per_layer_times_ms[0]) * float(num_layers)
             no_kv_times_per_prefix[int(n)].append(no_kv_per_layer_times_ms)
 
             if device == "cuda":
@@ -254,12 +278,14 @@ def main() -> int:
 
     # Aggregate statistics
     for n, arr in with_kv_times_per_prefix.items():
+        print('with_kv_times_per_prefix', n, statistics.fmean(arr), statistics.pstdev(arr))
         report["with_kv_cache"]["per_prefix"][str(n)] = {
             "times_ms": arr,
             "mean_ms": statistics.fmean(arr) if arr else 0.0,
             "stdev_ms": statistics.pstdev(arr) if len(arr) > 1 else 0.0,
         }
     for n, arr in no_kv_times_per_prefix.items():
+        print('no_kv_times_per_prefix', n, statistics.fmean(arr), statistics.pstdev(arr))
         report["without_kv_cache"]["per_prefix"][str(n)] = {
             "times_ms": arr,
             "mean_ms": statistics.fmean(arr) if arr else 0.0,
