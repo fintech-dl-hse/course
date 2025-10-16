@@ -132,7 +132,7 @@ def parse_args(argv: Optional[list] = None) -> argparse.Namespace:
     p.add_argument("--trust-remote-code", action="store_true", help="Allow remote code when loading HF config.")
     p.add_argument("--out", type=str, default="kv_cache_coeffs.json", help="Where to write coefficients JSON.")
 
-    p.add_argument("--counts", type=int, nargs="*", default=[10_000, 50_000, 100_000], help="Token counts to extrapolate.")
+    p.add_argument("--counts", type=int, nargs="*", default=[10_000, 100_000, 1_000_000], help="Token counts to extrapolate.")
     return p.parse_args(argv)
 
 
@@ -202,6 +202,8 @@ def main(argv: Optional[list] = None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # sys.exit(main())
 
+    main(["--model", "unsloth/Llama-3.2-3B", "--out", "handbook/manim/01.kv_cache/kv_cache_coeffs_llama3.2-3B.json"])
+    main(["--model", "unsloth/Meta-Llama-3.1-8B", "--out", "handbook/manim/01.kv_cache/kv_cache_coeffs_llama3.1-7B.json"])
 
