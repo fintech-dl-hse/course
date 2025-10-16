@@ -182,8 +182,8 @@ def main() -> int:
     parser.add_argument("--model_name", type=str, required=True, help="HF model id (e.g., meta-llama/Llama-3.1-8B)")
     parser.add_argument("--device", type=str, default="", help="cuda|cpu (auto if empty)")
     parser.add_argument("--dtype", type=str, default="float16", help="float16|bfloat16|float32")
-    parser.add_argument("--prefix-lengths", type=int, nargs="*", default=[10_000, 20_000 ], help="Prefix lengths to test")
-    # parser.add_argument("--prefix-lengths", type=int, nargs="*", default=[25_000, 50_000, 75_000, 100_000 ], help="Prefix lengths to test")
+    # parser.add_argument("--prefix-lengths", type=int, nargs="*", default=[10_000, 20_000 ], help="Prefix lengths to test")
+    parser.add_argument("--prefix-lengths", type=int, nargs="*", default=[ 25_000, 50_000, 75_000, 100_000 ], help="Prefix lengths to test")
     parser.add_argument("--trials", type=int, default=2, help="Trials per measurement")
     parser.add_argument("--warmup", type=int, default=2, help="Warmup runs before timing (per measurement)")
     parser.add_argument("--out", type=str, default="count_latency_results.json", help="Output JSON path (relative to this directory by default)")
@@ -209,7 +209,7 @@ def main() -> int:
     else:
         kv_bytes_per_elem = 2
     per_token_kv_bytes = kv_cache_bytes_per_token_from_cfg(cfg, kv_bytes_per_elem)
-    model: Any = AutoModelForCausalLM.from_pretrained(args.model_name, torch_dtype=torch_dtype, attn_implementation="sdpa")  # type: ignore[call-arg,]
+    model: Any = AutoModelForCausalLM.from_pretrained(args.model_name, torch_dtype=torch_dtype, attn_implementation="flash_attention_2")  # type: ignore[call-arg,]
     model.to(device)
 
     report: Dict = {
