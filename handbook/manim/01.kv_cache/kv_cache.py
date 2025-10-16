@@ -701,39 +701,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
 
         self.add(legend)
         self.play(*[ShowCreation(line) for line in lines])
-        self.wait(1.0)
-
-        # Animate x-axis ticks from tokens -> approximate A4 sheets
-        def pages_from_tokens(tok: int) -> float:
-            return (tok * 1400.0) / 1_000_000.0
-
-        def abbrev_pages(p: float) -> str:
-            # Prefer integers when close, else one decimal
-            if p >= 1000:
-                return f"{p / 1000:.1f}k"
-            if abs(p - round(p)) < 0.1:
-                return f"{int(round(p))}"
-            return f"{p:.1f}"
-
-        # Create replacement labels
-        tick_label_transforms = []
-        for i, tick_group in enumerate(x_ticks):
-            tick_line, old_label = tick_group
-            pages = pages_from_tokens(int(x_vals[i]))
-            new_label = Text(abbrev_pages(pages), font_size=12)
-            new_label.next_to(tick_line, DOWN, buff=0.05)
-            tick_label_transforms.append(Transform(old_label, new_label))
-
-        # Animate x-axis title change
-        new_x_label = Text("Sequence length (~A4 sheets, 12pt)", font_size=16)
-        new_x_label.move_to(x_label)
-
-        self.play(
-            Transform(x_label, new_x_label),
-            *tick_label_transforms,
-            run_time=1.5,
-        )
-        self.wait(3.0)
+        self.wait(2.0)
 
         # ----------------------------
         # Second plot: Generation speed vs prefix length (tokens/s)
