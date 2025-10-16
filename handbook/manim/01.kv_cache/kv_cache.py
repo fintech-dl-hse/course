@@ -525,7 +525,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         # Locate latency result files next to this script and use them for plots
         base_dir = Path(__file__).resolve().parent
         latency_files = [
-            (base_dir / "count_latency_results_llama3.1_7B.json", TEAL),
+            (base_dir / "count_latency_results_llama3.1-8B.json", TEAL),
             # (base_dir / "count_latency_results_llama3.2-3B.json", MAROON_A),
             # (base_dir / "count_latency_results_llama3.2-1B.json", BLUE_C),
         ]
@@ -727,12 +727,20 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
             all_speed_vals.extend(ys)
             _, ys2 = gather_speeds_from_latency_map(m, "latency_no_kv")
             all_speed_vals.extend(ys2)
-        max_speed = max(all_speed_vals) if all_speed_vals else 1.0
-        y2_max = max(1.0, math.ceil(max_speed * 1.1))
+        positive_speeds = [v for v in all_speed_vals if v > 0]
+        max_speed = max(positive_speeds) if positive_speeds else 1.0
+        min_speed = min(positive_speeds) if positive_speeds else 0.1
+        log_min_power = int(math.floor(math.log10(min_speed)))
+        log_max_power = int(math.ceil(math.log10(max_speed)))
+        # Ensure the origin (0 on log10 scale => 1 tps) is included so axes intersect at (0, 0)
+        if log_min_power > 0:
+            log_min_power = 0
+        if log_max_power < 0:
+            log_max_power = 0
 
         axes2 = Axes(
             x_range=[0, max_tokens, max(1, max_tokens // 5)],
-            y_range=[0, y2_max, max(1.0, y2_max / 5)],
+            y_range=[log_min_power, log_max_power, 1],
             width=2,
             height=2,
             x_axis_config={"include_tip": False, "include_ticks": False},
@@ -745,7 +753,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
 
         x2_label = Text("Sequence length (tokens)", font_size=16)
         x2_label.next_to(axes2, DOWN, buff=0.3)
-        y2_label = Text("Tokens per second", font_size=16)
+        y2_label = Text("Tokens per second (log)", font_size=16)
         y2_label.rotate(PI / 2)
         y2_label.next_to(axes2.get_y_axis(), LEFT, buff=0.3)
 
@@ -761,19 +769,16 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
             label.next_to(tick, DOWN, buff=0.05)
             x2_ticks.add(VGroup(tick, label))
 
-        y2_step = max(1.0, math.ceil(y2_max / 5.0))
-        y2_vals = [k * y2_step for k in range(0, int(math.floor(y2_max / y2_step)) + 1)]
-        print("y2_vals", y2_vals)
+        # Log-decade ticks on Y
         y2_ticks = VGroup()
-        for yv in y2_vals:
-            p = axes2.c2p(0, yv)
+        for pwr in range(log_min_power, log_max_power + 1):
+            p = axes2.c2p(0, pwr)
             tick = Line(p + 0.05 * LEFT, p + 0.05 * RIGHT, stroke_color=GREY_B, stroke_width=2)
-            if yv > 0:
-                label = Text(f"{int(yv)}", font_size=12)
-                label.next_to(tick, LEFT, buff=0.05)
-                y2_ticks.add(VGroup(tick, label))
-            else:
-                y2_ticks.add(tick)
+            val = 10 ** pwr
+            label_txt = f"{val:g}" if val >= 1 else f"{val:.3g}"
+            label = Text(label_txt, font_size=12)
+            label.next_to(tick, LEFT, buff=0.05)
+            y2_ticks.add(VGroup(tick, label))
 
         # Speed lines (with KV-Cache)
         speed_lines = VGroup()
@@ -783,7 +788,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
             print("latency_kv ys", ys)
             if not xs:
                 continue
-            pts = [axes2.c2p(x, y) for x, y in zip(xs, ys)]
+            pts = [axes2.c2p(x, math.log10(y)) for x, y in zip(xs, ys) if y > 0]
             line = VMobject()
             line.set_stroke(color=m["color"], width=6)
             line.set_points_as_corners(pts)
@@ -800,8 +805,10 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
                 continue
             segs = VGroup()
             for i in range(len(xs) - 1):
-                p0 = axes2.c2p(xs[i], ys[i])
-                p1 = axes2.c2p(xs[i + 1], ys[i + 1])
+                if ys[i] <= 0 or ys[i + 1] <= 0:
+                    continue
+                p0 = axes2.c2p(xs[i], math.log10(ys[i]))
+                p1 = axes2.c2p(xs[i + 1], math.log10(ys[i + 1]))
                 seg = Line(p0, p1, stroke_color=NO_KV_COLOR, stroke_width=4)
                 segs.add(seg)
             speed_lines_no_kv.add(segs)
@@ -819,9 +826,9 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         self.wait(3.0)
 
         xs, ys = gather_speeds_from_latency_map(models[0], "latency_no_kv")
-        min_per_token = int(1 / ys[-1] / 60)
+        seconds_per_token = int(1 / ys[-1])
         tokens = (xs[-1]/1000)
 
-        text = Text(f"No KV Cache: {min_per_token} minutes per 1 token at {tokens}k prefix", font_size=16).to_edge(DOWN).shift(0.5 * LEFT)
+        text = Text(f"No KV Cache: {seconds_per_token} seconds per 1 token at {tokens}k prefix", font_size=16).to_edge(DOWN).shift(0.5 * LEFT)
         self.play(Write(text))
         self.wait(3.0)
