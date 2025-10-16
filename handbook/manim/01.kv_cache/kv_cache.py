@@ -767,7 +767,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         header_row = VGroup()
         header_row.add(make_cell(label_col_width, row_height, ""))
         for n in cols:
-            header_row.add(make_cell(data_col_width, row_height, str(n)))
+            header_row.add(make_cell(data_col_width, row_height, abbrev(int(n))))
 
         with_row = VGroup()
         with_row.add(make_cell(label_col_width, row_height, "With KV-Cache"))
