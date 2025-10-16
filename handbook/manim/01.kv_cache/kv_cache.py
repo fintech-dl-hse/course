@@ -4,6 +4,7 @@ from collections import defaultdict
 import json
 import math
 from pathlib import Path
+from tkinter import RIGHT
 from manim_imports_ext import *
 from _2024.transformers.helpers import *
 from _2024.transformers.embedding import break_into_words
@@ -537,6 +538,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
             # Shorten model name if looks like "org/name"
             if isinstance(model_full, str) and "/" in model_full:
                 model_short = model_full.split("/")[-1]
+                model_short = model_short.removeprefix("Meta-")
             else:
                 model_short = str(model_full)
             bytes_per_token = int(rep.get("kv_cache_size", {}).get("bytes_per_token", 0))
@@ -596,8 +598,9 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         y_max = max(1.0, max_gb * 1.1)
 
         # Header
-        header = Text("KV-Cache size vs sequence length", font_size=20)
+        header = Text("KV-Cache size", font_size=20)
         header.to_corner(LEFT + UP).fix_in_frame()
+        header.shift( -header.get_center()[0] * RIGHT )
 
         # Axes
         axes = Axes(
@@ -678,6 +681,16 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
             item.arrange(RIGHT, buff=0.1)
             legend_items.add(item)
 
+        # Add separate legend entry for no-KV cache
+        assert len(models) == 1, "Only one model is supported for no kv cache plots"
+
+        NO_KV_COLOR = ORANGE
+        no_kv_swatch = Line(ORIGIN, 0.2 * RIGHT, stroke_color=NO_KV_COLOR, stroke_width=8)
+        no_kv_label = Text(models[0]['name'] + " no KV-Cache", font_size=14)
+        no_kv_item = VGroup(no_kv_swatch, no_kv_label)
+        no_kv_item.arrange(RIGHT, buff=0.1)
+        legend_items.add(no_kv_item)
+
         legend_items.arrange(DOWN, aligned_edge=LEFT, buff=0.1)
         legend_bg = SurroundingRectangle(legend_items, buff=0.1)
         legend_bg.set_stroke(GREY_B, 1)
@@ -720,13 +733,13 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
             *tick_label_transforms,
             run_time=1.5,
         )
-        self.wait(0.5)
+        self.wait(3.0)
 
         # ----------------------------
         # Second plot: Generation speed vs prefix length (tokens/s)
         # Appears below once the KV-Cache animation is finished
         # ----------------------------
-        speed_header = Text("Generation speed vs sequence length", font_size=20)
+        speed_header = Text("Generation speed", font_size=20)
         # Position this title just above the lower axes we will create
         # Create axes for speed plot
         # Determine y-range from data across all models
@@ -771,6 +784,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         # Ticks for axes2 (same style as above)
         x2_step = max(1, int(math.ceil(max_tokens / 5.0)))
         x2_vals = [k * x2_step for k in range(0, int(math.floor(max_tokens / x2_step)) + 1)]
+        print("x2_vals", x2_vals)
         x2_ticks = VGroup()
         for xv in x2_vals:
             p = axes2.c2p(xv, 0)
@@ -781,6 +795,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
 
         y2_step = max(1.0, math.ceil(y2_max / 5.0))
         y2_vals = [k * y2_step for k in range(0, int(math.floor(y2_max / y2_step)) + 1)]
+        print("y2_vals", y2_vals)
         y2_ticks = VGroup()
         for yv in y2_vals:
             p = axes2.c2p(0, yv)
@@ -796,6 +811,8 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         speed_lines = VGroup()
         for m in models:
             xs, ys = gather_speeds_from_latency_map(m, "latency_kv")
+            print("latency_kv xs", xs)
+            print("latency_kv ys", ys)
             if not xs:
                 continue
             pts = [axes2.c2p(x, y) for x, y in zip(xs, ys)]
@@ -808,13 +825,16 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         speed_lines_no_kv = VGroup()
         for m in models:
             xs, ys = gather_speeds_from_latency_map(m, "latency_no_kv")
+            print("latency_no_kv xs", xs)
+            print("latency_no_kv ys", ys)
+
             if len(xs) < 2:
                 continue
             segs = VGroup()
             for i in range(len(xs) - 1):
                 p0 = axes2.c2p(xs[i], ys[i])
                 p1 = axes2.c2p(xs[i + 1], ys[i + 1])
-                seg = DashedLine(p0, p1, stroke_color=m["color"], stroke_width=4)
+                seg = Line(p0, p1, stroke_color=NO_KV_COLOR, stroke_width=4)
                 segs.add(seg)
             speed_lines_no_kv.add(segs)
 
@@ -822,15 +842,18 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         self.play(FadeIn(VGroup(axes2, x2_label, y2_label, speed_header)))
         self.add(x2_ticks, y2_ticks)
         self.play(*[ShowCreation(line) for line in speed_lines])
-        # Show the no-KV dashed curves
+        # Show the no-KV dashed curves (different color)
         self.play(*[ShowCreation(segs) for segs in speed_lines_no_kv])
 
-        # Zero the KV-Cache size lines to illustrate no KV-Cache memory impact
-        zero_lines = VGroup()
-        for m in models:
-            start0 = axes.c2p(0, 0)
-            end0 = axes.c2p(max_tokens, 0)
-            zl = Line(start0, end0, stroke_color=m["color"], stroke_width=6)
-            zero_lines.add(zl)
-        self.play(*[Transform(old, new) for old, new in zip(lines, zero_lines)])
+        # Draw separate no-KV line on the KV size plot (zero baseline)
+        zero_line = Line(axes.c2p(0, 0), axes.c2p(max_tokens, 0), stroke_color=NO_KV_COLOR, stroke_width=4)
+        self.play(ShowCreation(zero_line))
+        self.wait(3.0)
+
+        xs, ys = gather_speeds_from_latency_map(models[0], "latency_no_kv")
+        min_per_token = int(1 / ys[-1] / 60)
+        tokens = (xs[-1]/1000)
+
+        text = Text(f"No KV Cache: {min_per_token} minutes per 1 token at {tokens}k prefix", font_size=16).to_edge(DOWN).shift(0.5 * LEFT)
+        self.play(Write(text))
         self.wait(3.0)
