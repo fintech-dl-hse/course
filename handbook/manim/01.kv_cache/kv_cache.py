@@ -564,11 +564,11 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
             y_range=[0, y_max, max(0.5, y_max / 5)],
             width=2,
             height=2,
-            x_axis_config={"include_tip": False, "include_ticks": True},
-            y_axis_config={"include_tip": False, "include_ticks": True},
+            x_axis_config={"include_tip": False, "include_ticks": False},
+            y_axis_config={"include_tip": False, "include_ticks": False},
             # ticks
         )
-        axes.center().shift(0.5 * DOWN)
+        axes.center().shift(1.3 * UP)
 
         x_label = Text("Sequence length (tokens)", font_size=16)
         x_label.next_to(axes, DOWN, buff=0.3)
@@ -598,6 +598,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
             label = Text(abbrev(int(xv)), font_size=12)
             label.next_to(tick, DOWN, buff=0.05)
             x_ticks.add(VGroup(tick, label))
+        # x_ticks.shift(0.1 * LEFT)
 
         # Y ticks at ~5 intervals (GB)
         y_step = max(1.0, math.ceil(y_max / 5.0))
@@ -613,6 +614,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
                 y_ticks.add(VGroup(tick, label))
             else:
                 y_ticks.add(tick)
+        # y_ticks.shift(0.1 * DOWN)
 
         self.add(x_ticks, y_ticks)
 
@@ -625,8 +627,6 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
             end = axes.c2p(max_tokens, (a * max_tokens + b) / 1e9)
             line = Line(start, end, stroke_color=m["color"], stroke_width=6)
             lines.add(line)
-
-        self.play(*[ShowCreation(line) for line in lines])
 
         # Legend
         legend_items = VGroup()
@@ -646,7 +646,8 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         legend.fix_in_frame()
 
         self.add(legend)
-        self.wait(0.5)
+        self.play(*[ShowCreation(line) for line in lines])
+        self.wait(3.0)
 
         # Animate x-axis ticks from tokens -> approximate A4 sheets
         def pages_from_tokens(tok: int) -> float:
