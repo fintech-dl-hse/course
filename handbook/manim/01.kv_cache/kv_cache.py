@@ -587,14 +587,12 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
                 return f"{n // 1_000}k"
             return str(n)
 
-        # X ticks from counts (plus 0)
-        x_ticks_vals = sorted(v for v in counts_union if 0 < v <= max_tokens)
-        if not x_ticks_vals:
-            x_ticks_vals = [max_tokens // 10, max_tokens // 2, max_tokens]
-        x_ticks_vals = [0] + x_ticks_vals
+        # X ticks at ~5 uniform intervals (tokens)
+        x_step = max(1, int(math.ceil(max_tokens / 5.0)))
+        x_vals = [k * x_step for k in range(0, int(math.floor(max_tokens / x_step)) + 1)]
 
         x_ticks = VGroup()
-        for xv in x_ticks_vals:
+        for xv in x_vals:
             p = axes.c2p(xv, 0)
             tick = Line(p + 0.05 * UP, p + 0.05 * DOWN, stroke_color=GREY_B, stroke_width=2)
             label = Text(abbrev(int(xv)), font_size=12)
