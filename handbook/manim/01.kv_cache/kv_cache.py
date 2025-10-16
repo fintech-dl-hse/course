@@ -525,8 +525,8 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         base_dir = Path(__file__).resolve().parent
         latency_files = [
             (base_dir / "count_latency_results_llama3.1_7B.json", TEAL),
-            (base_dir / "count_latency_results_llama3.2-1B.json", BLUE_C),
-            (base_dir / "count_latency_results_llama3.2-3B.json", MAROON_A),
+            # (base_dir / "count_latency_results_llama3.2-3B.json", MAROON_A),
+            # (base_dir / "count_latency_results_llama3.2-1B.json", BLUE_C),
         ]
 
         def load_latency_report(path: Path):
@@ -542,23 +542,38 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
             bytes_per_token = int(rep.get("kv_cache_size", {}).get("bytes_per_token", 0))
             prefix_lengths = [int(n) for n in rep.get("prefix_lengths", [])]
             with_kv = rep.get("with_kv_cache", {}).get("per_prefix", {})
+            without_kv = rep.get("without_kv_cache", {}).get("per_prefix", {})
             # Map n -> (mean_ms, stdev_ms)
-            latency_map = {}
+            latency_kv = {}
             for k, v in with_kv.items():
                 try:
                     n = int(k)
                 except Exception:
                     continue
-                latency_map[n] = (
+                latency_kv[n] = (
                     float(v.get("mean_ms", 0.0)),
                     float(v.get("stdev_ms", 0.0)),
                 )
+            latency_no_kv = {}
+            for k, v in without_kv.items():
+                try:
+                    n = int(k)
+                except Exception:
+                    continue
+                latency_no_kv[n] = (
+                    float(v.get("mean_ms", 0.0)),
+                    float(v.get("stdev_ms", 0.0)),
+                )
+
+            # print('latency_kv', latency_kv)
+            # print('latency_no_kv', latency_no_kv)
             return {
                 "name": model_short,
                 "a": bytes_per_token,
                 "b": 0,
                 "prefix_lengths": sorted(prefix_lengths),
-                "latency": latency_map,
+                "latency_kv": latency_kv,
+                "latency_no_kv": latency_no_kv,
             }
 
         # Load models from latency reports
@@ -715,19 +730,22 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         # Position this title just above the lower axes we will create
         # Create axes for speed plot
         # Determine y-range from data across all models
-        def gather_speeds(m):
-            xs = sorted(set(m["prefix_lengths"]) & set(m["latency"].keys()))
+        def gather_speeds_from_latency_map(m, key: str):
+            lat_map = m[key]
+            xs = sorted(set(m["prefix_lengths"]) & set(lat_map.keys()))
             ys = []
             for x in xs:
-                mean_ms, _ = m["latency"].get(x, (0.0, 0.0))
+                mean_ms, _ = lat_map.get(x, (0.0, 0.0))
                 speed_tps = 1000.0 / mean_ms if mean_ms > 0 else 0.0
                 ys.append(speed_tps)
             return xs, ys
 
         all_speed_vals = []
         for m in models:
-            _, ys = gather_speeds(m)
+            _, ys = gather_speeds_from_latency_map(m, "latency_kv")
             all_speed_vals.extend(ys)
+            _, ys2 = gather_speeds_from_latency_map(m, "latency_no_kv")
+            all_speed_vals.extend(ys2)
         max_speed = max(all_speed_vals) if all_speed_vals else 1.0
         y2_max = max(1.0, math.ceil(max_speed * 1.1))
 
@@ -774,10 +792,10 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
             else:
                 y2_ticks.add(tick)
 
-        # Speed lines
+        # Speed lines (with KV-Cache)
         speed_lines = VGroup()
         for m in models:
-            xs, ys = gather_speeds(m)
+            xs, ys = gather_speeds_from_latency_map(m, "latency_kv")
             if not xs:
                 continue
             pts = [axes2.c2p(x, y) for x, y in zip(xs, ys)]
@@ -786,8 +804,33 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
             line.set_points_as_corners(pts)
             speed_lines.add(line)
 
+        # Speed lines (without KV-Cache) shown as dashed between points
+        speed_lines_no_kv = VGroup()
+        for m in models:
+            xs, ys = gather_speeds_from_latency_map(m, "latency_no_kv")
+            if len(xs) < 2:
+                continue
+            segs = VGroup()
+            for i in range(len(xs) - 1):
+                p0 = axes2.c2p(xs[i], ys[i])
+                p1 = axes2.c2p(xs[i + 1], ys[i + 1])
+                seg = DashedLine(p0, p1, stroke_color=m["color"], stroke_width=4)
+                segs.add(seg)
+            speed_lines_no_kv.add(segs)
+
         # Animate lower plot after finishing top plot animations
         self.play(FadeIn(VGroup(axes2, x2_label, y2_label, speed_header)))
         self.add(x2_ticks, y2_ticks)
         self.play(*[ShowCreation(line) for line in speed_lines])
+        # Show the no-KV dashed curves
+        self.play(*[ShowCreation(segs) for segs in speed_lines_no_kv])
+
+        # Zero the KV-Cache size lines to illustrate no KV-Cache memory impact
+        zero_lines = VGroup()
+        for m in models:
+            start0 = axes.c2p(0, 0)
+            end0 = axes.c2p(max_tokens, 0)
+            zl = Line(start0, end0, stroke_color=m["color"], stroke_width=6)
+            zero_lines.add(zl)
+        self.play(*[Transform(old, new) for old, new in zip(lines, zero_lines)])
         self.wait(3.0)
