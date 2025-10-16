@@ -25,6 +25,7 @@ from typing import Any, Dict, List, Tuple
 
 import torch
 from transformers import AutoConfig, AutoModelForCausalLM
+import matplotlib.pyplot as plt
 
 
 def pick_device(user_device: str) -> str:
@@ -151,6 +152,8 @@ def main() -> int:
     parser.add_argument("--out", type=str, default="count_latency_results.json", help="Output JSON path (relative to this directory by default)")
     parser.add_argument("--skip-large-direct", action="store_true", help="Estimate KV time for very large n instead of measuring directly")
     parser.add_argument("--measure_threshold_tokens", type=int, default=150_000, help="If n > threshold and skip-large-direct, use estimation for KV")
+    parser.add_argument("--plot", action="store_true", help="Also save a plot comparing KV vs No-KV latencies")
+    parser.add_argument("--plot-out", type=str, default="count_latency_plot.png", help="Where to save the plot image")
     args = parser.parse_args()
 
     base_dir = Path(__file__).resolve().parent
@@ -269,6 +272,32 @@ def main() -> int:
         json.dump(report, f, indent=2, ensure_ascii=False)
 
     print(f"Saved latency results to: {out_path}")
+
+    # Optional plot
+    if args.plot:
+        # Prepare data
+        xs = sorted(int(n) for n in report["with_kv_cache"]["per_prefix"].keys())
+        kv_means = [report["with_kv_cache"]["per_prefix"][str(n)]["mean_ms"] for n in xs]
+        kv_stdevs = [report["with_kv_cache"]["per_prefix"][str(n)]["stdev_ms"] for n in xs]
+        no_kv_means = [report["without_kv_cache"]["per_prefix"][str(n)]["mean_ms"] for n in xs]
+        no_kv_stdevs = [report["without_kv_cache"]["per_prefix"][str(n)]["stdev_ms"] for n in xs]
+
+        fig, ax = plt.subplots(figsize=(8, 4.5), dpi=150)
+        ax.errorbar(xs, kv_means, yerr=kv_stdevs, fmt="-o", capsize=3, label="With KV-Cache")
+        ax.errorbar(xs, no_kv_means, yerr=no_kv_stdevs, fmt="-o", capsize=3, label="Without KV-Cache")
+        ax.set_xlabel("Prefix length (tokens)")
+        ax.set_ylabel("Time per generated token (ms)")
+        ax.set_title(f"Latency vs Prefix length — {args.model_name}")
+        ax.grid(True, alpha=0.3)
+        ax.legend()
+
+        plot_path = Path(args.plot_out)
+        if not plot_path.is_absolute():
+            plot_path = base_dir / plot_path
+        fig.tight_layout()
+        fig.savefig(plot_path)
+        plt.close(fig)
+        print(f"Saved plot to: {plot_path}")
     return 0
 
 
