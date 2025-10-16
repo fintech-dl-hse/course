@@ -148,6 +148,7 @@ class CommonFixture:
         y_title.next_to(bars_axes.get_y_axis(), LEFT, buff=0.1)
 
         # Initial draws
+        self.add(VGroup(*all_rects[:prefix_words]))
         self.add(text_mob[:display_characters])
         self.add(header)
         self.add(bars_axes, bars, x_word_labels, y_title)
