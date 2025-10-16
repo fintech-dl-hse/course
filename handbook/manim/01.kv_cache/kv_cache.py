@@ -673,7 +673,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
 
         self.add(legend)
         self.play(*[ShowCreation(line) for line in lines])
-        self.wait(3.0)
+        self.wait(1.0)
 
         # Animate x-axis ticks from tokens -> approximate A4 sheets
         def pages_from_tokens(tok: int) -> float:
@@ -739,7 +739,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
             x_axis_config={"include_tip": False, "include_ticks": False},
             y_axis_config={"include_tip": False, "include_ticks": False},
         )
-        axes2.center().shift(1.2 * DOWN)
+        axes2.center().shift(2.0 * DOWN)
 
         speed_header.next_to(axes2, UP, buff=0.2)
         speed_header.align_to(header, LEFT)
@@ -786,25 +786,8 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
             line.set_points_as_corners(pts)
             speed_lines.add(line)
 
-        # Legend for speed plot
-        legend2_items = VGroup()
-        for m in models:
-            swatch = Line(ORIGIN, 0.2 * RIGHT, stroke_color=m["color"], stroke_width=8)
-            label = Text(m["name"], font_size=14)
-            item = VGroup(swatch, label)
-            item.arrange(RIGHT, buff=0.1)
-            legend2_items.add(item)
-        legend2_items.arrange(DOWN, aligned_edge=LEFT, buff=0.1)
-        legend2_bg = SurroundingRectangle(legend2_items, buff=0.1)
-        legend2_bg.set_stroke(GREY_B, 1)
-        legend2_bg.set_fill(BLACK, 0.2)
-        legend2 = VGroup(legend2_bg, legend2_items)
-        legend2.to_corner(RIGHT + DOWN).shift(0.5 * LEFT + 0.5 * UP)
-        legend2.fix_in_frame()
-
         # Animate lower plot after finishing top plot animations
         self.play(FadeIn(VGroup(axes2, x2_label, y2_label, speed_header)))
         self.add(x2_ticks, y2_ticks)
         self.play(*[ShowCreation(line) for line in speed_lines])
-        self.add(legend2)
         self.wait(3.0)
