@@ -21,20 +21,13 @@ import os
 import statistics
 import time
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
-
-def try_import_torch():
-    try:
-        import torch  # type: ignore
-        import torch.nn.functional as F  # type: ignore
-        return torch, F
-    except Exception as exc:  # pragma: no cover
-        raise RuntimeError("PyTorch is required to run this benchmark.") from exc
+import torch
+from transformers import AutoConfig, AutoModelForCausalLM
 
 
 def pick_device(user_device: str) -> str:
-    torch, _F = try_import_torch()
     if user_device:
         return user_device
     if torch.cuda.is_available():
@@ -43,7 +36,6 @@ def pick_device(user_device: str) -> str:
 
 
 def map_dtype(dtype_str: str, device: str):
-    torch, _F = try_import_torch()
     s = (dtype_str or "").lower()
     if device == "cpu" and s in ("float16", "fp16", "bfloat16", "bf16"):
         # Fallback to fp32 on CPU for stability/perf
@@ -58,77 +50,68 @@ def map_dtype(dtype_str: str, device: str):
 
 
 def synchronize(device: str) -> None:
-    torch, _F = try_import_torch()
     if device == "cuda":
         torch.cuda.synchronize()
 
 
-def load_default_dims_from_coeffs(base_dir: Path) -> Tuple[int, int, int]:
-    """Try to load dims from kv_cache_coeffs_llama3.2-3B.json; fallback to sensible defaults.
-
-    Returns (hidden_size, num_layers, num_attention_heads).
-    """
-    default_dims = (3072, 28, 24)  # Llama 3.2 3B-like
-    coeffs_path = base_dir / "kv_cache_coeffs_llama3.2-3B.json"
-    try:
-        with open(coeffs_path, "r", encoding="utf-8") as f:
-            payload = json.load(f)
-        meta = payload.get("meta", {})
-        hidden_size = int(meta.get("hidden_size", default_dims[0]))
-        num_layers = int(meta.get("num_layers", default_dims[1]))
-        num_heads = int(meta.get("num_attention_heads", default_dims[2]))
-        return hidden_size, num_layers, num_heads
-    except Exception:
-        return default_dims
+def extract_model_dims(cfg: Dict) -> Tuple[int, int, int]:
+    """Extract (hidden_size, num_layers, num_attention_heads) from HF config dict."""
+    hidden_size = cfg.get("hidden_size") or cfg.get("n_embd") or cfg.get("d_model")
+    num_layers = cfg.get("num_hidden_layers") or cfg.get("n_layer")
+    num_heads = cfg.get("num_attention_heads") or cfg.get("n_head")
+    if hidden_size is None or num_layers is None or num_heads is None:
+        raise ValueError("Could not extract model dimensions from config; please try a different model.")
+    return int(hidden_size), int(num_layers), int(num_heads)
 
 
 def measure_attention_per_layer_ms(
     *,
+    model: Any,
     n_tokens: int,
-    hidden_size: int,
-    num_attention_heads: int,
     device: str,
     torch_dtype,
     warmup: int,
     iters: int,
 ) -> List[float]:
-    """Measure per-layer attention time (ms) for a single generated token at prefix length n.
+    """Measure per-layer time (ms) to generate one token using a HF model with KV cache.
 
-    Performs iters timed runs (after warmup) of two GEMMs + softmax using shapes:
-      Q: [h, d], K: [d, n], scores: [h, n], V: [n, d], out: [h, d]
-    Returns a list of length iters with per-layer times in ms.
+    1) Prefill on a dummy prefix of length n with use_cache=True
+    2) Time a single next-token step with past_key_values
+    Returns per-layer times: total_time_per_step / num_layers.
     """
-    torch, F = try_import_torch()
-    h = int(num_attention_heads)
-    d = int(hidden_size // num_attention_heads)
+    model.eval()
+    token_id = model.config.bos_token_id
+    if token_id is None:
+        token_id = model.config.eos_token_id if model.config.eos_token_id is not None else 1
 
-    # Allocate once, reuse across runs
-    gen = torch.Generator(device=device)
-    gen.manual_seed(42)
+    input_ids = torch.full((1, int(n_tokens)), int(token_id), device=device, dtype=torch.long)
+    attn_mask = torch.ones((1, int(n_tokens)), device=device, dtype=torch.long)
 
-    Q = torch.randn((h, d), dtype=torch_dtype, device=device, generator=gen)
-    K = torch.randn((d, n_tokens), dtype=torch_dtype, device=device, generator=gen)
-    V = torch.randn((n_tokens, d), dtype=torch_dtype, device=device, generator=gen)
-
-    # Warmup
-    for _ in range(max(0, warmup)):
+    with torch.inference_mode():
         synchronize(device)
-        _scores = Q @ K  # [h, n]
-        _probs = F.softmax(_scores, dim=-1)
-        _out = _probs @ V  # [h, d]
+        outputs = model(input_ids=input_ids, attention_mask=attn_mask, use_cache=True)
+        past = getattr(outputs, "past_key_values", None)
 
-    # Timed runs
-    times_ms: List[float] = []
-    for _ in range(iters):
-        synchronize(device)
-        t0 = time.perf_counter()
-        _scores = Q @ K
-        _probs = F.softmax(_scores, dim=-1)
-        _out = _probs @ V
-        synchronize(device)
-        t1 = time.perf_counter()
-        times_ms.append((t1 - t0) * 1e3)
-    return times_ms
+        for _ in range(max(0, warmup)):
+            next_ids = torch.full((1, 1), int(token_id), device=device, dtype=torch.long)
+            next_mask = torch.ones((1, int(n_tokens) + 1), device=device, dtype=torch.long)
+            _ = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past)
+
+        times_ms: List[float] = []
+        for _ in range(iters):
+            next_ids = torch.full((1, 1), int(token_id), device=device, dtype=torch.long)
+            next_mask = torch.ones((1, int(n_tokens) + 1), device=device, dtype=torch.long)
+            synchronize(device)
+            t0 = time.perf_counter()
+            _ = model(input_ids=next_ids, attention_mask=next_mask, use_cache=True, past_key_values=past)
+            synchronize(device)
+            t1 = time.perf_counter()
+            times_ms.append((t1 - t0) * 1e3)
+
+    num_layers = int(getattr(model.config, "num_hidden_layers", None) or getattr(model.config, "n_layer", 1))
+    if num_layers <= 0:
+        num_layers = 1
+    return [t / float(num_layers) for t in times_ms]
 
 
 def fit_linear(xs: List[float], ys: List[float]) -> Tuple[float, float]:
@@ -158,11 +141,9 @@ def estimate_no_kv_time_ms_from_fit(n_tokens: int, a: float, b: float) -> float:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Measure per-token generation latency with/without KV-Cache.")
+    parser.add_argument("--model_name", type=str, required=True, help="HF model id (e.g., meta-llama/Llama-3.1-8B)")
     parser.add_argument("--device", type=str, default="", help="cuda|cpu (auto if empty)")
     parser.add_argument("--dtype", type=str, default="float16", help="float16|bfloat16|float32")
-    parser.add_argument("--hidden-size", type=int, default=None, help="Model hidden size (d_model)")
-    parser.add_argument("--num-layers", type=int, default=None, help="Number of transformer layers")
-    parser.add_argument("--num-attention-heads", type=int, default=None, help="Number of attention heads")
     parser.add_argument("--prefix-lengths", type=int, nargs="*", default=[10_000, 100_000, 250_000], help="Prefix lengths to test")
     parser.add_argument("--trials", type=int, default=10, help="Trials per measurement")
     parser.add_argument("--warmup", type=int, default=2, help="Warmup runs before timing (per measurement)")
@@ -172,21 +153,22 @@ def main() -> int:
     parser.add_argument("--measure_threshold_tokens", type=int, default=150_000, help="If n > threshold and skip-large-direct, use estimation for KV")
     args = parser.parse_args()
 
-    torch, _F = try_import_torch()
     base_dir = Path(__file__).resolve().parent
 
     device = pick_device(args.device)
     torch_dtype = map_dtype(args.dtype, device)
 
-    default_hs, default_layers, default_heads = load_default_dims_from_coeffs(base_dir)
-    hidden_size = int(args.hidden_size or default_hs)
-    num_layers = int(args.num_layers or default_layers)
-    num_attention_heads = int(args.num_attention_heads or default_heads)
+    # Load pretrained config and model
+    cfg = AutoConfig.from_pretrained(args.model_name)
+    hidden_size, num_layers, num_attention_heads = extract_model_dims(cfg.to_dict())
+    model: Any = AutoModelForCausalLM.from_pretrained(args.model_name, torch_dtype=torch_dtype)  # type: ignore[call-arg]
+    model.to(device)
 
     report: Dict = {
         "meta": {
             "device": device,
             "dtype": str(torch_dtype),
+            "model_name": args.model_name,
             "hidden_size": hidden_size,
             "num_layers": num_layers,
             "num_attention_heads": num_attention_heads,
@@ -218,9 +200,8 @@ def main() -> int:
         calib_ys_ms: List[float] = []
         for n in args.calib_lengths:
             per_layer_times_ms = measure_attention_per_layer_ms(
+                model=model,
                 n_tokens=int(n),
-                hidden_size=hidden_size,
-                num_attention_heads=num_attention_heads,
                 device=device,
                 torch_dtype=torch_dtype,
                 warmup=args.warmup if trial_idx == 0 else 0,
@@ -242,11 +223,10 @@ def main() -> int:
             measure_direct = not args.skip_large_direct or (int(n) <= int(args.measure_threshold_tokens))
 
             if measure_direct:
-                # Measure KV per-layer, average across iters, scale by num_layers
+                # Measure KV per-layer via real model, then scale by num_layers
                 kv_per_layer_times_ms = measure_attention_per_layer_ms(
+                    model=model,
                     n_tokens=int(n),
-                    hidden_size=hidden_size,
-                    num_attention_heads=num_attention_heads,
                     device=device,
                     torch_dtype=torch_dtype,
                     warmup=args.warmup if trial_idx == 0 else 0,
