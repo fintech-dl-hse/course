@@ -164,7 +164,7 @@ def main() -> int:
     parser.add_argument("--model_name", type=str, required=True, help="HF model id (e.g., meta-llama/Llama-3.1-8B)")
     parser.add_argument("--device", type=str, default="", help="cuda|cpu (auto if empty)")
     parser.add_argument("--dtype", type=str, default="float16", help="float16|bfloat16|float32")
-    parser.add_argument("--prefix-lengths", type=int, nargs="*", default=[10_000, 50_000, 100_000, 150_000, 200_000], help="Prefix lengths to test")
+    parser.add_argument("--prefix-lengths", type=int, nargs="*", default=[10_000, 50_000, 100_000], help="Prefix lengths to test")
     parser.add_argument("--trials", type=int, default=10, help="Trials per measurement")
     parser.add_argument("--warmup", type=int, default=2, help="Warmup runs before timing (per measurement)")
     parser.add_argument("--calib-lengths", type=int, nargs="*", default=[4096, 8192, 16384], help="Prefix lengths to calibrate linear KV model")
@@ -255,7 +255,7 @@ def main() -> int:
         })
 
         # For each requested prefix length: measure KV (or estimate if requested), estimate no-KV
-        for n in tqdm(args.prefix_lengths, desc="Prefix lengths"):
+        for n in tqdm(sorted(args.prefix_lengths, reverse=True), desc="Prefix lengths"):
             measure_direct = not args.skip_large_direct or (int(n) <= int(args.measure_threshold_tokens))
 
             if measure_direct:
