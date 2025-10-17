@@ -700,8 +700,12 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         legend.fix_in_frame()
 
         self.add(legend)
+        # Draw separate no-KV line on the KV size plot (zero baseline)
+        zero_line = Line(axes.c2p(0, 0), axes.c2p(max_tokens, 0), stroke_color=NO_KV_COLOR, stroke_width=4)
+        lines.add(zero_line)
+
         self.play(*[ShowCreation(line) for line in lines])
-        self.wait(1.0)
+        self.wait(3.0)
 
         # ----------------------------
         # Second plot: Generation speed vs prefix length (tokens/s)
@@ -813,9 +817,6 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
 
         self.play(FadeIn(VGroup(speed_header, table_group)))
 
-        # Draw separate no-KV line on the KV size plot (zero baseline)
-        zero_line = Line(axes.c2p(0, 0), axes.c2p(max_tokens, 0), stroke_color=NO_KV_COLOR, stroke_width=4)
-        self.play(ShowCreation(zero_line))
         self.wait(3.0)
 
         xs, ys = gather_speeds_from_latency_map(models[0], "latency_no_kv")
