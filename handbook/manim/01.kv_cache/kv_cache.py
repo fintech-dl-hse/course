@@ -329,7 +329,7 @@ class CommonFixture:
             run_time=2.0,
         )
 
-        self.wait(0.1)
+        self.wait(3.0)
 
 
 
@@ -496,7 +496,7 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
             generated_word.clear()
             prefix_words_mobs_group.clear()
 
-        self.wait()
+        self.wait(2.0)
 
 
 class SequenceAttentionComputationsNoKVCache(InteractiveScene, CommonFixture):
@@ -504,7 +504,7 @@ class SequenceAttentionComputationsNoKVCache(InteractiveScene, CommonFixture):
     def construct(self):
         self.render_attention_sequence(
             header_text="No KV Cache",
-            header_color=GREEN_E,
+            header_color=WHITE,
             cached_rectangles_color=None,
             sentence_text="The cat sat on the mat.",
             prefix_words=1,
@@ -518,7 +518,7 @@ class SequenceAttentionComputationsWithKVCache(InteractiveScene, CommonFixture):
         self.render_attention_sequence(
             header_text="With KV Cache",
             cached_rectangles_color=BLUE_B,
-            header_color=GREEN_E,
+            header_color=WHITE,
             sentence_text="The cat sat on the mat.",
             prefix_words=1,
             use_kv_cache=True,
@@ -837,6 +837,8 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         seconds_per_token = int(1 / ys[-1])
         tokens = (xs[-1]/1000)
 
+        self.wait(10.0)
+
 
 class KVCacheComplexityComparison(InteractiveScene):
 
@@ -846,7 +848,7 @@ class KVCacheComplexityComparison(InteractiveScene):
             "Complexity Comparison",
             font_size=28,
             alignment='LEFT',
-            fill_color=GREEN_E,
+            fill_color=WHITE,
         )
         header.to_corner(LEFT + UP).fix_in_frame()
         header.shift(0.1 * RIGHT)
@@ -933,7 +935,7 @@ class KVCacheComplexityComparison(InteractiveScene):
         # Add and animate
         self.add(header)
         self.play(FadeIn(table))
-        self.wait(1.0)
+        self.wait(5.0)
 
 
 class KVCacheFinalScene(InteractiveScene):
@@ -944,7 +946,7 @@ class KVCacheFinalScene(InteractiveScene):
             "KV-Cache: Generation or Training?",
             font_size=20,
             alignment='LEFT',
-            fill_color=GREEN_E,
+            fill_color=WHITE,
         )
         header.to_corner(LEFT + UP).fix_in_frame()
         header.shift(0.1 * RIGHT)
@@ -1005,4 +1007,4 @@ class KVCacheFinalScene(InteractiveScene):
         self.play(FadeIn(header_row))
         self.play(LaggedStart(*(FadeIn(m) for m in gen_row), lag_ratio=0.1, run_time=0.6))
         self.play(LaggedStart(*(FadeIn(m) for m in train_row), lag_ratio=0.1, run_time=0.6))
-        self.wait(0.5)
+        self.wait(10.0)
