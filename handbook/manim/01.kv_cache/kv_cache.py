@@ -719,7 +719,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         lines.add(zero_line)
 
         self.play(*[ShowCreation(line) for line in lines])
-        self.wait(3.0)
+        self.wait(6.0)
 
         # ----------------------------
         # Second plot: Generation speed vs prefix length (tokens/s)
@@ -935,7 +935,7 @@ class KVCacheComplexityComparison(InteractiveScene):
         # Add and animate
         self.add(header)
         self.play(FadeIn(table))
-        self.wait(5.0)
+        self.wait(7.0)
 
 
 class KVCacheFinalScene(InteractiveScene):

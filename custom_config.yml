@@ -7,7 +7,8 @@ camera:
   # resolution: (3840, 2160)
   # resolution: (2160, 3840)
   # resolution: (1920, 1080)
-  resolution: (1080, 1920)
+  # resolution: (1080, 1920)
+  resolution: (720, 1280)
   background_color: "#000000"
   fps: 30
   background_opacity: 1.0
