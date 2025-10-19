@@ -13,7 +13,10 @@ from _2024.transformers.embedding import get_piece_rectangles
 
 class CommonFixture:
 
-    def create_word_rect(self, word_mob, text_height=None, text_y=None):
+    def create_word_rect(self, word_mob, text_height=None, text_y=None, color=None):
+
+        if color is None:
+            color = GREY
 
         rect = SurroundingRectangle(word_mob)
 
@@ -26,8 +29,8 @@ class CommonFixture:
         rect.set_height(text_height + SMALL_BUFF, stretch=True)
         rect.set_width(word_mob.get_width() + SMALL_BUFF, stretch=True)
         rect.set_y(text_y)
-        rect.set_stroke(GREY, 1)
-        rect.set_fill(GREY, 0.25)
+        rect.set_stroke(color, 1)
+        rect.set_fill(color, 0.25)
         return rect
 
     def generation_step_mob(self, generation_step):
@@ -44,7 +47,9 @@ class CommonFixture:
                                   header_color,
                                   sentence_text,
                                   prefix_words,
-                                  use_kv_cache):
+                                  use_kv_cache,
+                                  cached_rectangles_color=GREY,
+                                ):
         """Shared rendering for the attention computations scenes.
 
         Parameters
@@ -61,6 +66,10 @@ class CommonFixture:
             If True, only draw arrows from past tokens to current (O(n));
             if False, draw all pairwise arrows up to current (O(n^2)).
         """
+
+        if not use_kv_cache:
+            assert cached_rectangles_color is None
+
 
         # Header
         header = Text(
@@ -95,7 +104,7 @@ class CommonFixture:
             processed_letters += word_len
 
             if word_i < prefix_words:
-                rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y)
+                rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y, color=cached_rectangles_color)
                 all_rects.append(rect)
 
         # Bars axis and per-token recomputation bars/labels
@@ -242,6 +251,9 @@ class CommonFixture:
                 *label_anims,
             )
             # self.wait()
+
+            if use_kv_cache:
+                rect.set_color(cached_rectangles_color)
 
             if not use_kv_cache:
                 self.play(*[FadeOut(arrow, run_time=0.2) for arrow in arrows])
@@ -493,6 +505,7 @@ class SequenceAttentionComputationsNoKVCache(InteractiveScene, CommonFixture):
         self.render_attention_sequence(
             header_text="No KV Cache",
             header_color=GREEN_E,
+            cached_rectangles_color=None,
             sentence_text="The cat sat on the mat.",
             prefix_words=1,
             use_kv_cache=False,
@@ -504,6 +517,7 @@ class SequenceAttentionComputationsWithKVCache(InteractiveScene, CommonFixture):
     def construct(self):
         self.render_attention_sequence(
             header_text="With KV Cache",
+            cached_rectangles_color=BLUE_B,
             header_color=GREEN_E,
             sentence_text="The cat sat on the mat.",
             prefix_words=1,
