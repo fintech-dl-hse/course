@@ -11,6 +11,18 @@ from _2024.transformers.embedding import break_into_words
 from _2024.transformers.embedding import break_into_tokens
 from _2024.transformers.embedding import get_piece_rectangles
 
+
+class IntroMeme(InteractiveScene):
+    def construct(self):
+        # add image from videos/kv-cache-cover.jpg
+        image = ImageMobject("videos/kv-cache-cover.jpg")
+        image.set_width(FRAME_WIDTH)
+        image.center()
+        self.add(image)
+
+        self.wait(5.0)
+
+
 class CommonFixture:
 
     def create_word_rect(self, word_mob, text_height=None, text_y=None, color=None):
@@ -837,7 +849,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         seconds_per_token = int(1 / ys[-1])
         tokens = (xs[-1]/1000)
 
-        self.wait(10.0)
+        self.wait(7.0)
 
 
 class KVCacheComplexityComparison(InteractiveScene):
