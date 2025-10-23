@@ -186,9 +186,9 @@ def main() -> int:
     parser.add_argument("--prefix-lengths", type=int, nargs="*", default=[ 25_000, 50_000, 75_000, 100_000 ], help="Prefix lengths to test")
     parser.add_argument("--trials", type=int, default=2, help="Trials per measurement")
     parser.add_argument("--warmup", type=int, default=2, help="Warmup runs before timing (per measurement)")
-    parser.add_argument("--out", type=str, default="count_latency_results.json", help="Output JSON path (relative to this directory by default)")
+    parser.add_argument("--out", type=str, default="benchmark_latency_results.json", help="Output JSON path (relative to this directory by default)")
     parser.add_argument("--plot", action="store_true", help="Also save a plot comparing KV vs No-KV latencies")
-    parser.add_argument("--plot-out", type=str, default="count_latency_plot.png", help="Where to save the plot image")
+    parser.add_argument("--plot-out", type=str, default="benchmark_latency_plot.png", help="Where to save the plot image")
     parser.add_argument("--plot-kv-size-out", type=str, default="kv_cache_size_plot.png", help="Where to save KV size vs length plot")
     args = parser.parse_args()
 
