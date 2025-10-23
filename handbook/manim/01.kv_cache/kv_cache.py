@@ -542,7 +542,7 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
 
         self.play(Transform(iterative_machine_formula, machine_formula, run_time=0.3))
 
-        # self.wait(2.0)
+        self.wait(1.5)
 
 
 class SequenceAttentionComputationsNoKVCache(InteractiveScene, CommonFixture):
@@ -883,7 +883,7 @@ class KVCacheSizeVsSequenceLength(InteractiveScene):
         seconds_per_token = int(1 / ys[-1])
         tokens = (xs[-1]/1000)
 
-        self.wait(7.0)
+        self.wait(2.0)
 
 
 class KVCacheComplexityComparison(InteractiveScene):
@@ -982,75 +982,3 @@ class KVCacheComplexityComparison(InteractiveScene):
         self.add(header)
         self.play(FadeIn(table))
         self.wait(7.0)
-
-
-class KVCacheFinalScene(InteractiveScene):
-
-    def construct(self):
-        # Header
-        header = Text(
-            "KV-Cache: Generation or Training?",
-            font_size=20,
-            alignment='LEFT',
-            fill_color=WHITE,
-        )
-        header.to_corner(LEFT + UP).fix_in_frame()
-        header.shift(0.1 * RIGHT)
-
-        # Table sizing
-        col_phase_width = 2.0
-        col_effect_width = 2.0
-        row_height = 0.5
-
-        def make_cell(cell_width: float, cell_height: float, content, *, font_size: int = 16, text_color=WHITE):
-            rect = Rectangle(
-                width=cell_width,
-                height=cell_height,
-                stroke_width=1,
-                stroke_color=GREY_B,
-                fill_opacity=0.05,
-                fill_color=BLACK,
-            )
-            if isinstance(content, (str,)):
-                mob = Text(content, font_size=font_size)
-                mob.set_color(text_color)
-                mob.move_to(rect.get_center())
-                return VGroup(rect, mob)
-            else:
-                mob = content
-                mob.move_to(rect.get_center())
-                return VGroup(rect, mob)
-
-        # Header row
-        header_row = VGroup(
-            make_cell(col_phase_width, row_height, "Stage", font_size=18, text_color=GREEN_E),
-            make_cell(col_effect_width, row_height, "Can use KV-Cache?", font_size=18, text_color=GREEN_E),
-        )
-        header_row.arrange(RIGHT, buff=0)
-
-        # Data rows
-        yes_color = TEAL
-        no_color = ORANGE
-
-        gen_row = VGroup(
-            make_cell(col_phase_width, row_height, "Generation", font_size=16),
-            make_cell(col_effect_width, row_height, "Yes", font_size=18, text_color=yes_color),
-        )
-        gen_row.arrange(RIGHT, buff=0)
-
-        train_row = VGroup(
-            make_cell(col_phase_width, row_height, "Training", font_size=16),
-            make_cell(col_effect_width, row_height, "No", font_size=18, text_color=no_color),
-        )
-        train_row.arrange(RIGHT, buff=0)
-
-        table = VGroup(header_row, gen_row, train_row)
-        table.arrange(DOWN, buff=0)
-        table.center()
-
-        # Animate
-        self.add(header)
-        self.play(FadeIn(header_row))
-        self.play(LaggedStart(*(FadeIn(m) for m in gen_row), lag_ratio=0.1, run_time=0.6))
-        self.play(LaggedStart(*(FadeIn(m) for m in train_row), lag_ratio=0.1, run_time=0.6))
-        self.wait(10.0)
