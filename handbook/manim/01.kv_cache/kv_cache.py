@@ -376,19 +376,6 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
         word.move_to(blocks[-1])
         word.set_backstroke(BLACK, 5)
 
-        formula = Tex(
-            'x_t \sim P_{\\theta}(x_t | x_1, ..., x_{t-1})',
-            font_size=24,
-            t2c={
-                'x_t': GREEN_E,
-                'x_1, ..., x_{t-1}': YELLOW_D,
-            },
-            # stroke_width=1.1,
-            fill_border_width=1.0
-        )
-        formula.next_to(word, DOWN, buff=0.2)
-        formula.set_backstroke(BLACK, 3)
-        # formula.align_to(word, LEFT)
 
         out_arrow = Vector(
             0.5 * RIGHT, stroke_width=10,
@@ -398,7 +385,7 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
         out_arrow.next_to(blocks[-1], RIGHT, buff=SMALL_BUFF)
         out_arrow.set_opacity(0)
 
-        result = VGroup(blocks, word, out_arrow, formula)
+        result = VGroup(blocks, word, out_arrow)
         return result
 
 
@@ -413,7 +400,7 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
 
         machine = self.get_transformer_drawing()
         machine.center()
-        machine.shift(RIGHT * 0.2)
+        machine.shift(RIGHT * 0.2 + DOWN * 1)
 
         text = "The cat sat on the mat."
         text_mob = Text(text, font_size=30, fill_color=YELLOW_D)
@@ -464,6 +451,17 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
 
         prefix_words_mobs = copy.deepcopy(words_mobs[:prefix_words])
 
+        iterative_machine_formula = Tex(
+            'x_2 \sim P_{\\theta}(x_2 | x_1)',
+            font_size=24,
+            t2c={'x_2': GREEN_E, 'x_1': YELLOW_D},
+            fill_border_width=1.0
+        )
+        iterative_machine_formula.set_backstroke(BLACK, 3)
+        iterative_machine_formula.next_to(machine[1], DOWN, buff=0.2)
+
+        # self.add(iterative_machine_formula)
+        machine.add(iterative_machine_formula)
 
         for word_i in range(prefix_words, len(words_mobs)):
             generation_step_mob = self.generation_step_mob(generation_step)
@@ -507,6 +505,45 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
 
             generated_word.clear()
             prefix_words_mobs_group.clear()
+
+            generation_step_t = generation_step + 1
+            next_x_index = f"x_{generation_step_t}"
+            prefix_x_indices = ",".join([f"x_{i}" for i in range(1, generation_step_t)])
+
+            formula_font_size = 24
+            if generation_step_t > 4:
+                formula_font_size = 20
+
+            next_iter_formula = Tex(
+                next_x_index + ' \sim P_{\\theta}(' + f'{next_x_index} | {prefix_x_indices})',
+                font_size=formula_font_size,
+                t2c={next_x_index: GREEN_E, prefix_x_indices: YELLOW_D},
+                fill_border_width=1.0
+            )
+            next_iter_formula.set_backstroke(BLACK, 3)
+            next_iter_formula.move_to(iterative_machine_formula)
+            iterative_machine_formula.become(next_iter_formula)
+            self.play(Transform(iterative_machine_formula, next_iter_formula))
+            iterative_machine_formula.become(next_iter_formula)
+
+
+
+        machine_formula = Tex(
+            'x_t \sim P_{\\theta}(x_t | x_1, ..., x_{t-1})',
+            font_size=24,
+            t2c={
+                'x_t': GREEN_E,
+                'x_1, ..., x_{t-1}': YELLOW_D,
+            },
+            # stroke_width=1.1,
+            fill_border_width=1.0
+        )
+        machine_formula.set_backstroke(BLACK, 3)
+        machine_formula.move_to(iterative_machine_formula)
+
+        self.play(Transform(iterative_machine_formula, machine_formula))
+        # formula.align_to(word, LEFT)
+
 
         self.wait(2.0)
 
