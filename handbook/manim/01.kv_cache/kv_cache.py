@@ -498,7 +498,6 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
             self.play(Transform(generated_word, word_mob, run_time=0.5))
 
             self.add(word_mob)
-            generation_step_mob.clear()
             generation_step += 1
 
             prefix_words_mobs.append(word_mob)
@@ -526,7 +525,7 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
             self.play(Transform(iterative_machine_formula, next_iter_formula))
             iterative_machine_formula.become(next_iter_formula)
 
-
+            generation_step_mob.clear()
 
         machine_formula = Tex(
             'x_t \sim P_{\\theta}(x_t | x_1, ..., x_{t-1})',
@@ -542,8 +541,6 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
         machine_formula.move_to(iterative_machine_formula)
 
         self.play(Transform(iterative_machine_formula, machine_formula))
-        # formula.align_to(word, LEFT)
-
 
         self.wait(2.0)
 
