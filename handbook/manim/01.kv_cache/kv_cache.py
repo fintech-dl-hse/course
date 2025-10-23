@@ -479,8 +479,8 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
 
             blocks = machine[0]
             self.play(
-                FlashAround(generation_step_mob[str(generation_step)], run_time=0.5),
-                Transform(prefix_words_mobs_group, generated_word, run_time=0.5),
+                FlashAround(generation_step_mob[str(generation_step)], run_time=0.3),
+                Transform(prefix_words_mobs_group, generated_word, run_time=0.3),
                 LaggedStart(
                     (
                         block.animate.set_color(
@@ -489,13 +489,13 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
                         for block in blocks
                     ),
                     lag_ratio=0.1,
-                    run_time=0.5,
+                    run_time=0.3,
                 ),
                 Animation(machine[1:]),
             )
-            self.wait(0.1)
+            # self.wait(0.05)
 
-            self.play(Transform(generated_word, word_mob, run_time=0.5))
+            self.play(Transform(generated_word, word_mob, run_time=0.3))
 
             self.add(word_mob)
             generation_step += 1
@@ -522,7 +522,7 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
             next_iter_formula.set_backstroke(BLACK, 3)
             next_iter_formula.move_to(iterative_machine_formula)
             iterative_machine_formula.become(next_iter_formula)
-            self.play(Transform(iterative_machine_formula, next_iter_formula))
+            self.play(Transform(iterative_machine_formula, next_iter_formula, run_time=0.3))
             iterative_machine_formula.become(next_iter_formula)
 
             generation_step_mob.clear()
@@ -540,9 +540,9 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
         machine_formula.set_backstroke(BLACK, 3)
         machine_formula.move_to(iterative_machine_formula)
 
-        self.play(Transform(iterative_machine_formula, machine_formula))
+        self.play(Transform(iterative_machine_formula, machine_formula, run_time=0.3))
 
-        self.wait(2.0)
+        # self.wait(2.0)
 
 
 class SequenceAttentionComputationsNoKVCache(InteractiveScene, CommonFixture):
