@@ -1,4 +1,8 @@
-Agentic AI
+# Agentic AI
+
+Заметки с [курса Andrew Ng по агентским системам](https://learn.deeplearning.ai/courses/agentic-ai/).
+
+---
 
 Степени автономии
 
