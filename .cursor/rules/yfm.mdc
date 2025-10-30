@@ -1,0 +1,120 @@
+---
+alwaysApply: false
+---
+### YFM
+
+YFM (Yandex Flavored Markdown) extends Markdown with blocks, attributes, and advanced tables.
+
+### Page titles and headings
+
+- Each Markdown file MUST start with a single H1 title: `# Page title`. This becomes the page title in the UI.
+- Use `###` for section headings in content (avoid multiple H1s per page).
+- Keep text simple and readable. No trailing spaces.
+
+### Notes (admonitions)
+
+Common note types are supported (e.g., note, tip, warning, caution). Basic form:
+
+```markdown
+{% note info %}
+Это примечание.
+{% endnote %}
+
+{% note tip %}
+Это совет.
+{% endnote %}
+
+{% note warning %}
+Это важная информация.
+{% endnote %}
+```
+
+
+### Simple tables (GFM)
+
+Use standard GFM pipe tables for simple, single-line cell content:
+
+```markdown
+| Колонка A | Колонка B |
+|:---------:|----------:|
+| центр     | вправо    |
+| текст     | текст     |
+```
+
+- Alignment: `:---` left, `:---:` center, `---:` right.
+- Prefer simple tables when you do NOT need lists, code blocks, or cell merging.
+
+### Multiline tables (advanced)
+
+Use multiline tables when you need lists, code blocks, or merging inside cells.
+
+- Table starts with `#|` and ends with `|#`.
+- Rows start/end with `||`.
+- Cells are separated by `|`.
+
+Minimal example with pseudo-headers (use bold in first row):
+
+```markdown
+#|
+|| **Заголовок1** | **Заголовок2** ||
+|| Текст | Текст ||
+|#
+```
+
+Multiline content and lists inside cells:
+
+```markdown
+#|
+|| Текст
+на двух строках
+|
+- Элемент 1
+- Элемент 2 ||
+|#
+```
+
+Vertical and horizontal cell merging:
+
+```markdown
+#|
+|| Заголовок1            | Заголовок2 ||
+|| Текст на две колонки  | >          ||
+|| Другой текст          | Еще текст  ||
+|#
+
+#|
+|| Заголовок1         | Заголовок2   ||
+|| Текст на два ряда  | Другой текст ||
+|| ^                  | Еще текст    ||
+|#
+```
+
+- Vertical merge: put `^` in the cell below.
+- Horizontal merge: put `>` in the cell to be merged to the left.
+
+Cell alignment with attributes:
+
+```markdown
+#|
+|| Заголовок1                                           | Заголовок2 | Заголовок3 ||
+|| Текст {.cell-align-center}                           | >          | Текст      ||
+|| ^                                                    | >          | Еще текст  ||
+|#
+```
+
+Escape merge symbols inside content with backslashes: `\^`, `\>`.
+
+Wide modal and sticky header options:
+
+```markdown
+#|
+|| **Заголовок1** | **Заголовок2** ||
+|| Текст          | Текст          ||
+|# {wide-content}
+
+#|
+|| A | B ||
+|| C | D ||
+|#
+{sticky-header}
+```
