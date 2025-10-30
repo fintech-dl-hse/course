@@ -1,7 +1,7 @@
 ---
 description:
 globs: handbook/manim/**
-alwaysApply: true
+alwaysApply: false
 ---
 
 In this directory you can find Manim animations for the handbook.
