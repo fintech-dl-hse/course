@@ -72,6 +72,10 @@ def call_chat(
         top_p=top_p,
         messages=messages,
     )
+    if not response.choices[0].message.content:
+        print("No content in response", response)
+        breakpoint()
+
     return response.choices[0].message.content or ""
 
 
@@ -87,75 +91,66 @@ def brainstorm_ideas(
     num_ideas: int,
     temperature: float,
 ) -> List[str]:
-    system = (
-        "Ты — креативный продюсер коротких видео (TikTok/Reels/Shorts). "
-        "Генерируй дерзкие, цепляющие, современные идеи для видео на заданную тему. "
-        "Только список идей без пояснений. Ответ строго JSON-массивом строк."
+    # Stage 1: free-form brainstorm without output format constraints
+    min_brainstorm = max(num_ideas * 2, num_ideas + 10)
+    system_brainstorm = (
+        "You are a senior researcher and engineer in Deep Learning. Goal: explain proposed theme. Discuss interesting insights, questions and gotchas around the topic. "
     )
-    user = (
-        f"Тема: {topic}\n"
-        f"Сгенерируй {num_ideas} уникальных идей.\n"
-        "Формат ответа: [\"идея 1\", \"идея 2\", ...]"
+    user_brainstorm = (
+        f"Topic: {topic}\n"
+        f"Generate at least {min_brainstorm} distinct bullets. Merge near-duplicates, but keep strong diversity.\n"
+        "Organize with the following section headers (exactly these):\n"
+        "- Overview\n"
+        "- Metrics & Evaluation\n"
+        "- Failure Modes\n"
+        "- Data & Augmentation\n"
+        "- Optimization & Training Tricks\n"
+        "- Inference & Deployment\n"
+        "- Efficiency & Hardware\n"
+        "- Real-world Examples\n"
+        "- Pitfalls & Misconceptions\n"
+        "Within each section, write bullet points. Each bullet should have: a short title, then 1–2 sentences of elaboration.\n"
+        "Prefer specific, actionable, and testable angles; avoid generic advice. Highlight novelty, counterintuitive insights, and quantification where possible.\n"
+        "Do not output JSON. Do not add conclusions. Keep it compact and skimmable."
     )
+    raw_notes = call_chat(
+        client,
+        model,
+        messages=[{"role": "system", "content": system_brainstorm}, {"role": "user", "content": user_brainstorm}],
+        temperature=temperature,
+        max_completion_tokens=2000,
+    )
+
+    print("raw_notes", raw_notes)
+
+    input()
+
+    # Stage 2: structure and select the best ideas in the target format
+    system_select = (
+        "You are an editorial assistant. "
+        "Format notes into list of strings. Each string is a single bullet. Do not modify initial text."
+        "Output policy: return a strict JSON arrays of strings only. No markdown, no numbering, no extra text."
+    )
+    user_select = (
+        f"Topic: {topic}\n"
+        "Between '---' are the rough brainstorm notes.\n"
+        "Answer: strictly a JSON array of strings only. Format: [\"theme 1\", \"theme 2\", ...]. No extra commentary.\n"
+        "---\n"
+        f"{raw_notes}\n"
+        "---"
+    ).replace("{N}", str(num_ideas))
     raw = call_chat(
         client,
         model,
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-        temperature=temperature,
-        max_completion_tokens=2000,
+        messages=[{"role": "system", "content": system_select}, {"role": "user", "content": user_select}],
+        temperature=max(0.2, temperature - 0.2),
+        max_completion_tokens=10000,
     )
     ideas = parse_string_array(raw)
+
+    breakpoint()
+
     return [s for s in ideas if s]
-
-
-def critic_rank(
-    client: OpenAI,
-    model: str,
-    topic: str,
-    ideas: List[str],
-    temperature: float,
-) -> List[Dict[str, Any]]:
-    system = (
-        "Ты — строгий критик и редактор коротких видео. Отбираешь и сортируешь идеи по вирусному потенциалу, "
-        "четкости месседжа и уместности под тему. Верни строго JSON-массив объектов: "
-        "{idea: string, priority: number от 1..N (1 — выше), accept: boolean, reason: string}."
-    )
-    user = (
-        f"Тема: {topic}\n"
-        f"Список идей:\n{json.dumps(ideas, ensure_ascii=False, indent=2)}\n"
-        "Отсортируй по убыванию приоритета (priority: 1 — самый высокий)."
-    )
-    raw = call_chat(
-        client,
-        model,
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-        temperature=temperature,
-        max_completion_tokens=2000,
-    )
-    items = parse_object_array(raw)
-    # Normalize fields
-    normalized: List[Dict[str, Any]] = []
-    for i, it in enumerate(items):
-        idea = str(it.get("idea", "")).strip()
-        if not idea:
-            continue
-        pr = it.get("priority")
-        try:
-            pr_val: Optional[int] = int(pr) if pr is not None else None
-        except Exception:  # noqa: BLE001
-            pr_val = None
-        normalized.append(
-            {
-                "idea": idea,
-                "priority": pr_val,
-                "accept": bool(it.get("accept", False)),
-                "reason": str(it.get("reason", "")).strip() or None,
-            }
-        )
-    # Sort by provided priority if present, else keep order
-    normalized.sort(key=lambda x: (x["priority"] if x["priority"] is not None else 10**6))
-    return normalized
-
 
 def generate_script(
     client: OpenAI,
@@ -268,17 +263,7 @@ class IdeasTUI:
                 item.accepted = False
             else:
                 item.accepted = True
-                item.rejected = False
 
-        @self.kb.add("x")
-        @self.kb.add("X")
-        def _toggle_reject(event) -> None:  # noqa: ANN001
-            item = self.items[self.current_index]
-            if item.rejected:
-                item.rejected = False
-            else:
-                item.rejected = True
-                item.accepted = False
 
         @self.kb.add("a")
         @self.kb.add("A")
@@ -320,16 +305,16 @@ class IdeasTUI:
 
     def _render(self) -> List[Tuple[str, str]]:
         lines: List[Tuple[str, str]] = []
-        lines.append(("", "Навигация: ↑/↓ — перемещение, [Space] — принять, X — отклонить, A — добавить/сгенерировать, Enter — подтвердить\n"))
-        lines.append(("dim", "\n"))
+        lines.append(("", "Навигация: ↑/↓ — перемещение, [Space] — принять, A — добавить/сгенерировать, Enter — подтвердить (неотмеченные будут отклонены)\n"))
+        lines.append(("class:dim", "\n"))
         for idx, item in enumerate(self.items):
             pointer = "> " if idx == self.current_index else "  "
-            status = "[✓]" if item.accepted else ("[X]" if item.rejected else "[ ]")
+            status = "[✓]" if item.accepted else "[ ]"
             critic_tag = " (critic)" if item.critic_accept else ""
-            style = "accepted" if item.accepted else ("rejected" if item.rejected else "")
+            style = "class:accepted" if item.accepted else ""
             text = f"{pointer}{status} {item.text}{critic_tag}\n"
             if idx == self.current_index:
-                lines.append(("cursor", text))
+                lines.append(("class:cursor", text))
             else:
                 lines.append((style, text))
         return lines
@@ -400,13 +385,14 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         return 3
 
     # 2) Критик: ранжирование и фильтрация
-    critic_items = critic_rank(
-        client=client,
-        model=args.model,
-        topic=topic,
-        ideas=initial_ideas,
-        temperature=max(0.2, args.temperature - 0.2),
-    )
+    critic_items = [{"idea": idea, "accept": False, "priority": 1, "reason": "Initial idea"} for idea in initial_ideas]
+    # critic_items = critic_rank(
+    #     client=client,
+    #     model=args.model,
+    #     topic=topic,
+    #     ideas=initial_ideas,
+    #     temperature=max(0.2, args.temperature - 0.2),
+    # )
 
     # Преобразуем к IdeaItem и пометим предложения критика
     items: List[IdeaItem] = []
@@ -450,8 +436,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
     # Подготовим данные для сохранения истории
     user_added = [it.text for it in final_items if it.source == "user"]
-    user_rejected = [it.text for it in final_items if it.rejected]
-    final_selected = [it.text for it in final_items if it.accepted and not it.rejected]
+    user_rejected = [it.text for it in final_items if not it.accepted]
+    final_selected = [it.text for it in final_items if it.accepted]
 
     history = {
         "timestamp": timestamp,
@@ -463,7 +449,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             {
                 "text": it.text,
                 "accepted": it.accepted,
-                "rejected": it.rejected,
+                "rejected": (not it.accepted),
                 "source": it.source,
                 "critic_accept": it.critic_accept,
                 "priority": it.priority,
