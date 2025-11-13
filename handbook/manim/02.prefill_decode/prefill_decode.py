@@ -24,25 +24,27 @@ class IntroMeme(InteractiveScene):
 class PrefillDecodeExample(InteractiveScene):
     def construct(self):
 
+        FONT_SIZE = 18
+
         # Write text for system prompt, user request
         system_prompt_text = '<system>'
         system_prompt = Text(
             f"{system_prompt_text} You are a helpful assistant.",
-            font_size=20,
+            font_size=FONT_SIZE,
         )
-        system_prompt.set_color(BLUE_A)
-        system_prompt[:len(system_prompt_text)].set_color(BLUE_C)
+        system_prompt.set_color(GREY_A)
+        system_prompt[:len(system_prompt_text)].set_color(GREY_C)
 
         user_prompt_text = '<user>'
         user_request_prompt = Text(
             f"{user_prompt_text} ",
-            font_size=20,
+            font_size=FONT_SIZE,
         )
         user_request_prompt.set_color(GREEN_A)
         user_request_prompt[:len(user_prompt_text)].set_color(GREEN_C)
         user_request_text = Text(
             "What is the capital of Russia?",
-            font_size=20,
+            font_size=FONT_SIZE,
         )
         user_request_text.set_color(GREEN_A)
 
@@ -51,8 +53,34 @@ class PrefillDecodeExample(InteractiveScene):
         user_request_text.align_to(user_request_prompt, DOWN)
         user_request_text.next_to(user_request_prompt, RIGHT, buff=0.1)
 
-        self.add(system_prompt, user_request_prompt)
-        self.play(Write(user_request_text))
+        assistant_prompt_text = '<assistant>'
+        assistant_prompt = Text(
+            f"{assistant_prompt_text} ",
+            font_size=FONT_SIZE,
+        )
+        assistant_prompt.set_color(BLUE_C)
+        assistant_prompt.next_to(user_request_prompt, DOWN, buff=0.1)
+        assistant_prompt.align_to(user_request_prompt, LEFT)
+
+        assistant_response_text = "The capital of Russia is Moscow."
+        assistant_response_text = Text(
+            assistant_response_text,
+            font_size=FONT_SIZE,
+        )
+        assistant_response_text.set_color(BLUE_A)
+        assistant_response_text.align_to(assistant_prompt, RIGHT)
+        assistant_response_text.next_to(assistant_prompt, RIGHT, buff=0.1)
+
+        prompt_group = VGroup(system_prompt, user_request_prompt, user_request_text, assistant_prompt, assistant_response_text)
+        prompt_group.shift(1 * DOWN)
+        prompt_group.shift( -prompt_group.get_center()[0] * RIGHT )
+
+
+        self.add(system_prompt, user_request_prompt, user_request_text)
+        self.wait(0.5)
+
+        self.add(assistant_prompt)
+        self.play(Write(assistant_response_text))
 
         self.wait(5)
 
