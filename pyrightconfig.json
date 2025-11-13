@@ -4,11 +4,20 @@
   "typeCheckingMode": "basic",
   "pythonVersion": "3.10",
   "include": [
-    "handbook/manim/01.kv_cache"
+    "handbook/manim/01.kv_cache",
+    "handbook/manim/02.prefill_decode"
   ],
   "executionEnvironments": [
     {
       "root": "handbook/manim/01.kv_cache",
+      "extraPaths": [
+        "../../../manim/",
+        "../../../manim/manimlib",
+        "../videos/"
+      ]
+    },
+    {
+      "root": "handbook/manim/02.prefill_decode",
       "extraPaths": [
         "../../../manim/",
         "../../../manim/manimlib",

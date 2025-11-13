@@ -6,6 +6,12 @@ import math
 from pathlib import Path
 from tkinter import RIGHT
 from manim_imports_ext import *
+from manimlib.scene.interactive_scene import InteractiveScene
+from manimlib.mobject.svg.image_mobject import ImageMobject
+from manimlib.mobject.svg.text_mobject import Text
+from manimlib.constants import FRAME_WIDTH, GREY_A, GREY_C, GREEN_A, GREEN_C, BLUE_A, BLUE_C, DOWN, LEFT, RIGHT, UP
+from manimlib.mobject.types.vectorized_mobject import VGroup
+from manimlib.animation.creation import Write
 from _2024.transformers.helpers import *
 from _2024.transformers.embedding import break_into_words
 from _2024.transformers.embedding import break_into_tokens
