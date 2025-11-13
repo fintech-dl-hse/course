@@ -19,6 +19,34 @@ class IntroMeme(InteractiveScene):
         image.center()
         self.add(image)
 
-        self.wait(5.0)
+        self.wait(6.5)
+
+class PrefillDecodeExample(InteractiveScene):
+    def construct(self):
+
+        # Write text for system prompt, user request
+        system_prompt = Text(
+            f"<system> You are a helpful assistant.",
+            font_size=20,
+        )
+        user_request_prompt = Text(
+            "<user> ",
+            font_size=20,
+        )
+        user_request_text = Text(
+            "Who are you?",
+            font_size=20,
+        )
+        user_request_prompt.next_to(system_prompt, DOWN, buff=0.1)
+        user_request_prompt.align_to(system_prompt, LEFT)
+        user_request_text.align_to(user_request_prompt, DOWN)
+        user_request_text.next_to(user_request_prompt, RIGHT, buff=0.1)
+
+        self.add(system_prompt, user_request_prompt)
+        self.play(Write(user_request_text))
+
+        self.wait(5)
+
+
 
 
