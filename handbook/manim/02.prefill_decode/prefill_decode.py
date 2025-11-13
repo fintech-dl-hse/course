@@ -28,14 +28,17 @@ class PrefillDecodeExample(InteractiveScene):
         system_prompt = Text(
             f"<system> You are a helpful assistant.",
             font_size=20,
+            color=BLUE,
         )
         user_request_prompt = Text(
             "<user> ",
             font_size=20,
+            color=GREEN,
         )
         user_request_text = Text(
             "Who are you?",
             font_size=20,
+            color=WHITE,
         )
         user_request_prompt.next_to(system_prompt, DOWN, buff=0.1)
         user_request_prompt.align_to(system_prompt, LEFT)
