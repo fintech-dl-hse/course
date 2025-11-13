@@ -12,6 +12,74 @@ from _2024.transformers.embedding import break_into_tokens
 from _2024.transformers.embedding import get_piece_rectangles
 
 
+def create_boxed_tokens_objects(
+    text: str,
+    text_mob: Text,
+    *,
+    box_color: str | None = None,
+    prefix_tokens: int = 1,
+) -> dict:
+    """
+    Helper function to create token mobjects and boxes without animation.
+    Returns objects that can be used for custom animation logic.
+
+    Parameters
+    ----------
+    text : str
+        The text to split into tokens (space-separated words).
+    text_mob : Text
+        The Text mobject containing the full text.
+    box_color : str | None, default=None
+        Color for the boxes around tokens. If None, uses GREY.
+    prefix_tokens : int, default=1
+        Number of prefix tokens (used for initial box creation).
+
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        - 'token_mobs': List of Text mobjects for each token
+        - 'create_box_func': Function to create a box for a token mobject
+    """
+    if box_color is None:
+        box_color = GREY
+
+    # Split into tokens (words)
+    tokens = text.split(" ")
+    token_mobs = []
+
+    # Extract token mobjects from text
+    processed_letters = 0
+    for token in tokens:
+        token_len = len(token)
+        token_mob = text_mob[processed_letters:processed_letters + token_len]
+        token_mobs.append(token_mob)
+        processed_letters += token_len
+
+    # Create box creation function
+    full_text_height = text_mob.get_height()
+    full_text_y = text_mob.get_y()
+
+    def create_token_box(token_mob, color=None, text_height=None, text_y=None):
+        if color is None:
+            color = box_color
+        if text_height is None:
+            text_height = full_text_height
+        if text_y is None:
+            text_y = full_text_y
+        rect = SurroundingRectangle(token_mob)
+        rect.set_height(text_height + SMALL_BUFF, stretch=True)
+        rect.set_width(token_mob.get_width() + SMALL_BUFF, stretch=True)
+        rect.set_y(text_y)
+        rect.set_stroke(color, 1)
+        rect.set_fill(color, 0.25)
+        return rect
+
+    return {
+        'token_mobs': token_mobs,
+        'create_box_func': create_token_box,
+    }
+
 class IntroMeme(InteractiveScene):
     def construct(self):
         # add image from videos/kv-cache-cover.jpg
@@ -104,20 +172,22 @@ class CommonFixture:
         full_text_height = text_mob.get_height()
         full_text_y = text_mob.get_y()
 
-        # Split words and precreate rects for prefix
-        processed_letters = 0
-        words = text.split(" ")
-        words_mobs = []
-        all_rects = []
-        for word_i, word in enumerate(words):
-            word_len = len(word)
-            word_mob = text_mob[processed_letters:processed_letters + word_len]
-            words_mobs.append(word_mob)
-            processed_letters += word_len
+        # Use helper to create token mobjects and box creation function
+        token_data = create_boxed_tokens_objects(
+            text,
+            text_mob,
+            box_color=cached_rectangles_color,
+            prefix_tokens=prefix_words,
+        )
+        words_mobs = token_data['token_mobs']
+        create_box_func = token_data['create_box_func']
 
-            if word_i < prefix_words:
-                rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y, color=cached_rectangles_color)
-                all_rects.append(rect)
+        # Precreate rects for prefix
+        all_rects = []
+        for word_i in range(prefix_words):
+            word_mob = words_mobs[word_i]
+            rect = create_box_func(word_mob, color=cached_rectangles_color)
+            all_rects.append(rect)
 
         # Bars axis and per-token recomputation bars/labels
         num_words = len(words_mobs)
@@ -161,6 +231,7 @@ class CommonFixture:
 
         # X-axis labels with words, positioned under the axis and aligned with words
         x_word_labels = VGroup()
+        words = text.split(" ")
         for i, word in enumerate(words):
             wlbl = Text(word, font_size=22, fill_color=GREY_B)
             # Place at word center x, slightly below axis baseline
@@ -191,7 +262,7 @@ class CommonFixture:
             step_mob.shift(step_mob.get_height() * 3 * DOWN)
 
             word_mob = words_mobs[word_i]
-            rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y)
+            rect = create_box_func(word_mob)
 
             arrows = []
             if use_kv_cache:
@@ -419,26 +490,28 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
         full_text_height = text_mob.get_height()
         full_text_y = text_mob.get_y()
 
-        # Create word rects
-        processed_letters = 0
-        words = text.split(" ")
+        # Use helper to create token mobjects and box creation function
+        token_data = create_boxed_tokens_objects(
+            text,
+            text_mob,
+            prefix_tokens=prefix_words,
+        )
+        words_mobs = token_data['token_mobs']
+        create_box_func = token_data['create_box_func']
+
+        # Create generated words mobjects
+        generated_token_data = create_boxed_tokens_objects(
+            text,
+            generated_text_mob,
+            prefix_tokens=prefix_words,
+        )
+        generated_words_mobs = generated_token_data['token_mobs']
+
+        # Create word rects for prefix
         all_rects = []
-        words_mobs = []
-        generated_words_mobs = []
-        for word_i, word in enumerate(words):
-            word_len = len(word)
-            word_mob = text_mob[processed_letters:processed_letters + word_len]
-            words_mobs.append(word_mob)
-
-            generated_words_mobs.append(generated_text_mob[processed_letters:processed_letters + word_len])
-
-            processed_letters += word_len
-
-
-            if word_i >= prefix_words:
-                continue
-
-            rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y)
+        for word_i in range(prefix_words):
+            word_mob = words_mobs[word_i]
+            rect = create_box_func(word_mob)
             all_rects.append(rect)
 
 
@@ -469,7 +542,7 @@ class TransformerAutoregressiveGeneration(InteractiveScene, CommonFixture):
             generation_step_mob.shift(generation_step_mob.get_height() * 2 * DOWN)
 
             word_mob = words_mobs[word_i]
-            rect = self.create_word_rect(word_mob, text_height=full_text_height, text_y=full_text_y)
+            rect = create_box_func(word_mob)
 
             generated_word = generated_words_mobs[word_i]
 
