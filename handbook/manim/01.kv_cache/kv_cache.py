@@ -17,6 +17,8 @@ def create_boxed_tokens_objects(
     text_mob: Text,
     *,
     box_color: str | None = None,
+    box_opacity: float = 0.25,
+    box_stroke_width: float = 1,
     prefix_tokens: int = 1,
 ) -> dict:
     """
@@ -31,6 +33,10 @@ def create_boxed_tokens_objects(
         The Text mobject containing the full text.
     box_color : str | None, default=None
         Color for the boxes around tokens. If None, uses GREY.
+    box_opacity : float, default=0.25
+        Opacity for the boxes around tokens.
+    box_stroke_width : float, default=1
+        Stroke width for the boxes around tokens.
     prefix_tokens : int, default=1
         Number of prefix tokens (used for initial box creation).
 
@@ -71,8 +77,8 @@ def create_boxed_tokens_objects(
         rect.set_height(text_height + SMALL_BUFF, stretch=True)
         rect.set_width(token_mob.get_width() + SMALL_BUFF, stretch=True)
         rect.set_y(text_y)
-        rect.set_stroke(color, 1)
-        rect.set_fill(color, 0.25)
+        rect.set_stroke(color, box_stroke_width)
+        rect.set_fill(color, box_opacity)
         return rect
 
     return {
