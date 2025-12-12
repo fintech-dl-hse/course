@@ -32,37 +32,36 @@
 * Блиц по новому материалу
 * Обзор домашки, если она есть
 
-## Домашки
+## Домашки (TODO обновить дедлайны и список ДЗ)
 
 | Домашка                  | Количество баллов | Дедлайн                           |
 | ------------------------ | ----------------- | --------------------------------- |
+| mlp                      | 1                 |      10.02 23:59 (2 недели)             |
 | weight-init              | 1                 |      10.02 23:59 (2 недели)             |
 | activations              | 1                 |      10.02 23:59 (2 недели)             |
 | optimization             | 2                 |      12.03 23:59 (до конца блока CV)    |
 | batchnorm                | 1                 |      12.03 23:59 (до конца блока CV)    |
 | dropout                  | 1                 |      12.03 23:59 (до конца блока CV)    |
 | pytorch-basics           | 2                 |      12.03 23:59 (до конца блока CV)    |
+| vae                      | 2                 |      23.06 09:00 (до конца блока CV)    |
+| diffusion                | 2                 |      23.06 09:00 (до конца блока CV)    |
 | tokenization             | 2                 |      16.04 23:59                        |
 | transformer-attention    | 2                 |      21.05 23:59                        |
-| vae                      | 2                 |      23.06 09:00 (конец курса)          |
-| diffusion                | 2                 |      23.06 09:00 (конец курса)          |
-<!---
 | rnn-attention            | 2                 |      21.05 23:59                        |
-| llm-agent                | 2                 |      23.06 09:00 (конец курса)          | 
--->
+| llm-agent                | 2                 |      23.06 09:00 (конец курса)          |
+| clip                     | 1                 |      23.06 09:00 (конец курса)          |
+
 
 
 Максимум можно получить 16 баллов за все домашки.
 
-## Бонусные домашки
+## Бонусные домашки (TODO обновить дедлайны и список ДЗ)
 
 | Домашка                  | Количество баллов | Дедлайн                           |
 | ------------------------ | ----------------- | --------------------------------- |
-| rnn-attention            | 2                 |      21.05 23:59                  |
-| letters                  | 4                 |      23.06 09:00 (конец курса)    |
-| multimodal-llm           | 4                 |      23.06 09:00 (конец курса)    |
-| llm-agent                | 2                 |      23.06 09:00 (конец курса)    |
-| efficiency       | ?                 |      23.06 09:00 (конец курса)    |
+| letters                  | 4                 |      15.06 09:00 (конец курса)    |
+| multimodal-llm           | 4                 |      15.06 09:00 (конец курса)    |
+| llm-agent                | 2                 |      15.06 09:00 (конец курса)    |
 
 Бонусные домашки посложнее, чем обычные домашки, но за них можно получить много баллов. С бонусными домашками можно получить больше 10 баллов за ДЗ.
 
@@ -78,49 +77,47 @@
 
 **Штрафы:** За просрочку за каждый день будет сниматься по `10%` от оценки, но суммарно штраф не может быть более `30%`. Жестких дедлайнов нет. Если сдаешь через 3 дня домашку, штраф `30%`. Если сдаешь через месяц, штраф тоже `30%`
 
-## Формула
-
-Оценка за курс складывается из нормированной суммы баллов за выполненные домашки.
-
-$$ O_{hse} = \frac{1}{16} \sum_{i} O_{hw_i} $$
-
-
-<!---
+## Формула (TODO обновить)
 
 Итоговая формула - взвешенная сумма оценки за домашки и за экзамен.
 
 $$ O_{hse} = 0.9 \cdot O_{hw} + 0.1 \cdot O_{exam} $$
 
--->
+**TODO** мб добавить допуск к экзамену на 3 и 4 модуль как ответы на блицы, которые проверяются LLM'кой?
 
 ## Примерный план
 
 | Дата  | Лекция                                                           | Домашка                          |
 |-------|------------------------------------------------------------------|----------------------------------|
-| 13.01 | Введение в глубинное обучение.                                   |                                  |
-| 20.01 | Обучение нейросетей. Алгоритм обратного распространения ошибки.  |                                  |
-| 27.01 | Функции активации. Задачи и функции потерь. Инициализация весов. Lottery Ticket Hypothesis | weight-init, activations         |
-| 03.02 | Оптимизация. Регуляризация.                                      | optimization, dropout            |
-| 10.02 | Сверточные сети.                                                 | pytorch-basics, batchnorm        |
-| 17.02 | -                                                                |                                  |
-| 24.02 | Задачи Computer Vision.                                          | letters (бонусная)               |
-| 03.03 | -                                                                |                                  |
-| 10.03 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
-| 17.03 | -                                                                |                                  |
-| 24.03 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE, YaRN. | transformer-attention, rnn-attention |
-| 31.03 | -  _сессия_                                                      |                                  |
-| 07.04 | -                                                                |                                  |
-| 14.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models. Scaling Laws. In context learning. |                               |
-| 21.04 | PPO. DPO. GRPO. Test-time scaling. Function Calling. Agentic models. MCP. RAG. | llm                                 |
-| 28.04 | -                                                                |                                  |
-| 05.05 | -  _каникулы_                                                    |                                  |
-| 12.05 | Vision Transformers. Self-supervised, contrastive learning.      |                                  |
-| 19.05 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
-| 26.05 | Генеративные модели: VAE, Diffusion.                             | vae, diffusion                   |
-| 02.06 | (! дата может измениться) Мультимодальные модели                 | multimodal-llm (бонусная) |
-| 09.06 | (! дата может измениться) Устройство GPU. Низкоуровневое программирование на CUDA. (?) Distributed Training. | efficiency (бонусная) |
-| 16.06 |                                                                  |                                  |
+| 12.01 | Введение в глубинное обучение.                                   | mlp                              |
+| 19.01 | Обучение нейросетей. Алгоритм обратного распространения ошибки.  |                                  |
+| 26.01 | Функции активации. Задачи и функции потерь. Инициализация весов. Lottery Ticket Hypothesis | weight-init, activations         |
+| 02.02 | Оптимизация. SGD, Adam, Muon. Регуляризация: dropout, weight decay | optimization, dropout            |
+| 09.02 | Сверточные сети.                                                 | pytorch-basics, batchnorm        |
+| 16.02 | Задачи Computer Vision.                                          | letters (бонусная)               |
+| 23.02 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
+| 02.03 | Генеративные модели: VAE, Diffusion.                             | vae, diffusion                   |
+| 09.03 | -                                                                |                                  |
+| 16.03 | -                                                                |                                  |
+| 23.03 | -                                                                |                                  |
+| 30.03 | -  _сессия_                                                      |                                  |
+| 06.04 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
+| 13.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE, YaRN. | transformer-attention, rnn-attention |
+| 20.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models. Scaling Laws. In context learning. PEFT. | efficiency      |
+| 27.04 | Allignment. PPO. DPO. GRPO. Test-time scaling. Does RL Incentivize Reasoning Capacity? |            |
+| 04.05 | Function Calling. Agentic patterns. Observability. MCP. RAG.     | llm-agent, mcp                   |
+| 11.05 | Vision Transformers. Self-supervised, contrastive learning.      | clip                             |
+| 18.05 | Мультимодальные модели                                           | multimodal-llm (бонусная)        |
+| 01.06 | -                                                                |                                  |
+| 08.06 | -                                                                |                                  |
+| 22.06 | -                                                                |                                  |
+| 15.06 |                                                                  |                                  |
 
+**Дополнительные темы:**
+* Эволюционные алгоритмы и LLM - AlphaEvolve
+* Методы интерпретируемости глубоких нейросетевых моделей - SAE, Activation Patching
+* Устройство GPU. Низкоуровневое программирование на Triton
+* Эффективность LLM (квантизация, спекулятивный декодинг, дистилляция, прунинг)
 
 ## Литература
 
