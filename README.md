@@ -89,14 +89,14 @@ $$ O_{hse} = 0.9 \cdot O_{hw} + 0.1 \cdot O_{exam} $$
 
 | Дата  | Лекция                                                           | Домашка                          |
 |-------|------------------------------------------------------------------|----------------------------------|
-| 12.01 | Введение в глубинное обучение.                                   | mlp                              |
-| 19.01 | Обучение нейросетей. Алгоритм обратного распространения ошибки.  |                                  |
-| 26.01 | Функции активации. Задачи и функции потерь. Инициализация весов. Lottery Ticket Hypothesis | weight-init, activations         |
-| 02.02 | Оптимизация. SGD, Adam, Muon. Регуляризация: dropout, weight decay | optimization, dropout            |
-| 09.02 | Сверточные сети.                                                 | pytorch-basics, batchnorm        |
-| 16.02 | Задачи Computer Vision.                                          | letters (бонусная)               |
-| 23.02 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
-| 02.03 | Генеративные модели: VAE, Diffusion.                             | vae, diffusion                   |
+| 12.01 | Введение в глубинное обучение. Обучение нейросетей. Алгоритм обратного распространения ошибки. | mlp |
+| 19.01 | Функции активации. Задачи и функции потерь. Инициализация весов. Lottery Ticket Hypothesis | weight-init, activations         |
+| 26.01 | Оптимизация. SGD, Adam, Muon. Регуляризация: dropout, weight decay | optimization, dropout            |
+| 02.02 | Сверточные сети.                                                 | pytorch-basics, batchnorm        |
+| 09.02 | Задачи Computer Vision.                                          | letters (бонусная)               |
+| 16.02 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
+| 23.02 | Генеративные модели: VAE, Diffusion.                             | vae, diffusion                   |
+| 02.03 | -                                                                |                                  |
 | 09.03 | -                                                                |                                  |
 | 16.03 | -                                                                |                                  |
 | 23.03 | -                                                                |                                  |
@@ -104,11 +104,11 @@ $$ O_{hse} = 0.9 \cdot O_{hw} + 0.1 \cdot O_{exam} $$
 | 06.04 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
 | 13.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE, YaRN. | transformer-attention, rnn-attention |
 | 20.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models. Scaling Laws. In context learning. PEFT. | efficiency      |
-| 27.04 | Allignment. PPO. DPO. GRPO. Test-time scaling. Does RL Incentivize Reasoning Capacity? |            |
-| 04.05 | Function Calling. Agentic patterns. Observability. MCP. RAG.     | llm-agent, mcp                   |
-| 11.05 | Vision Transformers. Self-supervised, contrastive learning.      | clip                             |
-| 18.05 | Мультимодальные модели                                           | multimodal-llm (бонусная)        |
-| 01.06 | -                                                                |                                  |
+| 27.04 | -                                                                |                                  |
+| 04.05 | Allignment. PPO. DPO. GRPO. Test-time scaling. Does RL Incentivize Reasoning Capacity? |            |
+| 11.05 | Function Calling. Agentic patterns. Observability. MCP. RAG.     | llm-agent, mcp                   |
+| 18.05 | Vision Transformers. Self-supervised, contrastive learning.      | clip                             |
+| 01.06 | Мультимодальные модели                                           | multimodal-llm (бонусная)        |
 | 08.06 | -                                                                |                                  |
 | 22.06 | -                                                                |                                  |
 | 15.06 |                                                                  |                                  |
