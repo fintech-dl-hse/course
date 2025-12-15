@@ -61,7 +61,6 @@
 | ------------------------ | ----------------- | --------------------------------- |
 | letters                  | 4                 |      15.06 09:00 (конец курса)    |
 | multimodal-llm           | 4                 |      15.06 09:00 (конец курса)    |
-| llm-agent                | 2                 |      15.06 09:00 (конец курса)    |
 
 Бонусные домашки посложнее, чем обычные домашки, но за них можно получить много баллов. С бонусными домашками можно получить больше 10 баллов за ДЗ.
 
@@ -103,9 +102,9 @@ $$ O_{hse} = 0.9 \cdot O_{hw} + 0.1 \cdot O_{exam} $$
 | 30.03 | -  _сессия_                                                      |                                  |
 | 06.04 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
 | 13.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE, YaRN. | transformer-attention, rnn-attention |
-| 20.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models. Scaling Laws. In context learning. PEFT. | efficiency      |
+| 20.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models.  |       |
 | 27.04 | -                                                                |                                  |
-| 04.05 | Allignment. PPO. DPO. GRPO. Test-time scaling. Does RL Incentivize Reasoning Capacity? |            |
+| 04.05 | Scaling Laws. In context learning. Test time scaling (thinking models). PEFT. | efficiency           |
 | 11.05 | Function Calling. Agentic patterns. Observability. MCP. RAG.     | llm-agent, mcp                   |
 | 18.05 | Vision Transformers. Self-supervised, contrastive learning.      | clip                             |
 | 01.06 | Мультимодальные модели                                           | multimodal-llm (бонусная)        |
@@ -118,6 +117,8 @@ $$ O_{hse} = 0.9 \cdot O_{hw} + 0.1 \cdot O_{exam} $$
 * Методы интерпретируемости глубоких нейросетевых моделей - SAE, Activation Patching
 * Устройство GPU. Низкоуровневое программирование на Triton
 * Эффективность LLM (квантизация, спекулятивный декодинг, дистилляция, прунинг)
+* GNN - графовые нейросети
+
 
 ## Литература
 
