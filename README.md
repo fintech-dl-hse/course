@@ -36,20 +36,20 @@
 
 | Домашка                  | Количество баллов | Дедлайн                           |
 | ------------------------ | ----------------- | --------------------------------- |
-| mlp                      | 1                 |      10.02 23:59 (2 недели)             |
-| weight-init              | 1                 |      10.02 23:59 (2 недели)             |
-| activations              | 1                 |      10.02 23:59 (2 недели)             |
-| optimization             | 2                 |      12.03 23:59 (до конца блока CV)    |
-| batchnorm                | 1                 |      12.03 23:59 (до конца блока CV)    |
-| dropout                  | 1                 |      12.03 23:59 (до конца блока CV)    |
-| pytorch-basics           | 2                 |      12.03 23:59 (до конца блока CV)    |
-| vae                      | 2                 |      23.06 09:00 (до конца блока CV)    |
-| diffusion                | 2                 |      23.06 09:00 (до конца блока CV)    |
-| tokenization             | 2                 |      16.04 23:59                        |
-| transformer-attention    | 2                 |      21.05 23:59                        |
-| rnn-attention            | 2                 |      21.05 23:59                        |
-| llm-agent                | 2                 |      23.06 09:00 (конец курса)          |
-| clip                     | 1                 |      23.06 09:00 (конец курса)          |
+| mlp                      | 1                 |  TODO  |
+| weight-init              | 1                 |  TODO  |
+| activations              | 1                 |  TODO  |
+| optimization             | 2                 |  TODO  |
+| batchnorm                | 1                 |  TODO  |
+| dropout                  | 1                 |  TODO  |
+| pytorch-basics           | 2                 |  TODO  |
+| vae                      | 2                 |  TODO  |
+| diffusion                | 2                 |  TODO  |
+| tokenization             | 2                 |  TODO  |
+| rnn-attention            | 2                 |  TODO  |
+| transformer-attention    | 2                 |  TODO  |
+| llm-agent                | 2                 |  TODO  |
+| clip                     | 1                 |  TODO  |
 
 
 
@@ -76,41 +76,49 @@
 
 **Штрафы:** За просрочку за каждый день будет сниматься по `10%` от оценки, но суммарно штраф не может быть более `30%`. Жестких дедлайнов нет. Если сдаешь через 3 дня домашку, штраф `30%`. Если сдаешь через месяц, штраф тоже `30%`
 
-## Формула (TODO обновить)
+## Формула
 
 Итоговая формула - взвешенная сумма оценки за домашки и за экзамен.
 
-$$ O_{hse} = 0.9 \cdot O_{hw} + 0.1 \cdot O_{exam} $$
+$$ O_{hse} = 0.8 \cdot O_{hw} + 0.1 \cdot O_{exam\_m3} + 0.1 \cdot O_{exam\_m4} $$
 
-**TODO** мб добавить допуск к экзамену на 3 и 4 модуль как ответы на блицы, которые проверяются LLM'кой?
+$ O_{exam\_m3} $ и $ O_{exam\_m4} $ - оценки за экзамен соответственно 3 и 4 модуля
+
+### Экзамен
+
+**Допуск:** Допуском к экзамену будет прохождение тестов по всем пройденным темам с автоматической проверкой.
+
+**Список вопросов к экзамену** TODO
+
 
 ## Примерный план
 
 | Дата  | Лекция                                                           | Домашка                          |
 |-------|------------------------------------------------------------------|----------------------------------|
-| 12.01 | Введение в глубинное обучение. Обучение нейросетей. Алгоритм обратного распространения ошибки. | mlp |
-| 19.01 | Функции активации. Задачи и функции потерь. Инициализация весов. Lottery Ticket Hypothesis | weight-init, activations         |
-| 26.01 | Оптимизация. SGD, Adam, Muon. Регуляризация: dropout, weight decay | optimization, dropout            |
-| 02.02 | Сверточные сети.                                                 | pytorch-basics, batchnorm        |
-| 09.02 | Задачи Computer Vision.                                          | letters (бонусная)               |
-| 16.02 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
-| 23.02 | Генеративные модели: VAE, Diffusion.                             | vae, diffusion                   |
-| 02.03 | -                                                                |                                  |
-| 09.03 | -                                                                |                                  |
+| 12.01 | -                                                                |                                  |
+| 19.01 | Введение в глубинное обучение. Обучение нейросетей. Алгоритм обратного распространения ошибки. | mlp |
+| 26.01 | Функции активации. Задачи и функции потерь. Инициализация весов. Lottery Ticket Hypothesis | weight-init, activations         |
+| 02.02 | Оптимизация. SGD, Adam, Muon. Регуляризация: dropout, weight decay | optimization, dropout            |
+| 09.02 | Сверточные сети.                                                 | pytorch-basics, batchnorm        |
+| 16.02 | Задачи Computer Vision.                                          | letters (бонусная)               |
+| 23.02 | -                                                                |                                  |
+| 02.03 | Генеративные модели: Авторегрессионные, GAN.                     |                                  |
+| 09.03 | Генеративные модели: VAE, Diffusion.                             | vae, diffusion                   |
 | 16.03 | -                                                                |                                  |
 | 23.03 | -                                                                |                                  |
-| 30.03 | -  _сессия_                                                      |                                  |
+| 30.03 | _экзамен_                                                        |                                  |
 | 06.04 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
 | 13.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE, YaRN. | transformer-attention, rnn-attention |
-| 20.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models.  |       |
+| 20.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models.  |                 |
 | 27.04 | -                                                                |                                  |
-| 04.05 | Scaling Laws. In context learning. Test time scaling (thinking models). PEFT. | efficiency           |
-| 11.05 | Function Calling. Agentic patterns. Observability. MCP. RAG.     | llm-agent, mcp                   |
-| 18.05 | Vision Transformers. Self-supervised, contrastive learning.      | clip                             |
-| 01.06 | Мультимодальные модели                                           | multimodal-llm (бонусная)        |
-| 08.06 | -                                                                |                                  |
+| 04.05 | Scaling Laws. In context learning. Test time scaling (thinking models). PEFT. | efficiency          |
+| 11.05 | -                                                                |                                  |
+| 18.05 | Function Calling. Agentic patterns. Observability. MCP. RAG.     | llm-agent (+mcp)                 |
+| 01.06 | Vision Transformers. Self-supervised, contrastive learning.      | clip                             |
+| 08.06 | Мультимодальные модели                                           | multimodal-llm (бонусная)        |
 | 22.06 | -                                                                |                                  |
-| 15.06 |                                                                  |                                  |
+| 15.06 | -                                                                |                                  |
+| 17.06 | _экзамен_                                                        |                                  |
 
 **Дополнительные темы:**
 * Эволюционные алгоритмы и LLM - AlphaEvolve
