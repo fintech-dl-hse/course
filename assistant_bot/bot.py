@@ -4,6 +4,7 @@ import re
 import time
 import argparse
 import json
+import uuid
 from datetime import datetime, timezone
 import math
 from pathlib import Path
@@ -592,10 +593,36 @@ def _is_command_for_this_bot(text: str, bot_username: str) -> bool:
     return mentioned == bot_username.strip().lstrip("@").lower()
 
 
-def _log_private_message(message: Dict[str, Any], pm_log_file: str, bot_username: str) -> None:
+def _append_jsonl_record(path_str: str, record: Dict[str, Any]) -> None:
+    path = Path(path_str)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(record, ensure_ascii=False) + "\n"
+    with path.open("a", encoding="utf-8") as f:
+        f.write(line)
+
+
+def _get_user_fields(message: Dict[str, Any]) -> Dict[str, Any]:
+    sender = message.get("from") or {}
+    if not isinstance(sender, dict):
+        sender = {}
+    return {
+        "user_id": int(sender.get("id") or 0),
+        "username": str(sender.get("username") or ""),
+        "first_name": str(sender.get("first_name") or ""),
+        "last_name": str(sender.get("last_name") or ""),
+    }
+
+
+def _log_private_message(
+    message: Dict[str, Any],
+    pm_log_file: str,
+    bot_username: str,
+    request_id: str,
+    cmd: str,
+) -> bool:
     chat = message.get("chat") or {}
     if not isinstance(chat, dict):
-        return
+        return False
 
     chat_type = str(chat.get("type") or "")
     text = str(message.get("text") or "")
@@ -606,38 +633,136 @@ def _log_private_message(message: Dict[str, Any], pm_log_file: str, bot_username
         pass
     elif chat_type in {"group", "supergroup"}:
         if not _is_command_for_this_bot(text=text, bot_username=bot_username):
-            return
+            return False
     else:
-        return
-
-    sender = message.get("from") or {}
-    if not isinstance(sender, dict):
-        sender = {}
+        return False
 
     record = {
+        "record_type": "message",
+        "request_id": request_id,
         "ts": datetime.now(timezone.utc).isoformat(),
         "message_date": int(message.get("date") or 0),
         "chat_id": int(chat.get("id") or 0),
-        "user_id": int(sender.get("id") or 0),
-        "username": str(sender.get("username") or ""),
-        "first_name": str(sender.get("first_name") or ""),
-        "last_name": str(sender.get("last_name") or ""),
+        "chat_type": chat_type,
+        **_get_user_fields(message),
         "message_id": int(message.get("message_id") or 0),
         "text": str(message.get("text") or ""),
+        "cmd": str(cmd or ""),
     }
 
     try:
-        path = Path(pm_log_file)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        line = json.dumps(record, ensure_ascii=False) + "\n"
-        with path.open("a", encoding="utf-8") as f:
-            f.write(line)
+        _append_jsonl_record(pm_log_file, record)
     except Exception:
         logging.getLogger(__name__).warning(
             "Failed to write private message log to %s",
             pm_log_file,
             exc_info=True,
         )
+        return False
+    return True
+
+
+def _extract_openai_usage(resp: Any) -> Dict[str, int]:
+    """
+    Best-effort extraction of usage fields from OpenAI SDK response.
+    Returns dict with: prompt_tokens, completion_tokens, total_tokens (all ints >= 0).
+    """
+    usage = getattr(resp, "usage", None)
+    prompt = int(getattr(usage, "prompt_tokens", 0) or 0) if usage is not None else 0
+    completion = int(getattr(usage, "completion_tokens", 0) or 0) if usage is not None else 0
+    total = int(getattr(usage, "total_tokens", 0) or 0) if usage is not None else 0
+    return {
+        "prompt_tokens": max(0, prompt),
+        "completion_tokens": max(0, completion),
+        "total_tokens": max(0, total),
+    }
+
+
+def _log_token_usage(
+    *,
+    message: Dict[str, Any],
+    pm_log_file: str,
+    request_id: str,
+    cmd: str,
+    purpose: str,
+    model: str,
+    usage: Dict[str, int],
+) -> None:
+    chat = message.get("chat") or {}
+    if not isinstance(chat, dict):
+        return
+    record = {
+        "record_type": "tokens",
+        "request_id": request_id,
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "message_date": int(message.get("date") or 0),
+        "chat_id": int(chat.get("id") or 0),
+        "chat_type": str(chat.get("type") or ""),
+        **_get_user_fields(message),
+        "message_id": int(message.get("message_id") or 0),
+        "cmd": str(cmd or ""),
+        "purpose": str(purpose or ""),
+        "model": str(model or ""),
+        "prompt_tokens": int(usage.get("prompt_tokens") or 0),
+        "completion_tokens": int(usage.get("completion_tokens") or 0),
+        "total_tokens": int(usage.get("total_tokens") or 0),
+    }
+    try:
+        _append_jsonl_record(pm_log_file, record)
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "Failed to write token usage log to %s",
+            pm_log_file,
+            exc_info=True,
+        )
+
+
+def _tokens_stat_from_log(pm_log_file: str) -> Tuple[int, list[Tuple[int, str, int]]]:
+    """
+    Returns: (total_tokens, top_users) where top_users is list of (user_id, username, total_tokens).
+    """
+    path = Path(pm_log_file)
+    if not path.exists():
+        return 0, []
+
+    total = 0
+    per_user: dict[int, int] = {}
+    usernames: dict[int, str] = {}
+
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    continue
+                if not isinstance(rec, dict):
+                    continue
+                if rec.get("record_type") != "tokens":
+                    continue
+                t = int(rec.get("total_tokens") or 0)
+                if t <= 0:
+                    continue
+                uid = int(rec.get("user_id") or 0)
+                if uid <= 0:
+                    continue
+                total += t
+                per_user[uid] = per_user.get(uid, 0) + t
+                uname = str(rec.get("username") or "")
+                if uname:
+                    usernames[uid] = uname
+    except Exception:
+        logging.getLogger(__name__).warning("Failed to read tokens stats from %s", pm_log_file, exc_info=True)
+        return 0, []
+
+    top = sorted(per_user.items(), key=lambda kv: kv[1], reverse=True)[:5]
+    top_users: list[Tuple[int, str, int]] = []
+    for uid, t in top:
+        top_users.append((uid, usernames.get(uid, ""), t))
+    return total, top_users
 
 
 def _fetch_readme() -> str:
@@ -714,7 +839,7 @@ def _build_messages(readme: str, user_question: str) -> list[ChatCompletionMessa
     return messages
 
 
-def _answer_question(client: OpenAI, readme: str, question: str) -> str:
+def _answer_question(client: OpenAI, readme: str, question: str) -> Tuple[str, Dict[str, int]]:
     messages = _build_messages(readme=readme, user_question=question)
     response = client.chat.completions.create(
         model=OPENAI_MODEL,
@@ -725,7 +850,8 @@ def _answer_question(client: OpenAI, readme: str, question: str) -> str:
         messages=messages,
     )
     content = response.choices[0].message.content or ""
-    return content.strip() or "Не смог сформировать ответ. Попробуйте переформулировать вопрос."
+    usage = _extract_openai_usage(response)
+    return content.strip() or "Не смог сформировать ответ. Попробуйте переформулировать вопрос.", usage
 
 
 def _judge_quiz_answer(
@@ -734,7 +860,7 @@ def _judge_quiz_answer(
     quiz_question: str,
     reference_answer: str,
     student_answer: str,
-) -> bool:
+) -> Tuple[bool, Dict[str, int]]:
     """
     LLM-as-a-judge for quiz answers.
 
@@ -776,13 +902,13 @@ def _judge_quiz_answer(
         content = (resp.choices[0].message.content or "").strip().lower()
         print("judge resp content", content)
         if content.startswith("true"):
-            return True
+            return True, _extract_openai_usage(resp)
         if content.startswith("false"):
-            return False
+            return False, _extract_openai_usage(resp)
         raise ValueError(f"Unexpected judge output: {content!r}")
     except Exception:
         logging.getLogger(__name__).warning("Judge failed; fallback to strict equality", exc_info=True)
-        return student_answer.strip() == reference_answer.strip()
+        return student_answer.strip() == reference_answer.strip(), {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
 
 def _handle_message(
@@ -804,7 +930,14 @@ def _handle_message(
     is_admin = _is_admin(settings=settings, user_id=user_id, username=username)
     chat_type = str((message.get("chat") or {}).get("type") or "")
 
-    _log_private_message(message=message, pm_log_file=pm_log_file, bot_username=bot_username)
+    request_id = uuid.uuid4().hex
+    _log_private_message(
+        message=message,
+        pm_log_file=pm_log_file,
+        bot_username=bot_username,
+        request_id=request_id,
+        cmd=cmd,
+    )
 
     # Continue quiz creation wizard (non-command messages)
     if cmd == "" and chat_type == "private" and is_admin and user_id in _QUIZ_WIZARD_STATE:
@@ -910,12 +1043,22 @@ def _handle_message(
         prev_attempts = int((prev or {}).get("attempts") or 0) if isinstance(prev, dict) else 0
         attempts_now = prev_attempts + 1
 
-        is_correct = _judge_quiz_answer(
+        is_correct, usage = _judge_quiz_answer(
             llm=llm,
             quiz_question=str(quiz.get("question") or "").strip(),
             reference_answer=correct_answer,
             student_answer=user_answer,
         )
+        if int(usage.get("total_tokens") or 0) > 0:
+            _log_token_usage(
+                message=message,
+                pm_log_file=pm_log_file,
+                request_id=request_id,
+                cmd=cmd,
+                purpose="quiz_judge",
+                model=OPENAI_MODEL,
+                usage=usage,
+            )
         _append_user_answer(user_state=user_state, quiz_id=qkey, answer=user_answer, is_correct=is_correct)
 
         if not is_correct:
@@ -950,6 +1093,7 @@ def _handle_message(
         "/qa",
         "/get_chat_id",
         "/help",
+        "/tokens_stat",
         "/add_admin",
         "/course_chat",
         "/course_members",
@@ -984,6 +1128,42 @@ def _handle_message(
             lines.append("- /quiz_list")
             lines.append("- /quiz_delete <quiz_id>")
             lines.append("- /quiz_admin_stat")
+            lines.append("- /tokens_stat")
+        _send_with_formatting_fallback(
+            tg=tg,
+            chat_id=chat_id,
+            message_thread_id=message_thread_id,
+            text="\n".join(lines),
+        )
+        return
+    elif cmd == "/tokens_stat":
+        if not is_admin:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Недостаточно прав: команда доступна только администраторам.",
+            )
+            return
+        if chat_type != "private":
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Пожалуйста, используйте /tokens_stat в личных сообщениях с ботом.",
+            )
+            return
+
+        total, top_users = _tokens_stat_from_log(pm_log_file)
+        lines = [f"Всего токенов потрачено: {total}"]
+        if not top_users:
+            lines.append("Топ пользователей: нет данных.")
+        else:
+            lines.append("Топ 5 пользователей по токенам:")
+            for i, (uid, uname, t) in enumerate(top_users, start=1):
+                who = f"@{uname}" if uname else f"id={uid}"
+                lines.append(f"{i}. {who}: {t}")
+
         _send_with_formatting_fallback(
             tg=tg,
             chat_id=chat_id,
@@ -1680,7 +1860,7 @@ def _handle_message(
             return
 
         try:
-            answer = _answer_question(client=llm, readme=readme, question=args)
+            answer, usage = _answer_question(client=llm, readme=readme, question=args)
         except Exception as e:
             _send_with_formatting_fallback(
                 tg=tg,
@@ -1689,6 +1869,16 @@ def _handle_message(
                 text=f"LLM request failed: {type(e).__name__}: {e}",
             )
             return
+        if int(usage.get("total_tokens") or 0) > 0:
+            _log_token_usage(
+                message=message,
+                pm_log_file=pm_log_file,
+                request_id=request_id,
+                cmd=cmd,
+                purpose="qa",
+                model=OPENAI_MODEL,
+                usage=usage,
+            )
 
         _send_with_formatting_fallback(
             tg=tg,
