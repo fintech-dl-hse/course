@@ -4,3 +4,4 @@ export/
 __pycache__/
 videos/
 .env
+assistent_bot/bot_config.json
