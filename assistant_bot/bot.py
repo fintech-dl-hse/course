@@ -1147,7 +1147,37 @@ def _handle_message(
             return
 
         results[qkey] = {"correct": True, "attempts": attempts_now}
-        user_state["active_quiz_id"] = None
+        next_quiz_item: Dict[str, Any] | None = None
+        for q in quizzes:
+            qid = str(q.get("id") or "").strip()
+            r = results.get(qid)
+            if isinstance(r, dict) and bool(r.get("correct")):
+                continue
+            next_quiz_item = q
+            break
+
+        if next_quiz_item is None:
+            user_state["active_quiz_id"] = None
+            try:
+                _save_quiz_state(quiz_state_file, state)
+            except Exception:
+                logging.getLogger(__name__).warning("Failed to save quiz state file %s", quiz_state_file, exc_info=True)
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Правильно! Поздравляю.",
+            )
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Все квизы уже пройдены. Отличная работа!",
+            )
+            return
+
+        next_qid = str(next_quiz_item.get("id") or "").strip()
+        user_state["active_quiz_id"] = next_qid
         try:
             _save_quiz_state(quiz_state_file, state)
         except Exception:
@@ -1157,6 +1187,13 @@ def _handle_message(
             chat_id=chat_id,
             message_thread_id=message_thread_id,
             text="Правильно! Поздравляю.",
+        )
+        question = str(next_quiz_item.get("question") or "").strip()
+        _send_with_formatting_fallback(
+            tg=tg,
+            chat_id=chat_id,
+            message_thread_id=message_thread_id,
+            text=f"Квиз {next_qid}.\n\n{question}",
         )
         return
 
