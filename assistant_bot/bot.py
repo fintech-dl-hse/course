@@ -571,11 +571,43 @@ def _is_admin(settings: Dict[str, Any], user_id: int, username: str) -> bool:
     return False
 
 
-def _log_private_message(message: Dict[str, Any], pm_log_file: str) -> None:
+def _is_command_for_this_bot(text: str, bot_username: str) -> bool:
+    """
+    True if `text` looks like a bot command that is intended for THIS bot.
+
+    - /cmd ...              -> True
+    - /cmd@ThisBot ...      -> True (case-insensitive)
+    - /cmd@OtherBot ...     -> False
+    """
+    text = (text or "").strip()
+    if not text.startswith("/"):
+        return False
+    first = text.split(maxsplit=1)[0]
+    if "@" not in first:
+        return True
+    if not bot_username:
+        return False
+    _, mentioned = first.split("@", maxsplit=1)
+    mentioned = mentioned.strip().lstrip("@").lower()
+    return mentioned == bot_username.strip().lstrip("@").lower()
+
+
+def _log_private_message(message: Dict[str, Any], pm_log_file: str, bot_username: str) -> None:
     chat = message.get("chat") or {}
     if not isinstance(chat, dict):
         return
-    if chat.get("type") != "private":
+
+    chat_type = str(chat.get("type") or "")
+    text = str(message.get("text") or "")
+
+    # Keep existing behavior: log ALL private messages.
+    # Additionally: log group/supergroup messages ONLY if they are commands for this bot.
+    if chat_type == "private":
+        pass
+    elif chat_type in {"group", "supergroup"}:
+        if not _is_command_for_this_bot(text=text, bot_username=bot_username):
+            return
+    else:
         return
 
     sender = message.get("from") or {}
@@ -762,8 +794,8 @@ def _handle_message(
     quizzes_file: str,
     quiz_state_file: str,
     bot_user_id: int,
+    bot_username: str,
 ) -> None:
-    _log_private_message(message=message, pm_log_file=pm_log_file)
     settings = _load_settings(config_path)
     text = (message.get("text") or "").strip()
     cmd, args = _extract_command(text)
@@ -771,6 +803,8 @@ def _handle_message(
     user_id, username = _get_sender(message)
     is_admin = _is_admin(settings=settings, user_id=user_id, username=username)
     chat_type = str((message.get("chat") or {}).get("type") or "")
+
+    _log_private_message(message=message, pm_log_file=pm_log_file, bot_username=bot_username)
 
     # Continue quiz creation wizard (non-command messages)
     if cmd == "" and chat_type == "private" and is_admin and user_id in _QUIZ_WIZARD_STATE:
@@ -1683,10 +1717,12 @@ def main(argv: list[str] | None = None) -> None:
     )
 
     bot_user_id = 0
+    bot_username = ""
     try:
         me = tg.get_me()
         bot_user_id = int((me.get("result") or {}).get("id") or 0)
-        logger.info("Bot started: %s", me.get("result", {}).get("username"))
+        bot_username = str((me.get("result") or {}).get("username") or "").strip()
+        logger.info("Bot started: %s", bot_username or None)
     except Exception:
         logger.info("Bot started")
 
@@ -1712,6 +1748,7 @@ def main(argv: list[str] | None = None) -> None:
                         quizzes_file=args.quizzes_file,
                         quiz_state_file=args.quiz_state_file,
                         bot_user_id=bot_user_id,
+                        bot_username=bot_username,
                     )
 
                 callback_query = update.get("callback_query")
