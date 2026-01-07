@@ -5,6 +5,7 @@ import time
 import argparse
 import json
 from datetime import datetime, timezone
+import math
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
@@ -864,6 +865,7 @@ def _handle_message(
         "/quiz_delete",
         "/quiz",
         "/quiz_stat",
+        "/quiz_admin_stat",
     }:
         return
 
@@ -888,6 +890,7 @@ def _handle_message(
             lines.append("- /quiz_create <quiz_id>")
             lines.append("- /quiz_list")
             lines.append("- /quiz_delete <quiz_id>")
+            lines.append("- /quiz_admin_stat")
         _send_with_formatting_fallback(
             tg=tg,
             chat_id=chat_id,
@@ -1410,6 +1413,143 @@ def _handle_message(
             chat_id=chat_id,
             message_thread_id=message_thread_id,
             text=f"Квиз {qid}.\n\n{question}",
+        )
+        return
+    elif cmd == "/quiz_admin_stat":
+        if not is_admin:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Недостаточно прав: команда доступна только администраторам.",
+            )
+            return
+
+        quizzes = _load_quizzes(quizzes_file)
+        if not quizzes:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Квизов пока нет.",
+            )
+            return
+
+        state = _load_quiz_state(quiz_state_file)
+        users_map = state.get("users")
+        if not isinstance(users_map, dict) or not users_map:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Статистика пуста: нет данных по пользователям.",
+            )
+            return
+
+        course_chat_id_raw = settings.get("course_chat_id")
+        filter_by_course = isinstance(course_chat_id_raw, int) and course_chat_id_raw != 0
+        course_chat_id_int: int
+        if filter_by_course:
+            assert isinstance(course_chat_id_raw, int)
+            course_chat_id_int = course_chat_id_raw
+        else:
+            course_chat_id_int = 0
+
+        student_user_ids: list[int] = []
+        membership_errors = 0
+        for k, v in users_map.items():
+            if not isinstance(v, dict):
+                continue
+            try:
+                uid = int(str(k).strip())
+            except ValueError:
+                continue
+            if uid <= 0:
+                continue
+            if not filter_by_course:
+                student_user_ids.append(uid)
+                continue
+            try:
+                member = tg.get_chat_member(chat_id=course_chat_id_int, user_id=uid)
+                status = str((member.get("result") or {}).get("status") or "")
+                if status in {"creator", "administrator", "member", "restricted"}:
+                    student_user_ids.append(uid)
+            except Exception:
+                membership_errors += 1
+
+        if not student_user_ids:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Статистика пуста: не найдено студентов (по текущему состоянию).",
+            )
+            return
+
+        quiz_ids = [str(q.get("id") or "").strip() for q in quizzes]
+        quiz_ids = [qid for qid in quiz_ids if qid]
+
+        passed_any = 0
+        passed_all = 0
+        attempts_by_quiz: dict[str, list[int]] = {qid: [] for qid in quiz_ids}
+
+        for uid in student_user_ids:
+            u = users_map.get(str(uid))
+            if not isinstance(u, dict):
+                continue
+            results = u.get("results")
+            if not isinstance(results, dict):
+                results = {}
+
+            any_correct = False
+            all_correct = True
+            for qid in quiz_ids:
+                r = results.get(qid)
+                correct = bool((r or {}).get("correct")) if isinstance(r, dict) else False
+                attempts = int((r or {}).get("attempts") or 0) if isinstance(r, dict) else 0
+                if correct:
+                    any_correct = True
+                    attempts_by_quiz[qid].append(attempts)
+                else:
+                    all_correct = False
+            if any_correct:
+                passed_any += 1
+            if all_correct and quiz_ids:
+                passed_all += 1
+
+        def _mean_std(values: list[int]) -> tuple[float, float]:
+            if not values:
+                return (0.0, 0.0)
+            m = sum(values) / len(values)
+            var = sum((x - m) ** 2 for x in values) / len(values)
+            return (m, math.sqrt(var))
+
+        lines = [
+            "Статистика по квизам (по студентам):",
+            f"- студентов учтено: {len(student_user_ids)}",
+            f"- прошли ≥1 квиз: {passed_any}",
+            f"- прошли все квизы: {passed_all}",
+        ]
+        if filter_by_course:
+            lines.append(f"- membership errors: {membership_errors}")
+        else:
+            lines.append("- предупреждение: course_chat_id не настроен, считаю всех пользователей из state")
+
+        lines.append("")
+        lines.append("По квизам (mean/std attempts среди тех, кто решил):")
+        for qid in quiz_ids:
+            vals = attempts_by_quiz.get(qid) or []
+            m, s = _mean_std(vals)
+            if not vals:
+                lines.append(f"- {qid}: solved=0, mean/std=N/A")
+            else:
+                lines.append(f"- {qid}: solved={len(vals)}, mean={m:.2f}, std={s:.2f}")
+
+        _send_with_formatting_fallback(
+            tg=tg,
+            chat_id=chat_id,
+            message_thread_id=message_thread_id,
+            text="\n".join(lines),
         )
         return
     elif cmd == "/get_chat_id":
