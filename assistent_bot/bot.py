@@ -4,6 +4,7 @@ import re
 import time
 import argparse
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
@@ -28,6 +29,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=str,
         default=str(Path(__file__).with_name("bot_config.json")),
         help="Path to JSON config file (default: assistent_bot/bot_config.json)",
+    )
+    parser.add_argument(
+        "--pm-log-file",
+        type=str,
+        default=str(Path(__file__).with_name("private_messages.jsonl")),
+        help="Path to JSONL log file for private chats (default: assistent_bot/private_messages.jsonl)",
     )
     return parser.parse_args(argv)
 
@@ -133,6 +140,43 @@ def _is_admin(settings: Dict[str, Any], user_id: int, username: str) -> bool:
     return False
 
 
+def _log_private_message(message: Dict[str, Any], pm_log_file: str) -> None:
+    chat = message.get("chat") or {}
+    if not isinstance(chat, dict):
+        return
+    if chat.get("type") != "private":
+        return
+
+    sender = message.get("from") or {}
+    if not isinstance(sender, dict):
+        sender = {}
+
+    record = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "message_date": int(message.get("date") or 0),
+        "chat_id": int(chat.get("id") or 0),
+        "user_id": int(sender.get("id") or 0),
+        "username": str(sender.get("username") or ""),
+        "first_name": str(sender.get("first_name") or ""),
+        "last_name": str(sender.get("last_name") or ""),
+        "message_id": int(message.get("message_id") or 0),
+        "text": str(message.get("text") or ""),
+    }
+
+    try:
+        path = Path(pm_log_file)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        line = json.dumps(record, ensure_ascii=False) + "\n"
+        with path.open("a", encoding="utf-8") as f:
+            f.write(line)
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "Failed to write private message log to %s",
+            pm_log_file,
+            exc_info=True,
+        )
+
+
 def _fetch_readme() -> str:
     resp = requests.get(README_URL, timeout=20)
     resp.raise_for_status()
@@ -226,7 +270,9 @@ def _handle_message(
     llm: OpenAI,
     message: Dict[str, Any],
     config_path: str,
+    pm_log_file: str,
 ) -> None:
+    _log_private_message(message=message, pm_log_file=pm_log_file)
     settings = _load_settings(config_path)
     text = (message.get("text") or "").strip()
     cmd, args = _extract_command(text)
@@ -422,7 +468,13 @@ def main(argv: list[str] | None = None) -> None:
 
                 message = update.get("message")
                 if isinstance(message, dict):
-                    _handle_message(tg=tg, llm=llm, message=message, config_path=args.config)
+                    _handle_message(
+                        tg=tg,
+                        llm=llm,
+                        message=message,
+                        config_path=args.config,
+                        pm_log_file=args.pm_log_file,
+                    )
 
         except requests.exceptions.RequestException as e:
             logger.warning("Polling error: %s", e)

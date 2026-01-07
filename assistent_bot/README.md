@@ -23,7 +23,7 @@
 Запуск:
 
 ```bash
-python assistent_bot/bot.py --config assistent_bot/bot_config.json
+python assistent_bot/bot.py --config assistent_bot/bot_config.json --pm-log-file assistent_bot/private_messages.jsonl
 ```
 
 ## TODO
