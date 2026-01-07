@@ -259,8 +259,7 @@ def _handle_message(
             text="\n".join(lines),
         )
         return
-
-    if cmd == "/add_admin":
+    elif cmd == "/add_admin":
         if not is_admin:
             _send_with_formatting_fallback(
                 tg=tg,
@@ -333,8 +332,7 @@ def _handle_message(
             text=f"Готово. Добавил администратора: {new_admin_id}",
         )
         return
-
-    if cmd == "/get_chat_id":
+    elif cmd == "/get_chat_id":
         _send_with_formatting_fallback(
             tg=tg,
             chat_id=chat_id,
@@ -347,8 +345,7 @@ def _handle_message(
             ),
         )
         return
-
-    if cmd == "/qa":
+    elif cmd == "/qa":
         if not args:
             _send_with_formatting_fallback(
                 tg=tg,
@@ -386,7 +383,8 @@ def _handle_message(
             message_thread_id=message_thread_id,
             text=answer,
         )
-
+    else:
+        pass
 
 def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
