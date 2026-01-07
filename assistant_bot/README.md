@@ -20,7 +20,7 @@
 Бот читает настройки из JSON файла. Путь передаётся через CLI аргумент `--config`.
 Файл **перечитывается при каждом новом сообщении**.
 
-Пример конфига: `assistent_bot/bot_config.json`
+Пример конфига: `assistant_bot/bot_config.json`
 
 ```json
 {
@@ -32,7 +32,7 @@
 Запуск:
 
 ```bash
-python assistent_bot/bot.py --config assistent_bot/bot_config.json --pm-log-file assistent_bot/private_messages.jsonl --quizzes-file assistent_bot/quizzes.json --quiz-state-file assistent_bot/quiz_state.json
+python assistant_bot/bot.py --config assistant_bot/bot_config.json --pm-log-file assistant_bot/private_messages.jsonl --quizzes-file assistant_bot/quizzes.json --quiz-state-file assistant_bot/quiz_state.json
 ```
 
 ## TODO

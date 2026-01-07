@@ -13,10 +13,7 @@ import requests
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
-try:
-    from assistent_bot.telegram_client import TelegramClient
-except ImportError:  # pragma: no cover
-    from telegram_client import TelegramClient
+from telegram_client import TelegramClient
 
 README_URL = "https://raw.githubusercontent.com/fintech-dl-hse/course/refs/heads/main/README.md"
 OPENAI_BASE_URL = "https://foundation-models.api.cloud.ru/v1"
@@ -32,25 +29,25 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--config",
         type=str,
         default=str(Path(__file__).with_name("bot_config.json")),
-        help="Path to JSON config file (default: assistent_bot/bot_config.json)",
+        help="Path to JSON config file (default: assistant_bot/bot_config.json)",
     )
     parser.add_argument(
         "--pm-log-file",
         type=str,
         default=str(Path(__file__).with_name("private_messages.jsonl")),
-        help="Path to JSONL log file for private chats (default: assistent_bot/private_messages.jsonl)",
+        help="Path to JSONL log file for private chats (default: assistant_bot/private_messages.jsonl)",
     )
     parser.add_argument(
         "--quizzes-file",
         type=str,
         default=str(Path(__file__).with_name("quizzes.json")),
-        help="Path to JSON file with quizzes (default: assistent_bot/quizzes.json)",
+        help="Path to JSON file with quizzes (default: assistant_bot/quizzes.json)",
     )
     parser.add_argument(
         "--quiz-state-file",
         type=str,
         default=str(Path(__file__).with_name("quiz_state.json")),
-        help="Path to JSON file with per-user quiz state (default: assistent_bot/quiz_state.json)",
+        help="Path to JSON file with per-user quiz state (default: assistant_bot/quiz_state.json)",
     )
     return parser.parse_args(argv)
 

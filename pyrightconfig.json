@@ -5,7 +5,7 @@
   "pythonVersion": "3.10",
   "include": [
     "handbook/manim/01.kv_cache",
-    "assistent_bot"
+    "assistant_bot"
   ],
   "executionEnvironments": [
     {
