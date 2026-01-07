@@ -45,6 +45,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=str(Path(__file__).with_name("quizzes.json")),
         help="Path to JSON file with quizzes (default: assistent_bot/quizzes.json)",
     )
+    parser.add_argument(
+        "--quiz-state-file",
+        type=str,
+        default=str(Path(__file__).with_name("quiz_state.json")),
+        help="Path to JSON file with per-user quiz state (default: assistent_bot/quiz_state.json)",
+    )
     return parser.parse_args(argv)
 
 
@@ -174,6 +180,137 @@ def _save_quizzes(quizzes_file: str, quizzes: list[Dict[str, Any]]) -> None:
     tmp_path.write_text(raw, encoding="utf-8")
     tmp_path.replace(path)
 
+def _load_quiz_state(quiz_state_file: str) -> Dict[str, Any]:
+    path = Path(quiz_state_file)
+    if not path.exists():
+        return {"users": {}}
+    try:
+        raw = path.read_text(encoding="utf-8")
+        data = json.loads(raw)
+        if not isinstance(data, dict):
+            return {"users": {}}
+        users = data.get("users")
+        if not isinstance(users, dict):
+            users = {}
+        return {"users": users}
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "Failed to load quiz state file %s; using empty state",
+            quiz_state_file,
+            exc_info=True,
+        )
+        return {"users": {}}
+
+
+def _save_quiz_state(quiz_state_file: str, state: Dict[str, Any]) -> None:
+    path = Path(quiz_state_file)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+
+    users = state.get("users")
+    if not isinstance(users, dict):
+        users = {}
+
+    def _user_key_sort(k: str) -> tuple[int, int | str]:
+        s = str(k)
+        if s.lstrip("-").isdigit():
+            return (0, int(s))
+        return (1, s)
+
+    normalized_users: Dict[str, Any] = {}
+    for user_key in sorted(users.keys(), key=_user_key_sort):
+        u = users.get(user_key)
+        if not isinstance(u, dict):
+            continue
+        active_quiz_id = u.get("active_quiz_id")
+        if active_quiz_id is not None:
+            active_quiz_id = str(active_quiz_id)
+
+        results = u.get("results")
+        if not isinstance(results, dict):
+            results = {}
+        norm_results: Dict[str, Any] = {}
+        for qid in sorted(results.keys(), key=_user_key_sort):
+            r = results.get(qid)
+            if not isinstance(r, dict):
+                continue
+            norm_results[str(qid)] = {
+                "correct": bool(r.get("correct")),
+                "attempts": int(r.get("attempts") or 0),
+            }
+
+        answers = u.get("answers")
+        if not isinstance(answers, dict):
+            answers = {}
+        norm_answers: Dict[str, Any] = {}
+        for qid in sorted(answers.keys(), key=_user_key_sort):
+            arr = answers.get(qid)
+            if not isinstance(arr, list):
+                continue
+            norm_answers[str(qid)] = [
+                {
+                    "answer": str(a.get("answer") or "") if isinstance(a, dict) else str(a),
+                    "ts": str(a.get("ts") or "") if isinstance(a, dict) else "",
+                    "correct": bool(a.get("correct")) if isinstance(a, dict) else False,
+                }
+                for a in arr
+                if isinstance(a, (dict, str))
+            ]
+
+        normalized_users[str(user_key)] = {
+            "active_quiz_id": active_quiz_id,
+            "results": norm_results,
+            "answers": norm_answers,
+        }
+
+    payload = {"users": normalized_users}
+    raw = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    tmp_path.write_text(raw, encoding="utf-8")
+    tmp_path.replace(path)
+
+
+def _get_user_quiz_state(state: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+    users = state.get("users")
+    if not isinstance(users, dict):
+        users = {}
+        state["users"] = users
+    key = str(int(user_id))
+    u = users.get(key)
+    if not isinstance(u, dict):
+        u = {"active_quiz_id": None, "results": {}, "answers": {}}
+        users[key] = u
+    if "results" not in u or not isinstance(u.get("results"), dict):
+        u["results"] = {}
+    if "answers" not in u or not isinstance(u.get("answers"), dict):
+        u["answers"] = {}
+    if "active_quiz_id" not in u:
+        u["active_quiz_id"] = None
+    return u
+
+
+def _append_user_answer(
+    user_state: Dict[str, Any],
+    quiz_id: str,
+    answer: str,
+    is_correct: bool,
+) -> None:
+    answers = user_state.get("answers")
+    if not isinstance(answers, dict):
+        answers = {}
+        user_state["answers"] = answers
+    qkey = str(quiz_id)
+    arr = answers.get(qkey)
+    if not isinstance(arr, list):
+        arr = []
+        answers[qkey] = arr
+    arr.append(
+        {
+            "answer": answer,
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "correct": bool(is_correct),
+        }
+    )
+
 
 def _handle_callback_query(
     tg: TelegramClient,
@@ -181,6 +318,7 @@ def _handle_callback_query(
     config_path: str,
     pm_log_file: str,
     quizzes_file: str,
+    quiz_state_file: str,
 ) -> None:
     settings = _load_settings(config_path)
     sender = callback_query.get("from") or {}
@@ -266,15 +404,25 @@ def _handle_callback_query(
                     admin_ids.add(int(entry.strip()))
         targets = sorted(admin_ids)
         total_targets = len(targets)
+        state = _load_quiz_state(quiz_state_file)
+        sent_admin_users: list[int] = []
         for uid in targets:
             try:
                 resp = tg.send_message(chat_id=uid, message=question, parse_mode=None)
                 if getattr(resp, "status_code", 500) == 200:
                     sent_ok += 1
+                    sent_admin_users.append(uid)
                 else:
                     sent_fail += 1
             except Exception:
                 sent_fail += 1
+        for uid in sent_admin_users:
+            u = _get_user_quiz_state(state, uid)
+            u["active_quiz_id"] = str(quiz_id)
+        try:
+            _save_quiz_state(quiz_state_file, state)
+        except Exception:
+            logging.getLogger(__name__).warning("Failed to save quiz state file %s", quiz_state_file, exc_info=True)
     else:
         course_chat_id = settings.get("course_chat_id")
         if not isinstance(course_chat_id, int) or course_chat_id == 0:
@@ -318,11 +466,14 @@ def _handle_callback_query(
                 continue
 
         total_targets = len(in_course_users)
+        state = _load_quiz_state(quiz_state_file)
+        sent_users: list[int] = []
         for uid in in_course_users:
             try:
                 resp = tg.send_message(chat_id=uid, message=question, parse_mode=None)
                 if getattr(resp, "status_code", 500) == 200:
                     sent_ok += 1
+                    sent_users.append(uid)
                 else:
                     sent_fail += 1
             except Exception:
@@ -334,6 +485,13 @@ def _handle_callback_query(
             _save_quizzes(quizzes_file=quizzes_file, quizzes=quizzes)
         except Exception:
             logging.getLogger(__name__).warning("Failed to save quizzes file %s", quizzes_file, exc_info=True)
+        for uid in sent_users:
+            u = _get_user_quiz_state(state, uid)
+            u["active_quiz_id"] = str(quiz_id)
+        try:
+            _save_quiz_state(quiz_state_file, state)
+        except Exception:
+            logging.getLogger(__name__).warning("Failed to save quiz state file %s", quiz_state_file, exc_info=True)
 
     msg = callback_query.get("message") or {}
     if isinstance(msg, dict):
@@ -547,6 +705,7 @@ def _handle_message(
     config_path: str,
     pm_log_file: str,
     quizzes_file: str,
+    quiz_state_file: str,
     bot_user_id: int,
 ) -> None:
     _log_private_message(message=message, pm_log_file=pm_log_file)
@@ -627,6 +786,71 @@ def _handle_message(
                 text=f"Готово. Квиз {quiz_id} сохранён.",
             )
             return
+
+    # User answer processing (non-command private messages)
+    if cmd == "" and chat_type == "private" and not is_admin:
+        state = _load_quiz_state(quiz_state_file)
+        user_state = _get_user_quiz_state(state, user_id)
+        active_quiz_id = user_state.get("active_quiz_id")
+        if active_quiz_id is None or str(active_quiz_id).strip() == "":
+            return
+        active_quiz_id = str(active_quiz_id).strip()
+
+        quizzes = _load_quizzes(quizzes_file)
+        quiz: Dict[str, Any] | None = None
+        for q in quizzes:
+            if str(q.get("id") or "").strip() == active_quiz_id:
+                quiz = q
+                break
+        if quiz is None:
+            user_state["active_quiz_id"] = None
+            try:
+                _save_quiz_state(quiz_state_file, state)
+            except Exception:
+                logging.getLogger(__name__).warning("Failed to save quiz state file %s", quiz_state_file, exc_info=True)
+            return
+
+        correct_answer = str(quiz.get("answer") or "").strip()
+        user_answer = text.strip()
+        qkey = str(active_quiz_id)
+        results = user_state.get("results")
+        if not isinstance(results, dict):
+            results = {}
+            user_state["results"] = results
+        prev = results.get(qkey)
+        prev_attempts = int((prev or {}).get("attempts") or 0) if isinstance(prev, dict) else 0
+        attempts_now = prev_attempts + 1
+
+        is_correct = user_answer == correct_answer
+        _append_user_answer(user_state=user_state, quiz_id=qkey, answer=user_answer, is_correct=is_correct)
+
+        if not is_correct:
+            results[qkey] = {"correct": False, "attempts": attempts_now}
+            try:
+                _save_quiz_state(quiz_state_file, state)
+            except Exception:
+                logging.getLogger(__name__).warning("Failed to save quiz state file %s", quiz_state_file, exc_info=True)
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text=f"Неправильно. Попыток: {attempts_now}. Попробуйте ещё раз.",
+            )
+            return
+
+        results[qkey] = {"correct": True, "attempts": attempts_now}
+        user_state["active_quiz_id"] = None
+        try:
+            _save_quiz_state(quiz_state_file, state)
+        except Exception:
+            logging.getLogger(__name__).warning("Failed to save quiz state file %s", quiz_state_file, exc_info=True)
+        _send_with_formatting_fallback(
+            tg=tg,
+            chat_id=chat_id,
+            message_thread_id=message_thread_id,
+            text="Правильно! Поздравляю.",
+        )
+        return
 
     if cmd not in {
         "/qa",
@@ -1154,6 +1378,7 @@ def main(argv: list[str] | None = None) -> None:
                         config_path=args.config,
                         pm_log_file=args.pm_log_file,
                         quizzes_file=args.quizzes_file,
+                        quiz_state_file=args.quiz_state_file,
                         bot_user_id=bot_user_id,
                     )
 
@@ -1165,6 +1390,7 @@ def main(argv: list[str] | None = None) -> None:
                         config_path=args.config,
                         pm_log_file=args.pm_log_file,
                         quizzes_file=args.quizzes_file,
+                        quiz_state_file=args.quiz_state_file,
                     )
 
         except requests.exceptions.RequestException as e:

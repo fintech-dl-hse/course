@@ -29,7 +29,7 @@
 Запуск:
 
 ```bash
-python assistent_bot/bot.py --config assistent_bot/bot_config.json --pm-log-file assistent_bot/private_messages.jsonl --quizzes-file assistent_bot/quizzes.json
+python assistent_bot/bot.py --config assistent_bot/bot_config.json --pm-log-file assistent_bot/private_messages.jsonl --quizzes-file assistent_bot/quizzes.json --quiz-state-file assistent_bot/quiz_state.json
 ```
 
 ## TODO
