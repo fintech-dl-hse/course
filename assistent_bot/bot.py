@@ -202,29 +202,24 @@ def _handle_callback_query(
             logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
         return
 
-    if not data.startswith("quiz_send_all:"):
+    action = ""
+    quiz_id = ""
+    if data.startswith("quiz_send_all:"):
+        action = "send_all"
+        quiz_id = data.split(":", 1)[1].strip()
+    elif data.startswith("quiz_send_admins:"):
+        action = "send_admins"
+        quiz_id = data.split(":", 1)[1].strip()
+    else:
         try:
             tg.answer_callback_query(callback_query_id=callback_query_id, text="Неизвестная кнопка.")
         except Exception:
             logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
         return
 
-    quiz_id = data.split(":", 1)[1].strip()
     if not quiz_id:
         try:
             tg.answer_callback_query(callback_query_id=callback_query_id, text="Некорректный quiz_id.")
-        except Exception:
-            logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
-        return
-
-    course_chat_id = settings.get("course_chat_id")
-    if not isinstance(course_chat_id, int) or course_chat_id == 0:
-        try:
-            tg.answer_callback_query(
-                callback_query_id=callback_query_id,
-                text="Чат курса не настроен. Сначала: /course_chat <chat_id>",
-                show_alert=True,
-            )
         except Exception:
             logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
         return
@@ -243,7 +238,7 @@ def _handle_callback_query(
             logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
         return
 
-    if bool(quiz.get("processed")):
+    if action == "send_all" and bool(quiz.get("processed")):
         try:
             tg.answer_callback_query(callback_query_id=callback_query_id, text="Квиз уже помечен как processed.")
         except Exception:
@@ -255,74 +250,119 @@ def _handle_callback_query(
     except Exception:
         logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
 
-    path = Path(pm_log_file)
-    users: set[int] = set()
-    if path.exists():
-        try:
-            with path.open("r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        rec = json.loads(line)
-                        uid = int((rec or {}).get("user_id") or 0)
-                        if uid > 0:
-                            users.add(uid)
-                    except Exception:
-                        continue
-        except Exception:
-            logging.getLogger(__name__).warning("Failed to read pm log file %s", pm_log_file, exc_info=True)
-
-    in_course_users: list[int] = []
-    for uid in sorted(users):
-        try:
-            member = tg.get_chat_member(chat_id=course_chat_id, user_id=uid)
-            status = str((member.get("result") or {}).get("status") or "")
-            if status in {"creator", "administrator", "member", "restricted"}:
-                in_course_users.append(uid)
-        except Exception:
-            continue
-
     question = str(quiz.get("question") or "").strip()
     sent_ok = 0
     sent_fail = 0
-    for uid in in_course_users:
-        try:
-            resp = tg.send_message(chat_id=uid, message=question, parse_mode=None)
-            if getattr(resp, "status_code", 500) == 200:
-                sent_ok += 1
-            else:
-                sent_fail += 1
-        except Exception:
-            sent_fail += 1
+    total_targets = 0
 
-    processed_now = sent_fail == 0
-    quiz["processed"] = processed_now
-    try:
-        _save_quizzes(quizzes_file=quizzes_file, quizzes=quizzes)
-    except Exception:
-        logging.getLogger(__name__).warning("Failed to save quizzes file %s", quizzes_file, exc_info=True)
+    if action == "send_admins":
+        admin_users = settings.get("admin_users") or []
+        admin_ids: set[int] = set()
+        if isinstance(admin_users, list):
+            for entry in admin_users:
+                if isinstance(entry, int) and entry > 0:
+                    admin_ids.add(entry)
+                elif isinstance(entry, str) and entry.strip().isdigit():
+                    admin_ids.add(int(entry.strip()))
+        targets = sorted(admin_ids)
+        total_targets = len(targets)
+        for uid in targets:
+            try:
+                resp = tg.send_message(chat_id=uid, message=question, parse_mode=None)
+                if getattr(resp, "status_code", 500) == 200:
+                    sent_ok += 1
+                else:
+                    sent_fail += 1
+            except Exception:
+                sent_fail += 1
+    else:
+        course_chat_id = settings.get("course_chat_id")
+        if not isinstance(course_chat_id, int) or course_chat_id == 0:
+            try:
+                tg.answer_callback_query(
+                    callback_query_id=callback_query_id,
+                    text="Чат курса не настроен. Сначала: /course_chat <chat_id>",
+                    show_alert=True,
+                )
+            except Exception:
+                logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
+            return
+
+        path = Path(pm_log_file)
+        users: set[int] = set()
+        if path.exists():
+            try:
+                with path.open("r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            rec = json.loads(line)
+                            uid = int((rec or {}).get("user_id") or 0)
+                            if uid > 0:
+                                users.add(uid)
+                        except Exception:
+                            continue
+            except Exception:
+                logging.getLogger(__name__).warning("Failed to read pm log file %s", pm_log_file, exc_info=True)
+
+        in_course_users: list[int] = []
+        for uid in sorted(users):
+            try:
+                member = tg.get_chat_member(chat_id=course_chat_id, user_id=uid)
+                status = str((member.get("result") or {}).get("status") or "")
+                if status in {"creator", "administrator", "member", "restricted"}:
+                    in_course_users.append(uid)
+            except Exception:
+                continue
+
+        total_targets = len(in_course_users)
+        for uid in in_course_users:
+            try:
+                resp = tg.send_message(chat_id=uid, message=question, parse_mode=None)
+                if getattr(resp, "status_code", 500) == 200:
+                    sent_ok += 1
+                else:
+                    sent_fail += 1
+            except Exception:
+                sent_fail += 1
+
+        processed_now = sent_fail == 0
+        quiz["processed"] = processed_now
+        try:
+            _save_quizzes(quizzes_file=quizzes_file, quizzes=quizzes)
+        except Exception:
+            logging.getLogger(__name__).warning("Failed to save quizzes file %s", quizzes_file, exc_info=True)
 
     msg = callback_query.get("message") or {}
     if isinstance(msg, dict):
         cb_chat_id = int((msg.get("chat") or {}).get("id") or 0)
         cb_message_id = int(msg.get("message_id") or 0)
         prev_text = str(msg.get("text") or "").strip()
-        new_text = (
-            f"{prev_text}\n\n"
-            f"Отправлено: {sent_ok}/{len(in_course_users)}\n"
-            f"Ошибок: {sent_fail}\n"
-            f"processed: {str(processed_now).lower()}"
-        ).strip()
+        status_line = ""
+        if action == "send_admins":
+            status_line = f"Отправлено администраторам: {sent_ok}/{total_targets}\nОшибок: {sent_fail}"
+        else:
+            status_line = (
+                f"Отправлено: {sent_ok}/{total_targets}\n"
+                f"Ошибок: {sent_fail}\n"
+                f"processed: {str(bool(quiz.get('processed'))).lower()}"
+            )
+        new_text = f"{prev_text}\n\n{status_line}".strip()
         try:
             tg.edit_message_text(chat_id=cb_chat_id, message_id=cb_message_id, text=new_text, parse_mode=None)
         except Exception:
             logging.getLogger(__name__).debug("Failed to edit message text", exc_info=True)
-        try:
-            tg.edit_message_reply_markup(chat_id=cb_chat_id, message_id=cb_message_id, reply_markup={"inline_keyboard": []})
-        except Exception:
-            logging.getLogger(__name__).debug("Failed to edit reply markup", exc_info=True)
+        if action == "send_all":
+            try:
+                tg.edit_message_reply_markup(
+                    chat_id=cb_chat_id,
+                    message_id=cb_message_id,
+                    reply_markup={"inline_keyboard": []},
+                )
+            except Exception:
+                logging.getLogger(__name__).debug("Failed to edit reply markup", exc_info=True)
 
 
 def _require_env(name: str) -> str:
@@ -939,12 +979,12 @@ def _handle_message(
             answer = str(q.get("answer") or "").strip()
             processed = bool(q.get("processed"))
             reply_markup = None
+            buttons: list[list[Dict[str, str]]] = [
+                [{"text": "Отправить администраторам", "callback_data": f"quiz_send_admins:{qid}"}]
+            ]
             if not processed:
-                reply_markup = {
-                    "inline_keyboard": [
-                        [{"text": "Отправить всем", "callback_data": f"quiz_send_all:{qid}"}]
-                    ]
-                }
+                buttons.append([{"text": "Отправить всем", "callback_data": f"quiz_send_all:{qid}"}])
+            reply_markup = {"inline_keyboard": buttons}
             tg.send_message(
                 chat_id=chat_id,
                 message_thread_id=message_thread_id,
