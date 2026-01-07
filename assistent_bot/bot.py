@@ -487,6 +487,16 @@ def _handle_message(
             )
             return
 
+        course_chat_id = settings.get("course_chat_id")
+        if not isinstance(course_chat_id, int) or course_chat_id == 0:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Чат курса не настроен. Сначала выполните: /course_chat <chat_id>",
+            )
+            return
+
         path = Path(pm_log_file)
         if not path.exists():
             _send_with_formatting_fallback(
@@ -523,15 +533,31 @@ def _handle_message(
             )
             return
 
+        in_course_users: set[int] = set()
+        checked = 0
+        check_errors = 0
+        for uid in users:
+            checked += 1
+            try:
+                member = tg.get_chat_member(chat_id=course_chat_id, user_id=uid)
+                status = str((member.get("result") or {}).get("status") or "")
+                if status in {"creator", "administrator", "member", "restricted"}:
+                    in_course_users.add(uid)
+            except Exception:
+                check_errors += 1
+
         _send_with_formatting_fallback(
             tg=tg,
             chat_id=chat_id,
             message_thread_id=message_thread_id,
             text=(
                 "Статистика по личным сообщениям:\n"
-                f"- пользователей: {len(users)}\n"
+                f"- пользователей (всего в логе): {len(users)}\n"
+                f"- пользователей (в чате курса): {len(in_course_users)}\n"
                 f"- строк в логе: {total_lines}\n"
-                f"- битых строк: {bad_lines}"
+                f"- битых строк: {bad_lines}\n"
+                f"- проверено membership: {checked}\n"
+                f"- ошибок проверки membership: {check_errors}"
             ),
         )
         return
