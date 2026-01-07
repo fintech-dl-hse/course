@@ -781,7 +781,7 @@ def _escape_markdown_v2(text: str) -> str:
         return ""
     text = text.replace("**", "*")
     text = text.replace("\\", "\\\\")
-    specials = r"_()[].!->"
+    specials = r"_()[].!->#"
     return re.sub(rf"([{re.escape(specials)}])", r"\\\1", text)
 
 
