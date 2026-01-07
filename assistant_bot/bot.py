@@ -407,8 +407,13 @@ def _handle_callback_query(
         sent_admin_users: list[int] = []
         for uid in targets:
             try:
-                resp = tg.send_message(chat_id=uid, message=question, parse_mode=None)
-                if getattr(resp, "status_code", 500) == 200:
+                ok = _send_with_formatting_fallback(
+                    tg=tg,
+                    chat_id=uid,
+                    message_thread_id=0,
+                    text=question,
+                )
+                if ok:
                     sent_ok += 1
                     sent_admin_users.append(uid)
                 else:
@@ -469,8 +474,13 @@ def _handle_callback_query(
         sent_users: list[int] = []
         for uid in in_course_users:
             try:
-                resp = tg.send_message(chat_id=uid, message=question, parse_mode=None)
-                if getattr(resp, "status_code", 500) == 200:
+                ok = _send_with_formatting_fallback(
+                    tg=tg,
+                    chat_id=uid,
+                    message_thread_id=0,
+                    text=question,
+                )
+                if ok:
                     sent_ok += 1
                     sent_users.append(uid)
                 else:
@@ -779,10 +789,31 @@ def _escape_markdown_v2(text: str) -> str:
     """
     if text is None:
         return ""
-    text = text.replace("**", "*")
-    text = text.replace("\\", "\\\\")
-    specials = r"_()[]{}.!->#="
-    return re.sub(rf"([{re.escape(specials)}])", r"\\\1", text)
+
+    def _escape_plain(chunk: str) -> str:
+        chunk = chunk.replace("\\", "\\\\")
+        # Telegram MarkdownV2 requires escaping these chars in plain text:
+        # _ * [ ] ( ) ~ ` > # + - = | { } . !
+        return re.sub(r"([_*\[\]()~`>#+\-=|{}.!])", r"\\\1", chunk)
+
+    s = str(text)
+
+    # Preserve fenced and inline code blocks; escape only outside of them.
+    # - Fenced: ```...```
+    # - Inline: `...` (single-line)
+    code_re = re.compile(r"```[\s\S]*?```|`[^`\n]+`")
+
+    out: list[str] = []
+    last = 0
+    for m in code_re.finditer(s):
+        if m.start() > last:
+            out.append(_escape_plain(s[last : m.start()]))
+        out.append(m.group(0))
+        last = m.end()
+    if last < len(s):
+        out.append(_escape_plain(s[last:]))
+
+    return "".join(out)
 
 
 
@@ -791,9 +822,8 @@ def _send_with_formatting_fallback(
     chat_id: int,
     message_thread_id: int,
     text: str,
-) -> None:
+) -> bool:
     escaped = _escape_markdown_v2(text)
-    print("escaped", escaped)
     resp2 = tg.send_message(
         chat_id=chat_id,
         message_thread_id=message_thread_id,
@@ -801,14 +831,15 @@ def _send_with_formatting_fallback(
         message=escaped,
     )
     if getattr(resp2, "status_code", 500) == 200:
-        return
+        return True
 
-    tg.send_message(
+    resp_plain = tg.send_message(
         chat_id=chat_id,
         message_thread_id=message_thread_id,
         parse_mode=None,
         message=text,
     )
+    return getattr(resp_plain, "status_code", 500) == 200
 
 
 def _build_messages(readme: str, user_question: str) -> list[ChatCompletionMessageParam]:
