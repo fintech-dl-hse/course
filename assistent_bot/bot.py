@@ -737,7 +737,7 @@ def _judge_quiz_answer(
             model=OPENAI_MODEL,
             temperature=0,
             top_p=1,
-            max_tokens=5,
+            max_tokens=5000,
             presence_penalty=0,
             messages=[
                 {"role": "system", "content": system},
