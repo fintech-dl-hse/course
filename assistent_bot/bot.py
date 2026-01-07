@@ -745,6 +745,7 @@ def _judge_quiz_answer(
             ],
         )
         content = (resp.choices[0].message.content or "").strip().lower()
+        print("judge resp content", content)
         if content.startswith("true"):
             return True
         if content.startswith("false"):
