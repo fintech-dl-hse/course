@@ -77,17 +77,8 @@ def _send_with_formatting_fallback(
     message_thread_id: int,
     text: str,
 ) -> None:
-    resp = tg.send_message(
-        chat_id=chat_id,
-        message_thread_id=message_thread_id,
-        parse_mode="MarkdownV2",
-        message=text,
-    )
-
-    if getattr(resp, "status_code", 500) == 200:
-        return
-
     escaped = _escape_markdown_v2(text)
+    print("escaped", escaped)
     resp2 = tg.send_message(
         chat_id=chat_id,
         message_thread_id=message_thread_id,
