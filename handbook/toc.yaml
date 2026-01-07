@@ -1,8 +1,0 @@
-title: Fintech DL HSE Handbook
-href: index.yaml
-items:
-  - name: Процессы
-    items:
-      - name: Инструменты
-        href: pages/process/tools.md
-

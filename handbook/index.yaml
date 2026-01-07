@@ -1,9 +1,0 @@
-title: Fintech DL HSE Handbook
-description: ""
-meta:
-  title: Index
-  noIndex: true
-links:
-- title: Инструменты исследователя
-  description: "Инструменты для написания кода, работы с литературой, написания текста"
-  href: pages/process/tools.md
