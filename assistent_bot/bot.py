@@ -136,7 +136,11 @@ def _load_quizzes(quizzes_file: str) -> list[Dict[str, Any]]:
         quizzes: list[Dict[str, Any]] = []
         for item in data:
             if isinstance(item, dict) and "id" in item:
-                quizzes.append(item)
+                quiz = dict(item)
+                if "processed" not in quiz:
+                    quiz["processed"] = False
+                quiz["processed"] = bool(quiz.get("processed"))
+                quizzes.append(quiz)
         quizzes.sort(key=_quiz_sort_key)
         return quizzes
     except Exception:
@@ -154,9 +158,171 @@ def _save_quizzes(quizzes_file: str, quizzes: list[Dict[str, Any]]) -> None:
     tmp_path = path.with_suffix(path.suffix + ".tmp")
     quizzes_sorted = list(quizzes)
     quizzes_sorted.sort(key=_quiz_sort_key)
-    raw = json.dumps(quizzes_sorted, ensure_ascii=False, indent=2) + "\n"
+    normalized: list[Dict[str, Any]] = []
+    for q in quizzes_sorted:
+        if not isinstance(q, dict):
+            continue
+        normalized.append(
+            {
+                "id": q.get("id"),
+                "question": q.get("question"),
+                "answer": q.get("answer"),
+                "processed": bool(q.get("processed")),
+            }
+        )
+    raw = json.dumps(normalized, ensure_ascii=False, indent=2) + "\n"
     tmp_path.write_text(raw, encoding="utf-8")
     tmp_path.replace(path)
+
+
+def _handle_callback_query(
+    tg: TelegramClient,
+    callback_query: Dict[str, Any],
+    config_path: str,
+    pm_log_file: str,
+    quizzes_file: str,
+) -> None:
+    settings = _load_settings(config_path)
+    sender = callback_query.get("from") or {}
+    user_id = int((sender.get("id") or 0) if isinstance(sender, dict) else 0)
+    username = str((sender.get("username") or "") if isinstance(sender, dict) else "").strip()
+    is_admin = _is_admin(settings=settings, user_id=user_id, username=username)
+
+    callback_query_id = str(callback_query.get("id") or "")
+    data = str(callback_query.get("data") or "")
+
+    if not is_admin:
+        try:
+            tg.answer_callback_query(
+                callback_query_id=callback_query_id,
+                text="Недостаточно прав.",
+                show_alert=True,
+            )
+        except Exception:
+            logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
+        return
+
+    if not data.startswith("quiz_send_all:"):
+        try:
+            tg.answer_callback_query(callback_query_id=callback_query_id, text="Неизвестная кнопка.")
+        except Exception:
+            logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
+        return
+
+    quiz_id = data.split(":", 1)[1].strip()
+    if not quiz_id:
+        try:
+            tg.answer_callback_query(callback_query_id=callback_query_id, text="Некорректный quiz_id.")
+        except Exception:
+            logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
+        return
+
+    course_chat_id = settings.get("course_chat_id")
+    if not isinstance(course_chat_id, int) or course_chat_id == 0:
+        try:
+            tg.answer_callback_query(
+                callback_query_id=callback_query_id,
+                text="Чат курса не настроен. Сначала: /course_chat <chat_id>",
+                show_alert=True,
+            )
+        except Exception:
+            logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
+        return
+
+    quizzes = _load_quizzes(quizzes_file)
+    quiz: Dict[str, Any] | None = None
+    for q in quizzes:
+        if str(q.get("id") or "") == quiz_id:
+            quiz = q
+            break
+
+    if quiz is None:
+        try:
+            tg.answer_callback_query(callback_query_id=callback_query_id, text="Квиз не найден.", show_alert=True)
+        except Exception:
+            logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
+        return
+
+    if bool(quiz.get("processed")):
+        try:
+            tg.answer_callback_query(callback_query_id=callback_query_id, text="Квиз уже помечен как processed.")
+        except Exception:
+            logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
+        return
+
+    try:
+        tg.answer_callback_query(callback_query_id=callback_query_id, text="Начинаю отправку...")
+    except Exception:
+        logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
+
+    path = Path(pm_log_file)
+    users: set[int] = set()
+    if path.exists():
+        try:
+            with path.open("r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                        uid = int((rec or {}).get("user_id") or 0)
+                        if uid > 0:
+                            users.add(uid)
+                    except Exception:
+                        continue
+        except Exception:
+            logging.getLogger(__name__).warning("Failed to read pm log file %s", pm_log_file, exc_info=True)
+
+    in_course_users: list[int] = []
+    for uid in sorted(users):
+        try:
+            member = tg.get_chat_member(chat_id=course_chat_id, user_id=uid)
+            status = str((member.get("result") or {}).get("status") or "")
+            if status in {"creator", "administrator", "member", "restricted"}:
+                in_course_users.append(uid)
+        except Exception:
+            continue
+
+    question = str(quiz.get("question") or "").strip()
+    sent_ok = 0
+    sent_fail = 0
+    for uid in in_course_users:
+        try:
+            resp = tg.send_message(chat_id=uid, message=question, parse_mode=None)
+            if getattr(resp, "status_code", 500) == 200:
+                sent_ok += 1
+            else:
+                sent_fail += 1
+        except Exception:
+            sent_fail += 1
+
+    processed_now = sent_fail == 0
+    quiz["processed"] = processed_now
+    try:
+        _save_quizzes(quizzes_file=quizzes_file, quizzes=quizzes)
+    except Exception:
+        logging.getLogger(__name__).warning("Failed to save quizzes file %s", quizzes_file, exc_info=True)
+
+    msg = callback_query.get("message") or {}
+    if isinstance(msg, dict):
+        cb_chat_id = int((msg.get("chat") or {}).get("id") or 0)
+        cb_message_id = int(msg.get("message_id") or 0)
+        prev_text = str(msg.get("text") or "").strip()
+        new_text = (
+            f"{prev_text}\n\n"
+            f"Отправлено: {sent_ok}/{len(in_course_users)}\n"
+            f"Ошибок: {sent_fail}\n"
+            f"processed: {str(processed_now).lower()}"
+        ).strip()
+        try:
+            tg.edit_message_text(chat_id=cb_chat_id, message_id=cb_message_id, text=new_text, parse_mode=None)
+        except Exception:
+            logging.getLogger(__name__).debug("Failed to edit message text", exc_info=True)
+        try:
+            tg.edit_message_reply_markup(chat_id=cb_chat_id, message_id=cb_message_id, reply_markup={"inline_keyboard": []})
+        except Exception:
+            logging.getLogger(__name__).debug("Failed to edit reply markup", exc_info=True)
 
 
 def _require_env(name: str) -> str:
@@ -389,7 +555,7 @@ def _handle_message(
                 return
 
             question = str(state.get("question") or "").strip()
-            quiz = {"id": quiz_id, "question": question, "answer": answer}
+            quiz = {"id": quiz_id, "question": question, "answer": answer, "processed": False}
 
             quizzes = _load_quizzes(quizzes_file)
             if any(str(q.get("id") or "") == quiz_id for q in quizzes):
@@ -431,6 +597,7 @@ def _handle_message(
         "/course_members",
         "/quiz_create",
         "/quiz_list",
+        "/quiz_delete",
     }:
         return
 
@@ -452,6 +619,7 @@ def _handle_message(
             lines.append("- /course_members")
             lines.append("- /quiz_create <quiz_id>")
             lines.append("- /quiz_list")
+            lines.append("- /quiz_delete <quiz_id>")
         _send_with_formatting_fallback(
             tg=tg,
             chat_id=chat_id,
@@ -769,16 +937,83 @@ def _handle_message(
             qid = str(q.get("id") or "").strip()
             question = str(q.get("question") or "").strip()
             answer = str(q.get("answer") or "").strip()
+            processed = bool(q.get("processed"))
+            reply_markup = None
+            if not processed:
+                reply_markup = {
+                    "inline_keyboard": [
+                        [{"text": "Отправить всем", "callback_data": f"quiz_send_all:{qid}"}]
+                    ]
+                }
+            tg.send_message(
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                parse_mode=None,
+                message=(
+                    f"Квиз: {qid}\n"
+                    f"processed: {str(processed).lower()}\n"
+                    f"Вопрос: {question}\n"
+                    f"Ответ: {answer}"
+                ),
+                reply_markup=reply_markup,
+            )
+        return
+    elif cmd == "/quiz_delete":
+        if not is_admin:
             _send_with_formatting_fallback(
                 tg=tg,
                 chat_id=chat_id,
                 message_thread_id=message_thread_id,
-                text=(
-                    f"Квиз: {qid}\n"
-                    f"Вопрос: {question}\n"
-                    f"Ответ: {answer}"
-                ),
+                text="Недостаточно прав: команда доступна только администраторам.",
             )
+            return
+
+        quiz_id = (args or "").strip()
+        if not quiz_id:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Usage: /quiz_delete <quiz_id>",
+            )
+            return
+
+        quizzes = _load_quizzes(quizzes_file)
+        before = len(quizzes)
+        quizzes = [q for q in quizzes if str(q.get("id") or "") != quiz_id]
+        after = len(quizzes)
+
+        if after == before:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text=f"Квиз с id={quiz_id} не найден.",
+            )
+            return
+
+        try:
+            _save_quizzes(quizzes_file=quizzes_file, quizzes=quizzes)
+        except Exception as e:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text=f"Не удалось сохранить файл квизов: {type(e).__name__}: {e}",
+            )
+            return
+
+        # If wizard was creating this quiz, cancel it
+        state = _QUIZ_WIZARD_STATE.get(user_id) or {}
+        if str(state.get("quiz_id") or "") == quiz_id:
+            _QUIZ_WIZARD_STATE.pop(user_id, None)
+
+        _send_with_formatting_fallback(
+            tg=tg,
+            chat_id=chat_id,
+            message_thread_id=message_thread_id,
+            text=f"Готово. Удалил квиз: {quiz_id}",
+        )
         return
     elif cmd == "/get_chat_id":
         _send_with_formatting_fallback(
@@ -880,6 +1115,16 @@ def main(argv: list[str] | None = None) -> None:
                         pm_log_file=args.pm_log_file,
                         quizzes_file=args.quizzes_file,
                         bot_user_id=bot_user_id,
+                    )
+
+                callback_query = update.get("callback_query")
+                if isinstance(callback_query, dict):
+                    _handle_callback_query(
+                        tg=tg,
+                        callback_query=callback_query,
+                        config_path=args.config,
+                        pm_log_file=args.pm_log_file,
+                        quizzes_file=args.quizzes_file,
                     )
 
         except requests.exceptions.RequestException as e:
