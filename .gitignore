@@ -5,3 +5,7 @@ __pycache__/
 videos/
 .env
 assistent_bot/bot_config.json
+private_messages.jsonl
+quiz_state.json
+quizzes.json
+venv/
