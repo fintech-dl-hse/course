@@ -4,7 +4,8 @@
   "typeCheckingMode": "basic",
   "pythonVersion": "3.10",
   "include": [
-    "handbook/manim/01.kv_cache"
+    "handbook/manim/01.kv_cache",
+    "assistent_bot"
   ],
   "executionEnvironments": [
     {
@@ -14,6 +15,10 @@
         "../../../manim/manimlib",
         "../videos/"
       ]
+    },
+    {
+      "root": ".",
+      "extraPaths": []
     }
   ]
 }
