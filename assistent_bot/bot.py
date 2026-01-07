@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import time
 from typing import Any, Dict, Tuple
 
@@ -7,7 +8,10 @@ import requests
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
-from telegram_client import TelegramClient
+try:
+    from assistent_bot.telegram_client import TelegramClient
+except ImportError:  # pragma: no cover
+    from telegram_client import TelegramClient
 
 README_URL = "https://raw.githubusercontent.com/fintech-dl-hse/course/refs/heads/main/README.md"
 OPENAI_BASE_URL = "https://foundation-models.api.cloud.ru/v1"
@@ -52,6 +56,54 @@ def _fetch_readme() -> str:
     return resp.text
 
 
+
+def _escape_markdown_v2(text: str) -> str:
+    """
+    Escapes text for Telegram MarkdownV2.
+    Docs: https://core.telegram.org/bots/api#markdownv2-style
+    """
+    if text is None:
+        return ""
+    text = text.replace("\\", "\\\\")
+    specials = r"_*[]()~`>#+-=|{}.!"
+    return re.sub(rf"([{re.escape(specials)}])", r"\\\1", text)
+
+
+
+def _send_with_formatting_fallback(
+    tg: TelegramClient,
+    chat_id: int,
+    message_thread_id: int,
+    text: str,
+) -> None:
+    resp = tg.send_message(
+        chat_id=chat_id,
+        message_thread_id=message_thread_id,
+        parse_mode="MarkdownV2",
+        message=text,
+    )
+
+    if getattr(resp, "status_code", 500) == 200:
+        return
+
+    escaped = _escape_markdown_v2(text)
+    resp2 = tg.send_message(
+        chat_id=chat_id,
+        message_thread_id=message_thread_id,
+        parse_mode="MarkdownV2",
+        message=escaped,
+    )
+    if getattr(resp2, "status_code", 500) == 200:
+        return
+
+    tg.send_message(
+        chat_id=chat_id,
+        message_thread_id=message_thread_id,
+        parse_mode=None,
+        message=text,
+    )
+
+
 def _build_messages(readme: str, user_question: str) -> list[ChatCompletionMessageParam]:
     system = (
         "You are a teaching assistant bot for the HSE Fintech Deep Learning course.\n"
@@ -61,6 +113,7 @@ def _build_messages(readme: str, user_question: str) -> list[ChatCompletionMessa
         "and suggest asking a course-related question.\n"
         "Be concise, technically correct, and prefer practical guidance.\n"
         "Answer in the same language as the user's question.\n"
+        "Do NOT use markdown tables. Prefer bullet lists.\n"
     )
 
     user = (
@@ -112,11 +165,11 @@ def _handle_message(
         logging.getLogger(__name__).debug("Failed to set reaction", exc_info=True)
 
     if cmd == "/get_chat_id":
-        tg.send_message(
+        _send_with_formatting_fallback(
+            tg=tg,
             chat_id=chat_id,
             message_thread_id=message_thread_id,
-            parse_mode=None,
-            message=(
+            text=(
                 "chat_id: "
                 f"{chat_id}\n"
                 "message_thread_id: "
@@ -127,41 +180,41 @@ def _handle_message(
 
     if cmd == "/qa":
         if not args:
-            tg.send_message(
+            _send_with_formatting_fallback(
+                tg=tg,
                 chat_id=chat_id,
                 message_thread_id=message_thread_id,
-                parse_mode=None,
-                message="Usage: /qa <вопрос>",
+                text="Usage: /qa <вопрос>",
             )
             return
 
         try:
             readme = _fetch_readme()
         except Exception as e:
-            tg.send_message(
+            _send_with_formatting_fallback(
+                tg=tg,
                 chat_id=chat_id,
                 message_thread_id=message_thread_id,
-                parse_mode=None,
-                message=f"Failed to fetch README context: {type(e).__name__}: {e}",
+                text=f"Failed to fetch README context: {type(e).__name__}: {e}",
             )
             return
 
         try:
             answer = _answer_question(client=llm, readme=readme, question=args)
         except Exception as e:
-            tg.send_message(
+            _send_with_formatting_fallback(
+                tg=tg,
                 chat_id=chat_id,
                 message_thread_id=message_thread_id,
-                parse_mode=None,
-                message=f"LLM request failed: {type(e).__name__}: {e}",
+                text=f"LLM request failed: {type(e).__name__}: {e}",
             )
             return
 
-        tg.send_message(
+        _send_with_formatting_fallback(
+            tg=tg,
             chat_id=chat_id,
             message_thread_id=message_thread_id,
-            parse_mode=None,
-            message=answer,
+            text=answer,
         )
 
 
