@@ -788,7 +788,7 @@ def _handle_message(
             return
 
     # User answer processing (non-command private messages)
-    if cmd == "" and chat_type == "private" and not is_admin:
+    if cmd == "" and chat_type == "private":
         state = _load_quiz_state(quiz_state_file)
         user_state = _get_user_quiz_state(state, user_id)
         active_quiz_id = user_state.get("active_quiz_id")
@@ -862,6 +862,8 @@ def _handle_message(
         "/quiz_create",
         "/quiz_list",
         "/quiz_delete",
+        "/quiz",
+        "/quiz_stat",
     }:
         return
 
@@ -876,6 +878,8 @@ def _handle_message(
             "- /help",
             "- /qa <вопрос>",
             "- /get_chat_id",
+            "- /quiz",
+            "- /quiz_stat",
         ]
         if is_admin:
             lines.append("- /add_admin <user_id>")
@@ -1277,6 +1281,135 @@ def _handle_message(
             chat_id=chat_id,
             message_thread_id=message_thread_id,
             text=f"Готово. Удалил квиз: {quiz_id}",
+        )
+        return
+    elif cmd == "/quiz_stat":
+        if chat_type != "private":
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Команда доступна только в личных сообщениях с ботом.",
+            )
+            return
+
+        quizzes = _load_quizzes(quizzes_file)
+        if not quizzes:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Квизов пока нет.",
+            )
+            return
+
+        state = _load_quiz_state(quiz_state_file)
+        user_state = _get_user_quiz_state(state, user_id)
+        results = user_state.get("results")
+        if not isinstance(results, dict):
+            results = {}
+
+        active_quiz_id = user_state.get("active_quiz_id")
+        active_quiz_id = str(active_quiz_id).strip() if active_quiz_id is not None else ""
+
+        lines = ["Статистика по квизам:"]
+        for q in quizzes:
+            qid = str(q.get("id") or "").strip()
+            r = results.get(qid) if isinstance(results, dict) else None
+            correct = bool((r or {}).get("correct")) if isinstance(r, dict) else False
+            attempts = int((r or {}).get("attempts") or 0) if isinstance(r, dict) else 0
+
+            if correct:
+                emoji = "✅"
+            elif attempts > 0:
+                emoji = "❌"
+            else:
+                emoji = "⏳" if qid == active_quiz_id and active_quiz_id else "⚪"
+
+            lines.append(f"- {emoji} {qid} (попыток: {attempts})")
+
+        _send_with_formatting_fallback(
+            tg=tg,
+            chat_id=chat_id,
+            message_thread_id=message_thread_id,
+            text="\n".join(lines),
+        )
+        return
+    elif cmd == "/quiz":
+        if chat_type != "private":
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Команда доступна только в личных сообщениях с ботом.",
+            )
+            return
+
+        quizzes = _load_quizzes(quizzes_file)
+        if not quizzes:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Квизов пока нет.",
+            )
+            return
+
+        state = _load_quiz_state(quiz_state_file)
+        user_state = _get_user_quiz_state(state, user_id)
+        active_quiz_id = user_state.get("active_quiz_id")
+        active_quiz_id = str(active_quiz_id).strip() if active_quiz_id is not None else ""
+
+        # If already in progress, resend question
+        if active_quiz_id:
+            quiz = next((q for q in quizzes if str(q.get("id") or "").strip() == active_quiz_id), None)
+            if isinstance(quiz, dict):
+                question = str(quiz.get("question") or "").strip()
+                _send_with_formatting_fallback(
+                    tg=tg,
+                    chat_id=chat_id,
+                    message_thread_id=message_thread_id,
+                    text=f"Квиз {active_quiz_id} уже в процессе.\n\n{question}",
+                )
+                return
+            user_state["active_quiz_id"] = None
+
+        results = user_state.get("results")
+        if not isinstance(results, dict):
+            results = {}
+            user_state["results"] = results
+
+        next_quiz: Dict[str, Any] | None = None
+        for q in quizzes:
+            qid = str(q.get("id") or "").strip()
+            r = results.get(qid)
+            if isinstance(r, dict) and bool(r.get("correct")):
+                continue
+            next_quiz = q
+            break
+
+        if next_quiz is None:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Все квизы уже пройдены. Отличная работа!",
+            )
+            return
+
+        qid = str(next_quiz.get("id") or "").strip()
+        user_state["active_quiz_id"] = qid
+        try:
+            _save_quiz_state(quiz_state_file, state)
+        except Exception:
+            logging.getLogger(__name__).warning("Failed to save quiz state file %s", quiz_state_file, exc_info=True)
+
+        question = str(next_quiz.get("question") or "").strip()
+        _send_with_formatting_fallback(
+            tg=tg,
+            chat_id=chat_id,
+            message_thread_id=message_thread_id,
+            text=f"Квиз {qid}.\n\n{question}",
         )
         return
     elif cmd == "/get_chat_id":
