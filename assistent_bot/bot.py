@@ -429,7 +429,8 @@ def _handle_message(
         "/add_admin",
         "/course_chat",
         "/course_members",
-        "/new_quiz",
+        "/quiz_create",
+        "/quiz_list",
     }:
         return
 
@@ -449,7 +450,8 @@ def _handle_message(
             lines.append("- /add_admin <user_id>")
             lines.append("- /course_chat <chat_id>")
             lines.append("- /course_members")
-            lines.append("- /new_quiz <quiz_id>")
+            lines.append("- /quiz_create <quiz_id>")
+            lines.append("- /quiz_list")
         _send_with_formatting_fallback(
             tg=tg,
             chat_id=chat_id,
@@ -697,7 +699,7 @@ def _handle_message(
             ),
         )
         return
-    elif cmd == "/new_quiz":
+    elif cmd == "/quiz_create":
         if chat_type != "private":
             _send_with_formatting_fallback(
                 tg=tg,
@@ -721,7 +723,7 @@ def _handle_message(
                 tg=tg,
                 chat_id=chat_id,
                 message_thread_id=message_thread_id,
-                text="Usage: /new_quiz <quiz_id>",
+                text="Usage: /quiz_create <quiz_id>",
             )
             return
 
@@ -742,6 +744,41 @@ def _handle_message(
             message_thread_id=message_thread_id,
             text=f"Создание квиза {quiz_id}. Отправьте вопрос для квиза.",
         )
+        return
+    elif cmd == "/quiz_list":
+        if not is_admin:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Недостаточно прав: команда доступна только администраторам.",
+            )
+            return
+
+        quizzes = _load_quizzes(quizzes_file)
+        if not quizzes:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Список квизов пуст.",
+            )
+            return
+
+        for q in quizzes:
+            qid = str(q.get("id") or "").strip()
+            question = str(q.get("question") or "").strip()
+            answer = str(q.get("answer") or "").strip()
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text=(
+                    f"Квиз: {qid}\n"
+                    f"Вопрос: {question}\n"
+                    f"Ответ: {answer}"
+                ),
+            )
         return
     elif cmd == "/get_chat_id":
         _send_with_formatting_fallback(
