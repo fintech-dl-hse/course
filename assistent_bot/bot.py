@@ -21,6 +21,9 @@ README_URL = "https://raw.githubusercontent.com/fintech-dl-hse/course/refs/heads
 OPENAI_BASE_URL = "https://foundation-models.api.cloud.ru/v1"
 OPENAI_MODEL = "openai/gpt-oss-120b"
 
+# In-memory wizard state for quiz creation (keyed by admin user_id)
+_QUIZ_WIZARD_STATE: dict[int, Dict[str, Any]] = {}
+
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Fintech DL HSE assistant Telegram bot")
@@ -35,6 +38,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=str,
         default=str(Path(__file__).with_name("private_messages.jsonl")),
         help="Path to JSONL log file for private chats (default: assistent_bot/private_messages.jsonl)",
+    )
+    parser.add_argument(
+        "--quizzes-file",
+        type=str,
+        default=str(Path(__file__).with_name("quizzes.json")),
+        help="Path to JSON file with quizzes (default: assistent_bot/quizzes.json)",
     )
     return parser.parse_args(argv)
 
@@ -99,6 +108,53 @@ def _save_settings(config_path: str, settings: Dict[str, Any]) -> None:
         "course_chat_id": settings.get("course_chat_id", None),
     }
     raw = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+    tmp_path.write_text(raw, encoding="utf-8")
+    tmp_path.replace(path)
+
+
+def _quiz_sort_key(q: Dict[str, Any]) -> tuple[int, int | str]:
+    qid = q.get("id")
+    if isinstance(qid, int):
+        return (0, qid)
+    if isinstance(qid, str):
+        s = qid.strip()
+        if s.lstrip("-").isdigit():
+            return (0, int(s))
+        return (1, s)
+    return (1, str(qid))
+
+
+def _load_quizzes(quizzes_file: str) -> list[Dict[str, Any]]:
+    path = Path(quizzes_file)
+    if not path.exists():
+        return []
+    try:
+        raw = path.read_text(encoding="utf-8")
+        data = json.loads(raw)
+        if not isinstance(data, list):
+            return []
+        quizzes: list[Dict[str, Any]] = []
+        for item in data:
+            if isinstance(item, dict) and "id" in item:
+                quizzes.append(item)
+        quizzes.sort(key=_quiz_sort_key)
+        return quizzes
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "Failed to load quizzes file %s; using empty list",
+            quizzes_file,
+            exc_info=True,
+        )
+        return []
+
+
+def _save_quizzes(quizzes_file: str, quizzes: list[Dict[str, Any]]) -> None:
+    path = Path(quizzes_file)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    quizzes_sorted = list(quizzes)
+    quizzes_sorted.sort(key=_quiz_sort_key)
+    raw = json.dumps(quizzes_sorted, ensure_ascii=False, indent=2) + "\n"
     tmp_path.write_text(raw, encoding="utf-8")
     tmp_path.replace(path)
 
@@ -284,19 +340,98 @@ def _handle_message(
     message: Dict[str, Any],
     config_path: str,
     pm_log_file: str,
+    quizzes_file: str,
     bot_user_id: int,
 ) -> None:
     _log_private_message(message=message, pm_log_file=pm_log_file)
     settings = _load_settings(config_path)
     text = (message.get("text") or "").strip()
     cmd, args = _extract_command(text)
-
-    if cmd not in {"/qa", "/get_chat_id", "/help", "/add_admin", "/course_chat", "/course_members"}:
-        return
-
     chat_id, message_id, message_thread_id = _get_message_basics(message)
     user_id, username = _get_sender(message)
     is_admin = _is_admin(settings=settings, user_id=user_id, username=username)
+    chat_type = str((message.get("chat") or {}).get("type") or "")
+
+    # Continue quiz creation wizard (non-command messages)
+    if cmd == "" and chat_type == "private" and is_admin and user_id in _QUIZ_WIZARD_STATE:
+        state = _QUIZ_WIZARD_STATE.get(user_id) or {}
+        stage = str(state.get("stage") or "")
+        quiz_id = str(state.get("quiz_id") or "").strip()
+        if stage == "await_question":
+            question = text.strip()
+            if not question:
+                _send_with_formatting_fallback(
+                    tg=tg,
+                    chat_id=chat_id,
+                    message_thread_id=message_thread_id,
+                    text="Пожалуйста, отправьте непустой вопрос для квиза.",
+                )
+                return
+            state["question"] = question
+            state["stage"] = "await_answer"
+            _QUIZ_WIZARD_STATE[user_id] = state
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text=f"Квиз {quiz_id}: теперь отправьте правильный ответ.",
+            )
+            return
+        if stage == "await_answer":
+            answer = text.strip()
+            if not answer:
+                _send_with_formatting_fallback(
+                    tg=tg,
+                    chat_id=chat_id,
+                    message_thread_id=message_thread_id,
+                    text="Пожалуйста, отправьте непустой правильный ответ для квиза.",
+                )
+                return
+
+            question = str(state.get("question") or "").strip()
+            quiz = {"id": quiz_id, "question": question, "answer": answer}
+
+            quizzes = _load_quizzes(quizzes_file)
+            if any(str(q.get("id") or "") == quiz_id for q in quizzes):
+                _QUIZ_WIZARD_STATE.pop(user_id, None)
+                _send_with_formatting_fallback(
+                    tg=tg,
+                    chat_id=chat_id,
+                    message_thread_id=message_thread_id,
+                    text=f"Квиз с id={quiz_id} уже существует. Создание отменено.",
+                )
+                return
+
+            quizzes.append(quiz)
+            try:
+                _save_quizzes(quizzes_file=quizzes_file, quizzes=quizzes)
+            except Exception as e:
+                _send_with_formatting_fallback(
+                    tg=tg,
+                    chat_id=chat_id,
+                    message_thread_id=message_thread_id,
+                    text=f"Не удалось сохранить квиз: {type(e).__name__}: {e}",
+                )
+                return
+            _QUIZ_WIZARD_STATE.pop(user_id, None)
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text=f"Готово. Квиз {quiz_id} сохранён.",
+            )
+            return
+
+    if cmd not in {
+        "/qa",
+        "/get_chat_id",
+        "/help",
+        "/add_admin",
+        "/course_chat",
+        "/course_members",
+        "/new_quiz",
+    }:
+        return
 
     try:
         tg.send_message_reaction(chat_id=chat_id, message_id=message_id, reaction_emoji="👀")
@@ -314,6 +449,7 @@ def _handle_message(
             lines.append("- /add_admin <user_id>")
             lines.append("- /course_chat <chat_id>")
             lines.append("- /course_members")
+            lines.append("- /new_quiz <quiz_id>")
         _send_with_formatting_fallback(
             tg=tg,
             chat_id=chat_id,
@@ -561,6 +697,52 @@ def _handle_message(
             ),
         )
         return
+    elif cmd == "/new_quiz":
+        if chat_type != "private":
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Команда доступна только в личных сообщениях с ботом.",
+            )
+            return
+        if not is_admin:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Недостаточно прав: команда доступна только администраторам.",
+            )
+            return
+
+        quiz_id = (args or "").strip()
+        if not quiz_id:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Usage: /new_quiz <quiz_id>",
+            )
+            return
+
+        quizzes = _load_quizzes(quizzes_file)
+        if any(str(q.get("id") or "") == quiz_id for q in quizzes):
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text=f"Квиз с id={quiz_id} уже существует.",
+            )
+            return
+
+        _QUIZ_WIZARD_STATE[user_id] = {"stage": "await_question", "quiz_id": quiz_id}
+        _send_with_formatting_fallback(
+            tg=tg,
+            chat_id=chat_id,
+            message_thread_id=message_thread_id,
+            text=f"Создание квиза {quiz_id}. Отправьте вопрос для квиза.",
+        )
+        return
     elif cmd == "/get_chat_id":
         _send_with_formatting_fallback(
             tg=tg,
@@ -659,6 +841,7 @@ def main(argv: list[str] | None = None) -> None:
                         message=message,
                         config_path=args.config,
                         pm_log_file=args.pm_log_file,
+                        quizzes_file=args.quizzes_file,
                         bot_user_id=bot_user_id,
                     )
 

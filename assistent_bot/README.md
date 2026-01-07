@@ -8,6 +8,7 @@
 * /add_admin <user_id> - Добавить администратора (только для админов из конфига)
 * /course_chat <chat_id> - Установить чат курса (только для админов). Бот должен быть администратором в этом чате
 * /course_members - Статистика по пользователям из личных сообщений (только для админов)
+* /new_quiz <quiz_id> - Создать квиз (только для админов в личных сообщениях)
 
 ## Конфиг
 
@@ -26,7 +27,7 @@
 Запуск:
 
 ```bash
-python assistent_bot/bot.py --config assistent_bot/bot_config.json --pm-log-file assistent_bot/private_messages.jsonl
+python assistent_bot/bot.py --config assistent_bot/bot_config.json --pm-log-file assistent_bot/private_messages.jsonl --quizzes-file assistent_bot/quizzes.json
 ```
 
 ## TODO
