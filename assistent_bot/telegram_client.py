@@ -273,6 +273,23 @@ class TelegramClient:
 
         return resp.json()
 
+    def get_chat_member(self, chat_id: int, user_id: int) -> Dict[str, Any]:
+        """Get information about a member of a chat (used for permission checks)."""
+        resp = self._request(
+            method="GET",
+            endpoint="getChatMember",
+            params={
+                "chat_id": chat_id,
+                "user_id": user_id,
+            },
+            timeout=10,
+        )
+
+        if resp.status_code != 200:
+            raise ValueError("Failed to get chat member", resp.content)
+
+        return resp.json()
+
     def answer_callback_query(
         self,
         callback_query_id: str,

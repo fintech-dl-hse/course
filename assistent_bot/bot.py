@@ -45,10 +45,11 @@ def _load_settings(config_path: str) -> Dict[str, Any]:
 
     Expected schema:
       - admin_users: list[int|str] (Telegram user IDs and/or usernames)
+      - course_chat_id: int|null (Telegram chat ID for the course)
 
     The file is intentionally read on every request.
     """
-    fallback: Dict[str, Any] = {"admin_users": []}
+    fallback: Dict[str, Any] = {"admin_users": [], "course_chat_id": None}
     try:
         path = Path(config_path)
         if not path.exists():
@@ -63,7 +64,18 @@ def _load_settings(config_path: str) -> Dict[str, Any]:
         admin_users = data.get("admin_users", [])
         if not isinstance(admin_users, list):
             admin_users = []
-        return {"admin_users": admin_users}
+        course_chat_id_raw = data.get("course_chat_id", None)
+        course_chat_id: int | None
+        if isinstance(course_chat_id_raw, int):
+            course_chat_id = course_chat_id_raw
+        elif isinstance(course_chat_id_raw, str):
+            try:
+                course_chat_id = int(course_chat_id_raw.strip())
+            except ValueError:
+                course_chat_id = None
+        else:
+            course_chat_id = None
+        return {"admin_users": admin_users, "course_chat_id": course_chat_id}
     except Exception:
         logging.getLogger(__name__).warning(
             "Failed to load config %s; using defaults",
@@ -84,6 +96,7 @@ def _save_settings(config_path: str, settings: Dict[str, Any]) -> None:
     tmp_path = path.with_suffix(path.suffix + ".tmp")
     payload = {
         "admin_users": settings.get("admin_users") or [],
+        "course_chat_id": settings.get("course_chat_id", None),
     }
     raw = json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
     tmp_path.write_text(raw, encoding="utf-8")
@@ -271,13 +284,14 @@ def _handle_message(
     message: Dict[str, Any],
     config_path: str,
     pm_log_file: str,
+    bot_user_id: int,
 ) -> None:
     _log_private_message(message=message, pm_log_file=pm_log_file)
     settings = _load_settings(config_path)
     text = (message.get("text") or "").strip()
     cmd, args = _extract_command(text)
 
-    if cmd not in {"/qa", "/get_chat_id", "/help", "/add_admin"}:
+    if cmd not in {"/qa", "/get_chat_id", "/help", "/add_admin", "/course_chat", "/course_members"}:
         return
 
     chat_id, message_id, message_thread_id = _get_message_basics(message)
@@ -298,6 +312,8 @@ def _handle_message(
         ]
         if is_admin:
             lines.append("- /add_admin <user_id>")
+            lines.append("- /course_chat <chat_id>")
+            lines.append("- /course_members")
         _send_with_formatting_fallback(
             tg=tg,
             chat_id=chat_id,
@@ -378,6 +394,147 @@ def _handle_message(
             text=f"Готово. Добавил администратора: {new_admin_id}",
         )
         return
+    elif cmd == "/course_chat":
+        if not is_admin:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Недостаточно прав: команда доступна только администраторам.",
+            )
+            return
+
+        raw_chat_id = (args or "").strip()
+        if not raw_chat_id:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Usage: /course_chat <chat_id>",
+            )
+            return
+
+        try:
+            course_chat_id = int(raw_chat_id)
+        except ValueError:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Usage: /course_chat <chat_id> (chat_id должен быть числом)",
+            )
+            return
+
+        if bot_user_id <= 0:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Не удалось определить bot_id через Telegram API. Попробуйте перезапустить бота.",
+            )
+            return
+
+        try:
+            member = tg.get_chat_member(chat_id=course_chat_id, user_id=bot_user_id)
+            status = str((member.get("result") or {}).get("status") or "")
+        except Exception as e:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text=f"Не удалось проверить права бота в чате: {type(e).__name__}: {e}",
+            )
+            return
+
+        if status not in {"administrator", "creator"}:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text=(
+                    "Бот должен быть администратором (суперпользователем) в этом чате.\n"
+                    f"Текущий статус: {status or 'unknown'}"
+                ),
+            )
+            return
+
+        settings["course_chat_id"] = course_chat_id
+        try:
+            _save_settings(config_path=config_path, settings=settings)
+        except Exception as e:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text=f"Не удалось сохранить конфиг: {type(e).__name__}: {e}",
+            )
+            return
+
+        _send_with_formatting_fallback(
+            tg=tg,
+            chat_id=chat_id,
+            message_thread_id=message_thread_id,
+            text=f"Готово. Установил чат курса: {course_chat_id}",
+        )
+        return
+    elif cmd == "/course_members":
+        if not is_admin:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Недостаточно прав: команда доступна только администраторам.",
+            )
+            return
+
+        path = Path(pm_log_file)
+        if not path.exists():
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text="Файл логов не найден. Пользователей: 0",
+            )
+            return
+
+        users: set[int] = set()
+        total_lines = 0
+        bad_lines = 0
+        try:
+            with path.open("r", encoding="utf-8") as f:
+                for line in f:
+                    total_lines += 1
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                        uid = int((rec or {}).get("user_id") or 0)
+                        if uid > 0:
+                            users.add(uid)
+                    except Exception:
+                        bad_lines += 1
+        except Exception as e:
+            _send_with_formatting_fallback(
+                tg=tg,
+                chat_id=chat_id,
+                message_thread_id=message_thread_id,
+                text=f"Не удалось прочитать файл логов: {type(e).__name__}: {e}",
+            )
+            return
+
+        _send_with_formatting_fallback(
+            tg=tg,
+            chat_id=chat_id,
+            message_thread_id=message_thread_id,
+            text=(
+                "Статистика по личным сообщениям:\n"
+                f"- пользователей: {len(users)}\n"
+                f"- строк в логе: {total_lines}\n"
+                f"- битых строк: {bad_lines}"
+            ),
+        )
+        return
     elif cmd == "/get_chat_id":
         _send_with_formatting_fallback(
             tg=tg,
@@ -449,8 +606,10 @@ def main(argv: list[str] | None = None) -> None:
         base_url=OPENAI_BASE_URL,
     )
 
+    bot_user_id = 0
     try:
         me = tg.get_me()
+        bot_user_id = int((me.get("result") or {}).get("id") or 0)
         logger.info("Bot started: %s", me.get("result", {}).get("username"))
     except Exception:
         logger.info("Bot started")
@@ -474,6 +633,7 @@ def main(argv: list[str] | None = None) -> None:
                         message=message,
                         config_path=args.config,
                         pm_log_file=args.pm_log_file,
+                        bot_user_id=bot_user_id,
                     )
 
         except requests.exceptions.RequestException as e:
