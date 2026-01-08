@@ -145,6 +145,9 @@ def _load_quizzes(quizzes_file: str) -> list[Dict[str, Any]]:
                 if "processed" not in quiz:
                     quiz["processed"] = False
                 quiz["processed"] = bool(quiz.get("processed"))
+                if "hidden" not in quiz:
+                    quiz["hidden"] = False
+                quiz["hidden"] = bool(quiz.get("hidden"))
                 quizzes.append(quiz)
         quizzes.sort(key=_quiz_sort_key)
         return quizzes
@@ -173,11 +176,16 @@ def _save_quizzes(quizzes_file: str, quizzes: list[Dict[str, Any]]) -> None:
                 "question": q.get("question"),
                 "answer": q.get("answer"),
                 "processed": bool(q.get("processed")),
+                "hidden": bool(q.get("hidden")),
             }
         )
     raw = json.dumps(normalized, ensure_ascii=False, indent=2) + "\n"
     tmp_path.write_text(raw, encoding="utf-8")
     tmp_path.replace(path)
+
+
+def _is_hidden_quiz(q: Dict[str, Any]) -> bool:
+    return bool((q or {}).get("hidden"))
 
 def _load_quiz_state(quiz_state_file: str) -> Dict[str, Any]:
     path = Path(quiz_state_file)
@@ -347,6 +355,9 @@ def _handle_callback_query(
     elif data.startswith("quiz_send_admins:"):
         action = "send_admins"
         quiz_id = data.split(":", 1)[1].strip()
+    elif data.startswith("quiz_toggle_hidden:"):
+        action = "toggle_hidden"
+        quiz_id = data.split(":", 1)[1].strip()
     else:
         try:
             tg.answer_callback_query(callback_query_id=callback_query_id, text="Неизвестная кнопка.")
@@ -371,6 +382,86 @@ def _handle_callback_query(
     if quiz is None:
         try:
             tg.answer_callback_query(callback_query_id=callback_query_id, text="Квиз не найден.", show_alert=True)
+        except Exception:
+            logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
+        return
+
+    if action == "toggle_hidden":
+        quiz["hidden"] = not _is_hidden_quiz(quiz)
+        try:
+            _save_quizzes(quizzes_file=quizzes_file, quizzes=quizzes)
+        except Exception:
+            logging.getLogger(__name__).warning("Failed to save quizzes file %s", quizzes_file, exc_info=True)
+            try:
+                tg.answer_callback_query(
+                    callback_query_id=callback_query_id,
+                    text="Не удалось сохранить hidden в quizzes.json",
+                    show_alert=True,
+                )
+            except Exception:
+                logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
+            return
+
+        hidden_now = _is_hidden_quiz(quiz)
+        try:
+            tg.answer_callback_query(
+                callback_query_id=callback_query_id,
+                text=f"hidden: {str(hidden_now).lower()}",
+            )
+        except Exception:
+            logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
+
+        msg = callback_query.get("message") or {}
+        if isinstance(msg, dict):
+            cb_chat_id = int((msg.get("chat") or {}).get("id") or 0)
+            cb_message_id = int(msg.get("message_id") or 0)
+            qid = str(quiz.get("id") or "").strip()
+            question = str(quiz.get("question") or "").strip()
+            answer = str(quiz.get("answer") or "").strip()
+            processed = bool(quiz.get("processed"))
+            new_text = (
+                f"Квиз: {qid}\n"
+                f"processed: {str(processed).lower()}\n"
+                f"hidden: {str(hidden_now).lower()}\n"
+                f"Вопрос: {question}\n"
+                f"Ответ: {answer}"
+            )
+
+            toggle_text = "Показать (hidden=false)" if hidden_now else "Скрыть (hidden=true)"
+            buttons: list[list[Dict[str, str]]] = [
+                [{"text": toggle_text, "callback_data": f"quiz_toggle_hidden:{qid}"}]
+            ]
+            if not hidden_now:
+                buttons.append([{"text": "Отправить администраторам", "callback_data": f"quiz_send_admins:{qid}"}])
+                if not processed:
+                    buttons.append([{"text": "Отправить всем", "callback_data": f"quiz_send_all:{qid}"}])
+
+            try:
+                tg.edit_message_text(
+                    chat_id=cb_chat_id,
+                    message_id=cb_message_id,
+                    text=new_text,
+                    parse_mode=None,
+                )
+            except Exception:
+                logging.getLogger(__name__).debug("Failed to edit message text", exc_info=True)
+            try:
+                tg.edit_message_reply_markup(
+                    chat_id=cb_chat_id,
+                    message_id=cb_message_id,
+                    reply_markup={"inline_keyboard": buttons},
+                )
+            except Exception:
+                logging.getLogger(__name__).debug("Failed to edit reply markup", exc_info=True)
+        return
+
+    if _is_hidden_quiz(quiz):
+        try:
+            tg.answer_callback_query(
+                callback_query_id=callback_query_id,
+                text="Квиз скрыт (hidden). Его нельзя отправлять пользователям.",
+                show_alert=True,
+            )
         except Exception:
             logging.getLogger(__name__).debug("Failed to answer callback_query", exc_info=True)
         return
@@ -1133,6 +1224,13 @@ def _handle_message(
             except Exception:
                 logging.getLogger(__name__).warning("Failed to save quiz state file %s", quiz_state_file, exc_info=True)
             return
+        if _is_hidden_quiz(quiz):
+            user_state["active_quiz_id"] = None
+            try:
+                _save_quiz_state(quiz_state_file, state)
+            except Exception:
+                logging.getLogger(__name__).warning("Failed to save quiz state file %s", quiz_state_file, exc_info=True)
+            return
 
         correct_answer = str(quiz.get("answer") or "").strip()
         user_answer = text.strip()
@@ -1180,6 +1278,8 @@ def _handle_message(
         results[qkey] = {"correct": True, "attempts": attempts_now}
         next_quiz_item: Dict[str, Any] | None = None
         for q in quizzes:
+            if _is_hidden_quiz(q):
+                continue
             qid = str(q.get("id") or "").strip()
             r = results.get(qid)
             if isinstance(r, dict) and bool(r.get("correct")):
@@ -1621,12 +1721,15 @@ def _handle_message(
             question = str(q.get("question") or "").strip()
             answer = str(q.get("answer") or "").strip()
             processed = bool(q.get("processed"))
-            reply_markup = None
+            hidden = _is_hidden_quiz(q)
+            toggle_text = "Показать (hidden=false)" if hidden else "Скрыть (hidden=true)"
             buttons: list[list[Dict[str, str]]] = [
-                [{"text": "Отправить администраторам", "callback_data": f"quiz_send_admins:{qid}"}]
+                [{"text": toggle_text, "callback_data": f"quiz_toggle_hidden:{qid}"}]
             ]
-            if not processed:
-                buttons.append([{"text": "Отправить всем", "callback_data": f"quiz_send_all:{qid}"}])
+            if not hidden:
+                buttons.append([{"text": "Отправить администраторам", "callback_data": f"quiz_send_admins:{qid}"}])
+                if not processed:
+                    buttons.append([{"text": "Отправить всем", "callback_data": f"quiz_send_all:{qid}"}])
             reply_markup = {"inline_keyboard": buttons}
             tg.send_message(
                 chat_id=chat_id,
@@ -1635,6 +1738,7 @@ def _handle_message(
                 message=(
                     f"Квиз: {qid}\n"
                     f"processed: {str(processed).lower()}\n"
+                    f"hidden: {str(hidden).lower()}\n"
                     f"Вопрос: {question}\n"
                     f"Ответ: {answer}"
                 ),
@@ -1709,6 +1813,7 @@ def _handle_message(
             return
 
         quizzes = _load_quizzes(quizzes_file)
+        quizzes = [q for q in quizzes if not _is_hidden_quiz(q)]
         if not quizzes:
             _send_with_formatting_fallback(
                 tg=tg,
@@ -1761,6 +1866,7 @@ def _handle_message(
             return
 
         quizzes = _load_quizzes(quizzes_file)
+        quizzes = [q for q in quizzes if not _is_hidden_quiz(q)]
         if not quizzes:
             _send_with_formatting_fallback(
                 tg=tg,
@@ -1900,6 +2006,11 @@ def _handle_message(
 
         quiz_ids = [str(q.get("id") or "").strip() for q in quizzes]
         quiz_ids = [qid for qid in quiz_ids if qid]
+        hidden_by_id: dict[str, bool] = {
+            str(q.get("id") or "").strip(): _is_hidden_quiz(q)
+            for q in quizzes
+            if str(q.get("id") or "").strip()
+        }
 
         passed_any = 0
         passed_all = 0
@@ -1952,10 +2063,11 @@ def _handle_message(
         for qid in quiz_ids:
             vals = attempts_by_quiz.get(qid) or []
             m, s = _mean_std(vals)
+            prefix = "🙈 " if hidden_by_id.get(qid, False) else ""
             if not vals:
-                lines.append(f"- {qid}: solved=0, mean/std=N/A")
+                lines.append(f"- {prefix}{qid}: solved=0, mean/std=N/A")
             else:
-                lines.append(f"- {qid}: solved={len(vals)}, mean={m:.2f}, std={s:.2f}")
+                lines.append(f"- {prefix}{qid}: solved={len(vals)}, mean={m:.2f}, std={s:.2f}")
 
         _send_with_formatting_fallback(
             tg=tg,
