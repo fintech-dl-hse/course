@@ -5,6 +5,7 @@ to deep networks and universal approximation.
 """
 
 import sys
+import os
 sys.path.append('/Users/d.tarasov/workspace/hse/fintech-dl-hse/videos')
 
 from manim_imports_ext import *
@@ -66,6 +67,39 @@ def train_model(model, learning_rate=0.05, n_steps=500):
             p.data = p.data - learning_rate * p.grad
 
     return model
+
+
+# ============================================================================
+# Model Loading/Saving Utilities
+# ============================================================================
+
+MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
+os.makedirs(MODEL_DIR, exist_ok=True)
+
+MODEL_PATHS = {
+    "relu": os.path.join(MODEL_DIR, "mlp_relu.pth"),
+    "linear": os.path.join(MODEL_DIR, "mlp_linear.pth"),
+}
+
+
+def get_or_train_model(activation_cls=nn.ReLU, model_key="relu"):
+    """Lazily load or train and save MLP model."""
+    model_path = MODEL_PATHS[model_key]
+
+    if os.path.exists(model_path):
+        print(f"Loading model from {model_path}")
+        model = MLP(activation_cls=activation_cls)
+        model.load_state_dict(torch.load(model_path, map_location='cpu'))
+        model.eval()
+        return model
+    else:
+        print(f"Training model (not found at {model_path})...")
+        model = MLP(activation_cls=activation_cls)
+        model = train_model(model, learning_rate=0.05, n_steps=500)
+        torch.save(model.state_dict(), model_path)
+        print(f"Model saved to {model_path}")
+        model.eval()
+        return model
 
 
 def get_decision_boundary(model, X, h=0.1):
@@ -135,45 +169,12 @@ def create_data_points(axes, X, y, colors=[BLUE, RED], radius=0.08):
 
 
 # ============================================================================
-# Main Scene
+# Individual Scene Classes
 # ============================================================================
 
-class MLPVisualization(InteractiveScene):
-    """Main scene for MLP visualization."""
+class IntroductionScene(InteractiveScene):
+    """Introduction scene."""
     def construct(self):
-        # Introduction
-        self.introduction()
-
-        # Prepare data
-        X, y = make_moons(n_samples=100, noise=0.1, random_state=1)
-        y_binary = y * 2 - 1  # Convert to -1, 1
-
-        # Train models
-        print("Training MLP with ReLU...")
-        model_relu = MLP(activation_cls=nn.ReLU)
-        model_relu = train_model(model_relu, learning_rate=0.05, n_steps=500)
-
-        print("Training MLP without nonlinearity...")
-        model_linear = MLP(activation_cls=nn.Identity)
-        model_linear = train_model(model_linear, learning_rate=0.05, n_steps=500)
-
-        # Scene 1: Linear Transformation
-        self.scene1_linear_transformation(X, y)
-
-        # Scene 2: Dimensionality Expansion
-        self.scene2_dimensionality_expansion(X, y)
-
-        # Scene 3: MLP with Nonlinearity
-        self.scene3_mlp_nonlinearity(X, y, model_relu)
-
-        # Scene 4: Comparison
-        self.scene4_comparison(X, y, model_relu, model_linear)
-
-        # Conclusion
-        self.conclusion()
-
-    def introduction(self):
-        """Introduction scene."""
         title = Text("From Linear Transformations to MLPs", font_size=64)
         title.to_edge(UP, buff=1)
 
@@ -191,33 +192,13 @@ class MLPVisualization(InteractiveScene):
         )
         self.wait(0.5)
 
-    def conclusion(self):
-        """Conclusion scene."""
-        conclusion_text = Text("Key Takeaways", font_size=60)
-        conclusion_text.to_edge(UP, buff=0.5)
 
-        takeaways = VGroup(
-            Text("1. Linear transformations preserve linear separability", font_size=32),
-            Text("2. Adding dimensions provides more flexibility", font_size=32),
-            Text("3. Nonlinearity enables learning complex boundaries", font_size=32),
-            Text("4. Composition of linear layers = single linear layer", font_size=32)
-        )
-        takeaways.arrange(DOWN, buff=0.4, aligned_edge=LEFT)
-        takeaways.center()
+class LinearTransformationScene(InteractiveScene):
+    """Scene 1: Show linear transformation on 2D plane."""
+    def construct(self):
+        # Prepare data
+        X, y = make_moons(n_samples=100, noise=0.1, random_state=1)
 
-        self.play(Write(conclusion_text))
-        self.wait(0.5)
-        self.play(LaggedStartMap(FadeIn, takeaways, lag_ratio=0.3, shift=UP))
-        self.wait(3)
-
-        self.play(
-            FadeOut(conclusion_text),
-            FadeOut(takeaways)
-        )
-        self.wait(0.5)
-
-    def scene1_linear_transformation(self, X, y):
-        """Scene 1: Show linear transformation on 2D plane."""
         # Title
         title = Text("Linear Transformation", font_size=60)
         title.to_edge(UP, buff=0.5)
@@ -293,8 +274,13 @@ class MLPVisualization(InteractiveScene):
         )
         self.wait(0.5)
 
-    def scene2_dimensionality_expansion(self, X, y):
-        """Scene 2: Show dimensionality expansion."""
+
+class DimensionalityExpansionScene(InteractiveScene):
+    """Scene 2: Show dimensionality expansion."""
+    def construct(self):
+        # Prepare data
+        X, y = make_moons(n_samples=100, noise=0.1, random_state=1)
+
         # Title
         title = Text("Expanding Dimensions", font_size=60)
         title.to_edge(UP, buff=0.5)
@@ -387,8 +373,16 @@ class MLPVisualization(InteractiveScene):
         )
         self.wait(0.5)
 
-    def scene3_mlp_nonlinearity(self, X, y, model):
-        """Scene 3: Show MLP with nonlinearity."""
+
+class MLPNonlinearityScene(InteractiveScene):
+    """Scene 3: Show MLP with nonlinearity."""
+    def construct(self):
+        # Prepare data
+        X, y = make_moons(n_samples=100, noise=0.1, random_state=1)
+
+        # Lazily load or train model
+        model = get_or_train_model(activation_cls=nn.ReLU, model_key="relu")
+
         # Title
         title = Text("MLP with Nonlinearity", font_size=60)
         title.to_edge(UP, buff=0.5)
@@ -469,8 +463,17 @@ class MLPVisualization(InteractiveScene):
         )
         self.wait(0.5)
 
-    def scene4_comparison(self, X, y, model_relu, model_linear):
-        """Scene 4: Compare MLP with and without nonlinearity."""
+
+class ComparisonScene(InteractiveScene):
+    """Scene 4: Compare MLP with and without nonlinearity."""
+    def construct(self):
+        # Prepare data
+        X, y = make_moons(n_samples=100, noise=0.1, random_state=1)
+
+        # Lazily load or train models
+        model_relu = get_or_train_model(activation_cls=nn.ReLU, model_key="relu")
+        model_linear = get_or_train_model(activation_cls=nn.Identity, model_key="linear")
+
         # Title
         title = Text("With vs Without Nonlinearity", font_size=60)
         title.to_edge(UP, buff=0.5)
@@ -545,3 +548,47 @@ class MLPVisualization(InteractiveScene):
             FadeOut(insight)
         )
         self.wait(0.5)
+
+
+class ConclusionScene(InteractiveScene):
+    """Conclusion scene."""
+    def construct(self):
+        conclusion_text = Text("Key Takeaways", font_size=60)
+        conclusion_text.to_edge(UP, buff=0.5)
+
+        takeaways = VGroup(
+            Text("1. Linear transformations preserve linear separability", font_size=32),
+            Text("2. Adding dimensions provides more flexibility", font_size=32),
+            Text("3. Nonlinearity enables learning complex boundaries", font_size=32),
+            Text("4. Composition of linear layers = single linear layer", font_size=32)
+        )
+        takeaways.arrange(DOWN, buff=0.4, aligned_edge=LEFT)
+        takeaways.center()
+
+        self.play(Write(conclusion_text))
+        self.wait(0.5)
+        self.play(LaggedStartMap(FadeIn, takeaways, lag_ratio=0.3, shift=UP))
+        self.wait(3)
+
+        self.play(
+            FadeOut(conclusion_text),
+            FadeOut(takeaways)
+        )
+        self.wait(0.5)
+
+
+# ============================================================================
+# Main Scene (combines all scenes)
+# ============================================================================
+
+class MLPVisualization(InteractiveScene):
+    """Main scene combining all MLP visualization scenes."""
+    def construct(self):
+        # Run each scene in sequence
+        # Note: Each scene can also be rendered independently
+        IntroductionScene.construct(self)
+        LinearTransformationScene.construct(self)
+        DimensionalityExpansionScene.construct(self)
+        MLPNonlinearityScene.construct(self)
+        ComparisonScene.construct(self)
+        ConclusionScene.construct(self)
