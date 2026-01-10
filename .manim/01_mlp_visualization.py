@@ -477,97 +477,144 @@ class DimensionalityExpansionScene(InteractiveScene):
         # Prepare data
         X, y = make_moons(n_samples=100, noise=0.1, random_state=1)
 
-        # Title
-        title = Text("Expanding Dimensions", font_size=60)
-        title.to_edge(UP, buff=0.5)
+        title = Text("Dimensionality expansion via a linear map", font_size=52)
+        title.to_edge(UP, buff=0.4)
         self.play(Write(title))
-        self.wait(1)
+        self.wait(0.4)
 
-        # Create 2D axes
+        # Left: original 2D space
         axes_2d = Axes(
             x_range=[-2, 3, 0.5],
             y_range=[-2, 2, 0.5],
-            width=6,
-            height=6,
-            axis_config={"include_tip": True}
+            width=6.6,
+            height=6.0,
+            axis_config={"include_tip": True},
         )
-        axes_2d.to_edge(LEFT).shift(0.5 * DOWN)
+        axes_2d.to_edge(LEFT, buff=0.7).shift(0.25 * DOWN)
+        dots_2d = create_data_points(axes_2d, X, y, radius=0.075)
 
-        # Show 2D data
-        dots_2d = create_data_points(axes_2d, X, y)
-        self.play(FadeIn(axes_2d), LaggedStartMap(FadeIn, dots_2d, lag_ratio=0.02))
-        self.wait(1)
+        label_2d = Text(r"Input space: $\mathbb{R}^2$", font_size=30)
+        label_2d.next_to(axes_2d, UP, buff=0.2)
 
-        # Arrow showing expansion
-        arrow = Arrow(RIGHT, RIGHT * 2, buff=0.5)
-        arrow.move_to(ORIGIN)
-        expansion_text = Text("2D → Higher Dim", font_size=36)
-        expansion_text.next_to(arrow, UP)
-
-        self.play(
-            GrowArrow(arrow),
-            Write(expansion_text)
-        )
-        self.wait(1)
-
-        # Create 3D visualization
+        # Right: higher-dimensional space (3D)
         axes_3d = ThreeDAxes(
             x_range=[-2, 3, 0.5],
             y_range=[-2, 2, 0.5],
-            z_range=[-1, 1, 0.5],
-            width=6,
-            height=6,
-            depth=4
+            z_range=[-3, 3, 1],
+            width=6.0,
+            height=6.0,
+            depth=4.2,
         )
-        axes_3d.to_edge(RIGHT).shift(0.5 * DOWN)
+        axes_3d.to_edge(RIGHT, buff=0.7).shift(0.25 * DOWN)
 
-        # Project to 3D (add a third dimension based on distance from origin)
-        X_3d = np.column_stack([X, np.linalg.norm(X, axis=1) * 0.3])
+        label_3d = Text(r"Output space: $\mathbb{R}^3$", font_size=30)
+        label_3d.next_to(axes_3d, UP, buff=0.2)
 
-        # Create 3D dots
+        # Middle: generic affine form (no parameter values shown)
+        arrow = Arrow(axes_2d.get_right(), axes_3d.get_left(), buff=0.25)
+        map_tex = Tex(r"x' = A x + b", font_size=44)
+        map_tex.next_to(arrow, UP, buff=0.2)
+
+        map_caption = Text("Linear map into a higher-dimensional space", font_size=26)
+        map_caption.next_to(map_tex, UP, buff=0.15)
+
+        self.play(
+            FadeIn(axes_2d),
+            FadeIn(axes_3d),
+            FadeIn(label_2d),
+            FadeIn(label_3d),
+        )
+        self.play(LaggedStartMap(FadeIn, dots_2d, lag_ratio=0.02))
+        self.play(GrowArrow(arrow), FadeIn(map_tex), FadeIn(map_caption))
+        self.wait(0.6)
+
+        # A concrete 2D -> 3D linear embedding (values not shown on screen)
+        A = np.array(
+            [
+                [1.0, 0.0],
+                [0.0, 1.0],
+                [0.85, -0.35],
+            ],
+            dtype=float,
+        )
+        b = np.array([0.0, 0.0, 0.0], dtype=float)
+
+        X3 = X @ A.T + b
+
+        # Visualize that the image of R^2 under a linear map sits on a plane in R^3
+        u_min, u_max = -2.5, 3.0
+        v_min, v_max = -2.0, 2.0
+
+        def lift(u, v):
+            p = np.array([u, v], dtype=float)
+            q = A @ p + b
+            return axes_3d.c2p(float(q[0]), float(q[1]), float(q[2]))
+
+        plane = Polygon(
+            lift(u_min, v_min),
+            lift(u_max, v_min),
+            lift(u_max, v_max),
+            lift(u_min, v_max),
+            stroke_width=2,
+        )
+        plane.set_fill(BLUE_E, opacity=0.12)
+        plane.set_stroke(BLUE_E, opacity=0.6)
+
         dots_3d = VGroup()
-        for point, label in zip(X_3d, y):
-            dot = Dot(
-                axes_3d.c2p(point[0], point[1], point[2]),
-                radius=0.08
-            )
+        for point, label in zip(X3, y):
+            dot = Dot(axes_3d.c2p(point[0], point[1], point[2]), radius=0.075)
             dot.set_color(BLUE if label == 0 else RED)
             dots_3d.add(dot)
 
-        # Set camera for 3D
-        self.frame.reorient(20, -70, 0)
-        self.add(axes_3d)
+        group_3d = VGroup(axes_3d, plane, dots_3d)
 
-        # Animate transformation to 3D
-        dots_3d_copy = dots_3d.copy()
-        dots_3d_copy.set_opacity(0)
+        self.play(FadeIn(plane))
+
+        # Animate "lifting": keep original dots, move a copy into the 3D embedding
+        travel = dots_2d.copy()
+        self.add(travel)
         self.play(
-            Transform(dots_2d.copy(), dots_3d_copy, path_arc=PI/3),
-            run_time=2
+            Transform(travel, dots_3d.copy(), path_arc=PI / 6),
+            run_time=2.0,
         )
-        self.remove(dots_3d_copy)
+        self.remove(travel)
         self.add(dots_3d)
-        self.wait(2)
+        self.wait(0.4)
 
-        # Text about more flexibility
-        text = Text("More dimensions provide\nmore flexibility", font_size=36)
-        text.to_edge(DOWN, buff=0.5)
-        self.play(Write(text))
-        self.wait(2)
-
-        # Clean up
-        self.frame.reorient(0, 0, 0)
+        # Show depth without changing the camera (prevents tilting 2D elements)
         self.play(
-            FadeOut(title),
-            FadeOut(axes_2d),
-            FadeOut(dots_2d),
-            FadeOut(arrow),
-            FadeOut(expansion_text),
-            FadeOut(axes_3d),
-            FadeOut(dots_3d),
-            FadeOut(text)
+            Rotate(group_3d, angle=22 * DEGREES, axis=UP),
+            run_time=1.2,
+        )
+        self.play(
+            Rotate(group_3d, angle=-16 * DEGREES, axis=RIGHT),
+            run_time=1.2,
         )
         self.wait(0.5)
+
+        takeaway = Text(
+            "Even in higher dimensions, this is still linear.\nA linear map cannot fix non-linearity by itself.",
+            font_size=30,
+        )
+        takeaway.to_edge(DOWN, buff=0.35)
+        self.play(Write(takeaway))
+        self.wait(2.0)
+
+        self.play(
+            FadeOut(title),
+            FadeOut(label_2d),
+            FadeOut(label_3d),
+            FadeOut(arrow),
+            FadeOut(map_tex),
+            FadeOut(map_caption),
+            FadeOut(axes_2d),
+            FadeOut(dots_2d),
+            FadeOut(plane),
+            FadeOut(dots_3d),
+            FadeOut(axes_3d),
+            FadeOut(takeaway),
+        )
+        self.wait(0.4)
 
 
 class MLPNonlinearityScene(InteractiveScene):
