@@ -485,30 +485,56 @@ class ComparisonScene(InteractiveScene):
         self.play(Write(title))
         self.wait(1)
 
-        # Create two side-by-side axes
+        # Create two side-by-side axes (smaller size)
         axes_left = Axes(
             x_range=[-2, 3, 0.5],
             y_range=[-2, 2, 0.5],
-            width=6,
-            height=5,
+            width=5,
+            height=4,
             axis_config={"include_tip": True}
         )
-        axes_left.to_edge(LEFT, buff=1).shift(0.3 * DOWN)
+        axes_left.to_edge(LEFT, buff=1).shift(0.5 * DOWN)
 
         axes_right = Axes(
             x_range=[-2, 3, 0.5],
             y_range=[-2, 2, 0.5],
-            width=6,
-            height=5,
+            width=5,
+            height=4,
             axis_config={"include_tip": True}
         )
-        axes_right.to_edge(RIGHT, buff=1).shift(0.3 * DOWN)
+        axes_right.to_edge(RIGHT, buff=1).shift(0.5 * DOWN)
 
-        # Labels
-        label_relu = Text("With ReLU", font_size=40)
-        label_relu.next_to(axes_left, UP)
-        label_linear = Text("Without Nonlinearity", font_size=40)
-        label_linear.next_to(axes_right, UP)
+        # Labels (smaller font)
+        label_relu = Text("With ReLU", font_size=36)
+        label_relu.next_to(axes_left, UP, buff=0.2)
+        label_linear = Text("Without Nonlinearity", font_size=36)
+        label_linear.next_to(axes_right, UP, buff=0.2)
+
+        # Formulas showing full network architecture (smaller font)
+        formula_relu = Tex(
+            R"""
+            \begin{aligned}
+            h_1 &= \text{ReLU}(W_1 x + b_1) \\
+            h_2 &= \text{ReLU}(W_2 h_1 + b_2) \\
+            y &= W_3 h_2 + b_3
+            \end{aligned}
+            """,
+            font_size=22
+        )
+        formula_relu.next_to(axes_left, DOWN, buff=0.15)
+
+        formula_identity = Tex(
+            R"""
+            \begin{aligned}
+            h_1 &= W_1 x + b_1 \\
+            h_2 &= W_2 h_1 + b_2 \\
+            y   &= W_3 h_2 + b_3 \\
+                &= W_3 W_2 W_1 x + \text{const}
+            \end{aligned}
+            """,
+            font_size=22
+        )
+        formula_identity.next_to(axes_right, DOWN, buff=0.15)
 
         # Get decision boundaries (using default fine-grained grid)
         xx_relu, yy_relu, Z_relu = get_decision_boundary(model_relu, X)
@@ -523,12 +549,15 @@ class ComparisonScene(InteractiveScene):
 
         # Show left side
         self.play(FadeIn(axes_left), Write(label_relu))
+        self.play(Write(formula_relu))
         self.play(FadeIn(boundary_relu))
         self.play(LaggedStartMap(FadeIn, dots_left, lag_ratio=0.02))
         self.wait(1)
 
         # Show right side
         self.play(FadeIn(axes_right), Write(label_linear))
+        self.play(Write(formula_identity))
+        self.play(Write(note_identity))
         self.play(FadeIn(boundary_linear))
         self.play(LaggedStartMap(FadeIn, dots_right, lag_ratio=0.02))
         self.wait(1)
@@ -550,6 +579,9 @@ class ComparisonScene(InteractiveScene):
             FadeOut(dots_right),
             FadeOut(label_relu),
             FadeOut(label_linear),
+            FadeOut(formula_relu),
+            FadeOut(formula_identity),
+            FadeOut(note_identity),
             FadeOut(insight)
         )
         self.wait(0.5)
