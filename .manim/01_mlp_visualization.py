@@ -538,19 +538,19 @@ class DimensionalityExpansionScene(InteractiveScene):
             x_range=[-3, 3, 1],
             y_range=[-3, 3, 1],
             z_range=[-3, 3, 1],
-            width=8,
-            height=8,
-            depth=8,
+            width=6,
+            height=6,
+            depth=6,
             axis_config={"include_tip": True},
         )
         axes_3d.move_to(ORIGIN).shift(0.3 * DOWN)
 
-        # Initial embedding: 2D -> 3D (identity in first 2 dims, linear in 3rd)
+        # Initial embedding: 2D -> 3D (points lie in XY plane, z=0)
         A0 = np.array(
             [
-                [1.0, 0.0],
-                [0.0, 1.0],
-                [0.6, -0.4],
+                [1.0, 0.0],  # x coordinate
+                [0.0, 1.0],  # y coordinate
+                [0.0, 0.0],  # z coordinate (always 0, so points are in XY plane)
             ],
             dtype=float,
         )
@@ -620,42 +620,58 @@ class DimensionalityExpansionScene(InteractiveScene):
         self.wait(0.5)
 
         # Prepare transforms that will be applied during camera flight
-        # 1) Rotation in XY plane
-        angle_xy = 45 * DEGREES
-        R_xy = np.array([
-            [np.cos(angle_xy), -np.sin(angle_xy), 0],
-            [np.sin(angle_xy), np.cos(angle_xy), 0],
+        # These transforms will rotate, tilt, stretch, and shift the plane in 3D
+        
+        # 1) Rotation around Z axis (in XY plane)
+        angle_z = 30 * DEGREES
+        R_z = np.array([
+            [np.cos(angle_z), -np.sin(angle_z), 0],
+            [np.sin(angle_z), np.cos(angle_z), 0],
             [0, 0, 1],
         ])
-        A1 = R_xy @ A0
-        b1 = R_xy @ b0
+        A1 = R_z @ A0
+        b1 = R_z @ b0
 
-        # 2) Stretch along Z axis
+        # 2) Rotation around X axis (tilt the plane up)
+        angle_x = 35 * DEGREES
+        R_x = np.array([
+            [1, 0, 0],
+            [0, np.cos(angle_x), -np.sin(angle_x)],
+            [0, np.sin(angle_x), np.cos(angle_x)],
+        ])
+        A2 = R_x @ A1
+        b2 = R_x @ b1
+
+        # 3) Stretch along Z axis (make the plane thicker in Z direction)
         S = np.array([
             [1, 0, 0],
             [0, 1, 0],
-            [0, 0, 1.8],
+            [0, 0, 1.5],
         ])
-        A2 = S @ A1
-        b2 = S @ b1
+        A3 = S @ A2
+        b3 = S @ b2
 
-        # 3) Translation (shift)
-        t = np.array([0.5, -0.3, 0.8])
-        A3 = A2
-        b3 = b2 + t
+        # 4) Translation (shift the plane in 3D)
+        t = np.array([0.4, -0.2, 0.6])
+        A4 = A3
+        b4 = b3 + t
 
         # Create target states for each transform
         X3_rotated = embed_points(X, A1, b1)
         dots_3d_rotated = create_3d_dots(X3_rotated, y, axes_3d)
         plane_mesh_rotated = create_plane_mesh(A1, b1, axes_3d)
 
-        X3_stretched = embed_points(X, A2, b2)
-        dots_3d_stretched = create_3d_dots(X3_stretched, y, axes_3d)
-        plane_mesh_stretched = create_plane_mesh(A2, b2, axes_3d)
+        X3_tilted = embed_points(X, A2, b2)
+        dots_3d_tilted = create_3d_dots(X3_tilted, y, axes_3d)
+        plane_mesh_tilted = create_plane_mesh(A2, b2, axes_3d)
 
-        X3_shifted = embed_points(X, A3, b3)
+        X3_stretched = embed_points(X, A3, b3)
+        dots_3d_stretched = create_3d_dots(X3_stretched, y, axes_3d)
+        plane_mesh_stretched = create_plane_mesh(A3, b3, axes_3d)
+
+        X3_shifted = embed_points(X, A4, b4)
         dots_3d_shifted = create_3d_dots(X3_shifted, y, axes_3d)
-        plane_mesh_shifted = create_plane_mesh(A3, b3, axes_3d)
+        plane_mesh_shifted = create_plane_mesh(A4, b4, axes_3d)
 
         # Smooth camera rotation around Z axis while applying transforms
         # Camera rotates slowly (6s), transforms happen quickly (2s) at the start
@@ -668,25 +684,33 @@ class DimensionalityExpansionScene(InteractiveScene):
                 return s * s * (3 - 2 * s)  # Smoothstep function
             return 1.0  # Stay at final state for rest of time
 
-        # Phase 1: Rotate 120 degrees slowly, apply rotation transform quickly at start
+        # Phase 1: Rotate 90 degrees slowly, apply rotation around Z transform quickly at start
         self.play(
-            self.frame.animate.increment_theta(120 * DEGREES),
+            self.frame.animate.increment_theta(90 * DEGREES),
             Transform(dots_3d, dots_3d_rotated, rate_func=fast_then_stay),
             Transform(plane_mesh, plane_mesh_rotated, rate_func=fast_then_stay),
             run_time=6.0,  # Slow camera rotation, fast moon transformation
         )
 
-        # Phase 2: Continue rotation 120 degrees slowly, apply stretch transform quickly at start
+        # Phase 2: Continue rotation 90 degrees slowly, apply tilt (rotation around X) quickly
         self.play(
-            self.frame.animate.increment_theta(120 * DEGREES),
+            self.frame.animate.increment_theta(90 * DEGREES),
+            Transform(dots_3d, dots_3d_tilted, rate_func=fast_then_stay),
+            Transform(plane_mesh, plane_mesh_tilted, rate_func=fast_then_stay),
+            run_time=6.0,  # Slow camera rotation, fast moon transformation
+        )
+
+        # Phase 3: Continue rotation 90 degrees slowly, apply stretch transform quickly
+        self.play(
+            self.frame.animate.increment_theta(90 * DEGREES),
             Transform(dots_3d, dots_3d_stretched, rate_func=fast_then_stay),
             Transform(plane_mesh, plane_mesh_stretched, rate_func=fast_then_stay),
             run_time=6.0,  # Slow camera rotation, fast moon transformation
         )
 
-        # Phase 3: Final rotation 120 degrees slowly, apply translation transform quickly at start
+        # Phase 4: Final rotation 90 degrees slowly, apply translation transform quickly
         self.play(
-            self.frame.animate.increment_theta(120 * DEGREES),
+            self.frame.animate.increment_theta(90 * DEGREES),
             Transform(dots_3d, dots_3d_shifted, rate_func=fast_then_stay),
             Transform(plane_mesh, plane_mesh_shifted, rate_func=fast_then_stay),
             run_time=6.0,  # Slow camera rotation, fast moon transformation
