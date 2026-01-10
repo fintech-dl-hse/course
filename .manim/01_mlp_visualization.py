@@ -684,37 +684,69 @@ class DimensionalityExpansionScene(InteractiveScene):
                 return s * s * (3 - 2 * s)  # Smoothstep function
             return 1.0  # Stay at final state for rest of time
 
+        # Helper function to create traces for dots
+        def create_traces_for_dots(dots_group, color=GREY, opacity=0.4, stroke_width=1.5):
+            """Create TracedPath for each dot in the group."""
+            traces = VGroup()
+            for dot in dots_group:
+                # Create trace that follows the dot's center
+                trace = TracedPath(
+                    dot.get_center,
+                    time_traced=6.0,  # Trace duration matches animation time
+                    stroke_color=color,
+                    stroke_width=stroke_width,
+                    stroke_opacity=opacity,
+                )
+                traces.add(trace)
+            return traces
+
         # Phase 1: Rotate 90 degrees slowly, apply rotation around Z transform quickly at start
+        traces_1 = create_traces_for_dots(dots_3d, color=BLUE, opacity=0.3)
+        self.add(traces_1)
         self.play(
             self.frame.animate.increment_theta(90 * DEGREES),
             Transform(dots_3d, dots_3d_rotated, rate_func=fast_then_stay),
             Transform(plane_mesh, plane_mesh_rotated, rate_func=fast_then_stay),
             run_time=6.0,  # Slow camera rotation, fast moon transformation
         )
+        traces_1.clear_updaters()
+        self.remove(traces_1)
 
         # Phase 2: Continue rotation 90 degrees slowly, apply tilt (rotation around X) quickly
+        traces_2 = create_traces_for_dots(dots_3d, color=GREEN, opacity=0.3)
+        self.add(traces_2)
         self.play(
             self.frame.animate.increment_theta(90 * DEGREES),
             Transform(dots_3d, dots_3d_tilted, rate_func=fast_then_stay),
             Transform(plane_mesh, plane_mesh_tilted, rate_func=fast_then_stay),
             run_time=6.0,  # Slow camera rotation, fast moon transformation
         )
+        traces_2.clear_updaters()
+        self.remove(traces_2)
 
         # Phase 3: Continue rotation 90 degrees slowly, apply stretch transform quickly
+        traces_3 = create_traces_for_dots(dots_3d, color=YELLOW, opacity=0.3)
+        self.add(traces_3)
         self.play(
             self.frame.animate.increment_theta(90 * DEGREES),
             Transform(dots_3d, dots_3d_stretched, rate_func=fast_then_stay),
             Transform(plane_mesh, plane_mesh_stretched, rate_func=fast_then_stay),
             run_time=6.0,  # Slow camera rotation, fast moon transformation
         )
+        traces_3.clear_updaters()
+        self.remove(traces_3)
 
         # Phase 4: Final rotation 90 degrees slowly, apply translation transform quickly
+        traces_4 = create_traces_for_dots(dots_3d, color=RED, opacity=0.3)
+        self.add(traces_4)
         self.play(
             self.frame.animate.increment_theta(90 * DEGREES),
             Transform(dots_3d, dots_3d_shifted, rate_func=fast_then_stay),
             Transform(plane_mesh, plane_mesh_shifted, rate_func=fast_then_stay),
             run_time=6.0,  # Slow camera rotation, fast moon transformation
         )
+        traces_4.clear_updaters()
+        self.remove(traces_4)
 
         self.wait(0.5)
 
