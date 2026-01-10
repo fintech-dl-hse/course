@@ -516,25 +516,10 @@ class LinearTransformationScene(InteractiveScene):
             font_size=34,
         )
         takeaway.to_edge(DOWN, buff=0.3)
-        self.play(Write(takeaway))
-        self.wait(1.8)
-
-        self.play(
-            FadeOut(takeaway),
-            FadeOut(title),
-            FadeOut(panel_title),
-            FadeOut(eq_tex),
-            FadeOut(A_tex),
-            FadeOut(b_tex),
-            FadeOut(step_label),
-            FadeOut(err_panel),
-            FadeOut(invariant),
-            FadeOut(panel),
-            FadeOut(axes),
-            FadeOut(dots),
-            FadeOut(sep_line),
-        )
-        self.wait(0.3)
+        # Add background rectangle for better visibility with white stroke
+        takeaway_bg = BackgroundRectangle(takeaway, color=BLACK, fill_opacity=0.7, buff=0.2)
+        self.play(FadeIn(takeaway_bg), Write(takeaway))
+        self.wait(2.0)
 
 
 class DimensionalityExpansionScene(InteractiveScene):
@@ -782,8 +767,9 @@ class MLPNonlinearityScene(InteractiveScene):
 
         text = Text("Wider hidden layers\n→ more flexible decision boundaries", font_size=36)
         text.to_edge(DOWN, buff=0.5)
-        # Add background rectangle for better visibility
+        # Add background rectangle for better visibility with white stroke
         text_bg = BackgroundRectangle(text, color=BLACK, fill_opacity=0.7, buff=0.2)
+        text_bg.set_stroke(WHITE, width=2)
         self.play(FadeIn(text_bg), Write(text))
         self.wait(2)
 
@@ -798,126 +784,6 @@ class MLPNonlinearityScene(InteractiveScene):
             FadeOut(width_label),
             FadeOut(text_bg),
             FadeOut(text)
-        )
-        self.wait(0.5)
-
-
-class ComparisonScene(InteractiveScene):
-    """Scene 4: Compare MLP with and without nonlinearity."""
-    def construct(self):
-        # Prepare data
-        X, y = make_moons(n_samples=100, noise=0.1, random_state=1)
-
-        # Lazily load or train models
-        model_relu = get_or_train_model(activation_cls=nn.ReLU, model_key="relu")
-        model_linear = get_or_train_model(activation_cls=nn.Identity, model_key="linear")
-
-        # Title
-        title = Text("With vs Without Nonlinearity", font_size=60)
-        title.to_edge(UP, buff=0.5)
-        self.play(Write(title))
-        self.wait(1)
-
-        # Create two side-by-side axes (smaller size)
-        axes_left = Axes(
-            x_range=[-2, 3, 0.5],
-            y_range=[-2, 2, 0.5],
-            width=5,
-            height=4,
-            axis_config={"include_tip": True}
-        )
-        axes_left.to_edge(LEFT, buff=1).shift(0.5 * DOWN)
-
-        axes_right = Axes(
-            x_range=[-2, 3, 0.5],
-            y_range=[-2, 2, 0.5],
-            width=5,
-            height=4,
-            axis_config={"include_tip": True}
-        )
-        axes_right.to_edge(RIGHT, buff=1).shift(0.5 * DOWN)
-
-        # Labels (smaller font)
-        label_relu = Text("With ReLU", font_size=36)
-        label_relu.next_to(axes_left, UP, buff=0.2)
-        label_linear = Text("Without Nonlinearity", font_size=36)
-        label_linear.next_to(axes_right, UP, buff=0.2)
-
-        # Formulas showing full network architecture (smaller font)
-        formula_relu = Tex(
-            R"""
-            \begin{aligned}
-            h_1 &= \text{ReLU}(W_1 x + b_1) \\
-            h_2 &= \text{ReLU}(W_2 h_1 + b_2) \\
-            y &= W_3 h_2 + b_3
-            \end{aligned}
-            """,
-            font_size=22
-        )
-        formula_relu.next_to(axes_left, DOWN, buff=0.15)
-
-        formula_identity = Tex(
-            R"""
-            \begin{aligned}
-            h_1 &= W_1 x + b_1 \\
-            h_2 &= W_2 h_1 + b_2 \\
-            y   &= W_3 h_2 + b_3 \\
-                &= W_3 W_2 W_1 x + \text{const}
-            \end{aligned}
-            """,
-            font_size=22
-        )
-        formula_identity.next_to(axes_right, DOWN, buff=0.15)
-
-        # Get decision boundaries (using default fine-grained grid)
-        xx_relu, yy_relu, Z_relu = get_decision_boundary(model_relu, X)
-        xx_linear, yy_linear, Z_linear = get_decision_boundary(model_linear, X)
-
-        # Create visualizations
-        boundary_relu = create_decision_boundary_mobject(axes_left, xx_relu, yy_relu, Z_relu, opacity=0.4)
-        boundary_linear = create_decision_boundary_mobject(axes_right, xx_linear, yy_linear, Z_linear, opacity=0.4)
-
-        dots_left = create_data_points(axes_left, X, y)
-        dots_right = create_data_points(axes_right, X, y)
-
-        # Show left side
-        self.play(FadeIn(axes_left), Write(label_relu))
-        self.play(Write(formula_relu))
-        self.play(FadeIn(boundary_relu))
-        self.play(LaggedStartMap(FadeIn, dots_left, lag_ratio=0.02))
-        self.wait(1)
-
-        # Show right side
-        self.play(FadeIn(axes_right), Write(label_linear))
-        self.play(Write(formula_identity))
-        note_identity = Text("No matter how many linear layers you stack,\nyou still get a single linear layer", font_size=22)
-        note_identity.next_to(formula_identity, DOWN, buff=0.15)
-        self.play(Write(note_identity))
-        self.play(FadeIn(boundary_linear))
-        self.play(LaggedStartMap(FadeIn, dots_right, lag_ratio=0.02))
-        self.wait(1)
-
-        # Key insight
-        insight = Text("Composition of linear = linear", font_size=42)
-        insight.to_edge(DOWN, buff=0.5)
-        self.play(Write(insight))
-        self.wait(2)
-
-        # Clean up
-        self.play(
-            FadeOut(title),
-            FadeOut(axes_left),
-            FadeOut(axes_right),
-            FadeOut(boundary_relu),
-            FadeOut(boundary_linear),
-            FadeOut(dots_left),
-            FadeOut(dots_right),
-            FadeOut(label_relu),
-            FadeOut(label_linear),
-            FadeOut(formula_relu),
-            FadeOut(formula_identity),
-            FadeOut(note_identity),
-            FadeOut(insight)
         )
         self.wait(0.5)
 
@@ -973,11 +839,9 @@ class MLPVisualization(InteractiveScene):
     def construct(self):
         # Create scene instances with shared camera and frame
         scenes = [
-            IntroductionScene(),
             LinearTransformationScene(),
             DimensionalityExpansionScene(),
             MLPNonlinearityScene(),
-            ComparisonScene(),
             ConclusionScene(),
         ]
 
