@@ -164,13 +164,18 @@ def get_or_train_width_model(hidden_dim, activation_cls=nn.ReLU):
     return model
 
 
-def get_decision_boundary(model, X, h=0.05):
+def get_decision_boundary(model, X, h=0.05, x_range=None, y_range=None):
     """Get decision boundary mesh for visualization.
 
     Uses fine-grained grid (h=0.05) for smooth boundaries.
+    If x_range and y_range are provided, uses those instead of data bounds.
     """
-    x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
-    y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
+    if x_range is not None and y_range is not None:
+        x_min, x_max = x_range
+        y_min, y_max = y_range
+    else:
+        x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
+        y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
     xx, yy = np.meshgrid(
         np.arange(x_min, x_max, h),
         np.arange(y_min, y_max, h)
@@ -710,8 +715,8 @@ class MLPNonlinearityScene(InteractiveScene):
 
         # Create axes for decision boundary (left side)
         axes = Axes(
-            x_range=[-2, 2, 0.5],
-            y_range=[-2, 2, 0.5],
+            x_range=[-3, 3, 0.5],
+            y_range=[-3, 3, 0.5],
             width=6,
             height=6,
             axis_config={"include_tip": True}
@@ -723,18 +728,23 @@ class MLPNonlinearityScene(InteractiveScene):
         network.scale(0.6)
         network.to_edge(RIGHT, buff=0.8).shift(DOWN * 2.0)
 
-        # Label for hidden neurons count (below network)
+        # Label for hidden neurons count (to the left of network, centered vertically)
         width_label = Text(f"Hidden neurons: {widths[0]}", font_size=32)
-        width_label.next_to(network, DOWN, buff=0.3)
+        width_label.next_to(network, LEFT, buff=0.4)
+        width_label.align_to(network, DOWN)  # Align bottom of label with bottom of network
 
         # Start with width=2
         w0 = widths[0]
-        xx, yy, Z = get_decision_boundary(models[w0], X, h=0.08)
+        # Get axes range to align decision boundary
+        x_range_axes = [float(axes.x_range[0]), float(axes.x_range[1])]  # [x_min, x_max]
+        y_range_axes = [float(axes.y_range[0]), float(axes.y_range[1])]  # [y_min, y_max]
+        xx, yy, Z = get_decision_boundary(models[w0], X, h=0.08, x_range=x_range_axes, y_range=y_range_axes)
         boundary = create_decision_boundary_mobject(axes, xx, yy, Z, opacity=0.35, step=2)
         dots = create_data_points(axes, X, y)
 
+        # Add in correct order: boundary first (bottom), then axes (middle), then dots (top)
+        self.add(boundary)
         self.play(FadeIn(axes))
-        self.play(FadeIn(boundary))
         self.play(LaggedStartMap(FadeIn, dots, lag_ratio=0.02))
         self.play(
             LaggedStartMap(FadeIn, network.layers, lag_ratio=0.03),
@@ -747,15 +757,16 @@ class MLPNonlinearityScene(InteractiveScene):
         for w in widths[1:]:
             label_new = Text(f"Hidden neurons: {w}", font_size=32)
             label_new.move_to(width_label)
-            xx, yy, Z = get_decision_boundary(models[w], X, h=0.08)
+            xx, yy, Z = get_decision_boundary(models[w], X, h=0.08, x_range=x_range_axes, y_range=y_range_axes)
             boundary_new = create_decision_boundary_mobject(axes, xx, yy, Z, opacity=0.35, step=2)
             # Update network visualization to show current width
             network_new = NeuralNetwork([2, w, 1])
             network_new.scale(0.6)
             network_new.move_to(network)
+            # Remove old boundary, add new one (behind axes)
+            self.remove(boundary)
+            self.add(boundary_new)
             self.play(
-                FadeOut(boundary),
-                FadeIn(boundary_new),
                 Transform(network, network_new),
                 Transform(width_label, label_new),
                 run_time=1.6,
