@@ -697,7 +697,7 @@ class MLPNonlinearityScene(InteractiveScene):
         title = Text("MLP with Nonlinearity", font_size=60)
         title.to_edge(UP, buff=0.5)
         self.add(title)
-        self.wait(1)
+        self.wait(0.1)
 
         # Formula block (full MLP equations for 1-hidden-layer architecture)
         mlp_formula = Tex(
@@ -743,15 +743,13 @@ class MLPNonlinearityScene(InteractiveScene):
         dots = create_data_points(axes, X, y)
 
         # Add in correct order: boundary first (bottom), then axes (middle), then dots (top)
-        self.add(boundary)
-        self.play(FadeIn(axes))
-        self.play(LaggedStartMap(FadeIn, dots, lag_ratio=0.02))
+        self.add(boundary, axes, dots)
         self.play(
-            LaggedStartMap(FadeIn, network.layers, lag_ratio=0.03),
+            LaggedStartMap(FadeIn, network.layers, lag_ratio=0.03, run_time=0.5),
             FadeIn(width_label)
         )
         self.play(LaggedStartMap(ShowCreation, network.lines, lag_ratio=0.01, run_time=0.5))
-        self.wait(1)
+        self.wait(0.1)
 
         # Cycle through widths and show how predictions change
         for w in widths[1:]:
@@ -763,9 +761,12 @@ class MLPNonlinearityScene(InteractiveScene):
             network_new = NeuralNetwork([2, w, 1])
             network_new.scale(0.6)
             network_new.move_to(network)
-            # Remove old boundary, add new one (behind axes)
+            # Remove old boundary, add new one, then redraw axes and dots on top
             self.remove(boundary)
             self.add(boundary_new)
+            # Redraw axes and dots to ensure they're on top of boundary
+            self.remove(axes, dots)
+            self.add(axes, dots)
             self.play(
                 Transform(network, network_new),
                 Transform(width_label, label_new),
@@ -781,7 +782,9 @@ class MLPNonlinearityScene(InteractiveScene):
 
         text = Text("Wider hidden layers\n→ more flexible decision boundaries", font_size=36)
         text.to_edge(DOWN, buff=0.5)
-        self.play(Write(text))
+        # Add background rectangle for better visibility
+        text_bg = BackgroundRectangle(text, color=BLACK, fill_opacity=0.7, buff=0.2)
+        self.play(FadeIn(text_bg), Write(text))
         self.wait(2)
 
         # Clean up
@@ -793,6 +796,7 @@ class MLPNonlinearityScene(InteractiveScene):
             FadeOut(boundary),
             FadeOut(dots),
             FadeOut(width_label),
+            FadeOut(text_bg),
             FadeOut(text)
         )
         self.wait(0.5)
