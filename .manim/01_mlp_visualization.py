@@ -16,6 +16,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from sklearn.datasets import make_moons
+from sklearn.svm import LinearSVC
 
 
 # ============================================================================
@@ -104,7 +105,7 @@ def get_or_train_model(activation_cls=nn.ReLU, model_key="relu"):
 
 def get_decision_boundary(model, X, h=0.05):
     """Get decision boundary mesh for visualization.
-    
+
     Uses fine-grained grid (h=0.05) for smooth boundaries.
     """
     x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
@@ -130,7 +131,7 @@ def get_decision_boundary(model, X, h=0.05):
 
 def create_decision_boundary_mobject(axes, xx, yy, Z, colors=[BLUE_E, RED_E], opacity=0.5, step=1):
     """Create a Manim mobject representing the decision boundary.
-    
+
     Uses fine-grained polygons for smooth boundaries.
     """
     positive_regions = VGroup()
@@ -173,6 +174,46 @@ def create_data_points(axes, X, y, colors=[BLUE, RED], radius=0.08):
     return dots
 
 
+def fit_linear_separator(X, y):
+    """Fit a linear separator (2D) and return (w, b) for w^T x + b = 0."""
+    clf = LinearSVC(C=1.0, max_iter=50_000, random_state=0)
+    clf.fit(X, y)
+    w = clf.coef_[0].astype(float)
+    b = float(clf.intercept_[0])
+    return w, b
+
+
+def count_separator_errors(X, y, w, b):
+    """Count mistakes of separator sign(w^T x + b) over labels y in {0,1}."""
+    scores = X @ w + b
+    y_pred = (scores > 0).astype(int)
+    return int(np.sum(y_pred != y))
+
+
+def separator_to_line_on_axes(axes, w, b, color=YELLOW, stroke_width=6):
+    """Create a Line mobject for w^T x + b = 0 within current axes ranges."""
+    x_min, x_max = float(axes.x_range[0]), float(axes.x_range[1])
+    y_min, y_max = float(axes.y_range[0]), float(axes.y_range[1])
+
+    w1, w2 = float(w[0]), float(w[1])
+    eps = 1e-8
+
+    if abs(w2) > eps:
+        # y = -(w1 x + b) / w2
+        x1, x2 = x_min, x_max
+        y1 = -(w1 * x1 + b) / w2
+        y2 = -(w1 * x2 + b) / w2
+    else:
+        # Vertical-ish line: x = -b / w1
+        x1 = x2 = -b / (w1 if abs(w1) > eps else eps)
+        y1, y2 = y_min, y_max
+
+    p1 = axes.c2p(x1, y1)
+    p2 = axes.c2p(x2, y2)
+    line = Line(p1, p2, color=color, stroke_width=stroke_width)
+    return line
+
+
 # ============================================================================
 # Individual Scene Classes
 # ============================================================================
@@ -201,83 +242,233 @@ class IntroductionScene(InteractiveScene):
 class LinearTransformationScene(InteractiveScene):
     """Scene 1: Show linear transformation on 2D plane."""
     def construct(self):
-        # Prepare data
-        X, y = make_moons(n_samples=100, noise=0.1, random_state=1)
+        # Prepare data (keep the same dataset)
+        X0, y = make_moons(n_samples=100, noise=0.1, random_state=1)
+
+        # Fit one "best" linear separator: w^T x + b = 0
+        w_base, b_base = fit_linear_separator(X0, y)
+        errors0 = count_separator_errors(X0, y, w_base, b_base)
 
         # Title
-        title = Text("Linear Transformation", font_size=60)
-        title.to_edge(UP, buff=0.5)
+        title = Text("Linear transforms: what do they do to the dataset?", font_size=48)
+        title.to_edge(UP, buff=0.35)
         self.play(Write(title))
-        self.wait(1)
+        self.wait(0.4)
 
-        # Create axes
+        # Layout: axes on the left, formulas on the right
         axes = Axes(
-            x_range=[-2, 3, 0.5],
-            y_range=[-2, 2, 0.5],
-            width=10,
-            height=6,
-            axis_config={"include_tip": True}
+            x_range=[-4.0, 4.0, 0.5],
+            y_range=[-3.2, 3.2, 0.5],
+            width=7.2,
+            height=6.0,
+            axis_config={"include_tip": True},
         )
-        axes.center().shift(0.5 * DOWN)
+        axes.to_edge(LEFT, buff=0.7).shift(0.25 * DOWN)
 
-        # Show data points
-        dots = create_data_points(axes, X, y)
-        self.play(FadeIn(axes), LaggedStartMap(FadeIn, dots, lag_ratio=0.02))
-        self.wait(1)
+        panel = Rectangle(width=5.6, height=6.2)
+        panel.to_edge(RIGHT, buff=0.7).shift(0.25 * DOWN)
+        panel.set_stroke(WHITE, width=2)
+        panel.set_fill(BLACK, opacity=0.72)
 
-        # Label the data
-        data_label = Text("Moons Dataset", font_size=32)
-        data_label.next_to(axes, DOWN, buff=0.3)
-        self.play(Write(data_label))
-        self.wait(0.5)
+        panel_title = Text("Formulas", font_size=36)
+        panel_title.move_to(panel.get_top() + DOWN * 0.38)
+        panel_title.align_to(panel, LEFT).shift(RIGHT * 0.35)
 
-        # Show linear transformation formula
-        formula = Tex("f(x) = Wx + b", font_size=48)
-        formula.to_edge(RIGHT).shift(UP * 2.5)
-        self.play(Write(formula))
-        self.wait(1)
+        eq_tex = Tex(r"x' = A x + b", font_size=44)
+        eq_tex.next_to(panel_title, DOWN, buff=0.35)
+        eq_tex.align_to(panel_title, LEFT)
 
-        # Create a simple 2x2 transformation matrix
-        W = np.array([[1.2, 0.3], [-0.2, 0.8]])
-        b = np.array([0.1, -0.1])
+        A_tex = Tex(r"A = I", font_size=34)
+        A_tex.next_to(eq_tex, DOWN, buff=0.35)
+        A_tex.align_to(panel_title, LEFT)
 
-        # Show matrix representation
-        matrix_text = Tex("W = \\begin{bmatrix} 1.2 & 0.3 \\\\ -0.2 & 0.8 \\end{bmatrix}", font_size=36)
-        matrix_text.next_to(formula, DOWN, buff=0.5)
-        self.play(Write(matrix_text))
-        self.wait(1)
+        b_tex = Tex(r"b = \begin{bmatrix} 0 \\ 0 \end{bmatrix}", font_size=34)
+        b_tex.next_to(A_tex, DOWN, buff=0.25)
+        b_tex.align_to(panel_title, LEFT)
 
-        # Apply transformation
-        X_transformed = (X @ W.T) + b
+        step_label = Text("Original data", font_size=28)
+        step_label.next_to(b_tex, DOWN, buff=0.35)
+        step_label.align_to(panel_title, LEFT)
 
-        # Transform dots
-        dots_transformed = create_data_points(axes, X_transformed, y)
-        dots_transformed.set_opacity(0)
+        err_panel = Text(f"Linear separator errors: {errors0} / {len(X0)}", font_size=28)
+        err_panel.next_to(step_label, DOWN, buff=0.35)
+        err_panel.align_to(panel_title, LEFT)
 
-        # Animate transformation
+        invariant = Text("Errors stay the same\nunder affine transforms", font_size=26)
+        invariant.next_to(err_panel, DOWN, buff=0.35)
+        invariant.align_to(panel_title, LEFT)
+
+        # Data + separator (baseline)
+        dots = create_data_points(axes, X0, y, radius=0.075)
+        sep_line = separator_to_line_on_axes(axes, w_base, b_base, color=YELLOW)
+
+        self.play(FadeIn(axes), FadeIn(panel))
+        self.play(LaggedStartMap(FadeIn, dots, lag_ratio=0.02))
         self.play(
-            Transform(dots, dots_transformed, path_arc=PI/4),
-            FadeOut(data_label),
-            run_time=2
+            ShowCreation(sep_line),
+            FadeIn(panel_title),
+            FadeIn(eq_tex),
+            FadeIn(A_tex),
+            FadeIn(b_tex),
+            FadeIn(step_label),
+            FadeIn(err_panel),
+            FadeIn(invariant),
         )
-        self.wait(1)
+        self.wait(0.8)
 
-        # Show that it's still linearly separable
-        text = Text("Linear transformations preserve\nlinear separability", font_size=36)
-        text.to_edge(DOWN, buff=0.5)
-        self.play(Write(text))
-        self.wait(2)
+        def update_panel(A_str, b_str, label_str, param_font_size=34):
+            A_new = Tex(A_str, font_size=param_font_size)
+            A_new.move_to(A_tex)
+            A_new.align_to(A_tex, LEFT)
 
-        # Clean up
+            b_new = Tex(b_str, font_size=param_font_size)
+            b_new.move_to(b_tex)
+            b_new.align_to(b_tex, LEFT)
+
+            label_new = Text(label_str, font_size=28)
+            label_new.move_to(step_label)
+            label_new.align_to(step_label, LEFT)
+
+            self.play(
+                Transform(A_tex, A_new),
+                Transform(b_tex, b_new),
+                Transform(step_label, label_new),
+                run_time=0.7,
+            )
+
+        def demo_linear(A, name, param_str, param_font_size=36):
+            A = np.array(A, dtype=float)
+
+            # Forward transform x' = A x
+            X1 = X0 @ A.T
+            w1 = np.linalg.inv(A).T @ w_base
+            b1 = b_base
+            errors1 = count_separator_errors(X1, y, w1, b1)
+
+            # This should be invariant if we transform separator consistently
+            if errors1 != errors0:
+                print("Warning: errors changed:", errors0, "->", errors1)
+
+            dots_1 = create_data_points(axes, X1, y, radius=0.075)
+            sep_1 = separator_to_line_on_axes(axes, w1, b1, color=YELLOW)
+
+            update_panel(
+                param_str,
+                r"b = \begin{bmatrix} 0 \\ 0 \end{bmatrix}",
+                name,
+                param_font_size,
+            )
+            self.play(
+                Transform(dots, dots_1, path_arc=PI / 10),
+                Transform(sep_line, sep_1),
+                run_time=2.0,
+            )
+            self.wait(0.5)
+
+            # Return to baseline before the next demo
+            dots_back = create_data_points(axes, X0, y, radius=0.075)
+            sep_back = separator_to_line_on_axes(axes, w_base, b_base, color=YELLOW)
+            self.play(
+                Transform(dots, dots_back, path_arc=-PI / 10),
+                Transform(sep_line, sep_back),
+                run_time=0.6,
+            )
+            self.wait(0.1)
+
+        def demo_bias(t, name, param_str, param_font_size=34):
+            t = np.array(t, dtype=float)
+
+            # Forward transform x' = x + t, separator becomes w^T x' + (b - w^T t) = 0
+            X1 = X0 + t
+            w1 = w_base
+            b1 = b_base - float(w_base @ t)
+            errors1 = count_separator_errors(X1, y, w1, b1)
+
+            if errors1 != errors0:
+                print("Warning: errors changed:", errors0, "->", errors1)
+
+            dots_1 = create_data_points(axes, X1, y, radius=0.075)
+            sep_1 = separator_to_line_on_axes(axes, w1, b1, color=YELLOW)
+
+            update_panel(
+                r"A = I",
+                param_str,
+                name,
+                param_font_size,
+            )
+            self.play(
+                Transform(dots, dots_1, path_arc=PI / 10),
+                Transform(sep_line, sep_1),
+                run_time=2.0,
+            )
+            self.wait(0.5)
+
+            dots_back = create_data_points(axes, X0, y, radius=0.075)
+            sep_back = separator_to_line_on_axes(axes, w_base, b_base, color=YELLOW)
+            self.play(
+                Transform(dots, dots_back, path_arc=-PI / 10),
+                Transform(sep_line, sep_back),
+                run_time=0.6,
+            )
+            self.wait(0.1)
+
+        # 1) Stretch (anisotropic scaling)
+        demo_linear(
+            [[1.7, 0.0], [0.0, 0.65]],
+            "Stretch (anisotropic scaling)",
+            r"A = \begin{bmatrix} 1.7 & 0 \\ 0 & 0.65 \end{bmatrix}",
+            param_font_size=32,
+        )
+
+        # 3) Rotation
+        theta = 45 * DEGREES
+        R = np.array(
+            [
+                [np.cos(theta), -np.sin(theta)],
+                [np.sin(theta), np.cos(theta)],
+            ],
+            dtype=float,
+        )
+        demo_linear(
+            R,
+            "Rotation",
+            r"A = \begin{bmatrix} \cos\theta & -\sin\theta \\ \sin\theta & \cos\theta \end{bmatrix},\ \theta=45^\circ",
+            param_font_size=26,
+        )
+
+        # 4) Bias / translation
+        demo_bias(
+            [1.1, -0.75],
+            "Translation (bias)",
+            r"b = \begin{bmatrix} 1.1 \\ -0.75 \end{bmatrix}",
+            param_font_size=32,
+        )
+
+        # Final takeaway
+        takeaway = Text(
+            "Moons are NOT linearly separable.\nAffine transforms do not fix separability.",
+            font_size=34,
+        )
+        takeaway.to_edge(DOWN, buff=0.3)
+        self.play(Write(takeaway))
+        self.wait(1.8)
+
         self.play(
+            FadeOut(takeaway),
             FadeOut(title),
-            FadeOut(formula),
-            FadeOut(matrix_text),
-            FadeOut(text),
+            FadeOut(panel_title),
+            FadeOut(eq_tex),
+            FadeOut(A_tex),
+            FadeOut(b_tex),
+            FadeOut(step_label),
+            FadeOut(err_panel),
+            FadeOut(invariant),
+            FadeOut(panel),
             FadeOut(axes),
-            FadeOut(dots)
+            FadeOut(dots),
+            FadeOut(sep_line),
         )
-        self.wait(0.5)
+        self.wait(0.3)
 
 
 class DimensionalityExpansionScene(InteractiveScene):
@@ -557,6 +748,8 @@ class ComparisonScene(InteractiveScene):
         # Show right side
         self.play(FadeIn(axes_right), Write(label_linear))
         self.play(Write(formula_identity))
+        note_identity = Text("No matter how many linear layers you stack,\nyou still get a single linear layer", font_size=22)
+        note_identity.next_to(formula_identity, DOWN, buff=0.15)
         self.play(Write(note_identity))
         self.play(FadeIn(boundary_linear))
         self.play(LaggedStartMap(FadeIn, dots_right, lag_ratio=0.02))
@@ -620,14 +813,14 @@ class ConclusionScene(InteractiveScene):
 
 class MLPVisualization(InteractiveScene):
     """Main scene combining all MLP visualization scenes.
-    
+
     This scene runs all individual scenes in sequence.
     Each scene can also be rendered independently by calling its class directly.
-    
+
     Usage:
         # Render all scenes together:
         manimgl 01_mlp_visualization.py MLPVisualization
-        
+
         # Render individual scenes:
         manimgl 01_mlp_visualization.py IntroductionScene
         manimgl 01_mlp_visualization.py LinearTransformationScene
@@ -645,7 +838,7 @@ class MLPVisualization(InteractiveScene):
             ComparisonScene(),
             ConclusionScene(),
         ]
-        
+
         # Share camera, frame, and other scene attributes across all scenes
         for scene in scenes:
             scene.camera = self.camera
