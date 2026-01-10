@@ -102,8 +102,11 @@ def get_or_train_model(activation_cls=nn.ReLU, model_key="relu"):
         return model
 
 
-def get_decision_boundary(model, X, h=0.1):
-    """Get decision boundary mesh for visualization."""
+def get_decision_boundary(model, X, h=0.05):
+    """Get decision boundary mesh for visualization.
+    
+    Uses fine-grained grid (h=0.05) for smooth boundaries.
+    """
     x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
     y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
     xx, yy = np.meshgrid(
@@ -125,15 +128,17 @@ def get_decision_boundary(model, X, h=0.1):
 # Visualization Utilities
 # ============================================================================
 
-def create_decision_boundary_mobject(axes, xx, yy, Z, colors=[BLUE_E, RED_E], opacity=0.5, step=2):
-    """Create a Manim mobject representing the decision boundary."""
-    # Use a more efficient approach: sample the grid and create polygons
+def create_decision_boundary_mobject(axes, xx, yy, Z, colors=[BLUE_E, RED_E], opacity=0.5, step=1):
+    """Create a Manim mobject representing the decision boundary.
+    
+    Uses fine-grained polygons for smooth boundaries.
+    """
     positive_regions = VGroup()
     negative_regions = VGroup()
 
-    # Sample every 'step' cells to reduce computation
-    for i in range(0, len(xx) - 1, step):
-        for j in range(0, len(xx[0]) - 1, step):
+    # Use step=1 for maximum smoothness (no skipping cells)
+    for i in range(0, len(xx) - step, step):
+        for j in range(0, len(xx[0]) - step, step):
             # Get four corners of the cell
             try:
                 corners = [
@@ -434,8 +439,8 @@ class MLPNonlinearityScene(InteractiveScene):
         )
         axes.center().shift(0.5 * DOWN)
 
-        # Get decision boundary
-        xx, yy, Z = get_decision_boundary(model, X, h=0.1)
+        # Get decision boundary (using default fine-grained grid)
+        xx, yy, Z = get_decision_boundary(model, X)
 
         # Create decision boundary visualization
         boundary = create_decision_boundary_mobject(axes, xx, yy, Z, opacity=0.4)
@@ -505,9 +510,9 @@ class ComparisonScene(InteractiveScene):
         label_linear = Text("Without Nonlinearity", font_size=40)
         label_linear.next_to(axes_right, UP)
 
-        # Get decision boundaries
-        xx_relu, yy_relu, Z_relu = get_decision_boundary(model_relu, X, h=0.1)
-        xx_linear, yy_linear, Z_linear = get_decision_boundary(model_linear, X, h=0.1)
+        # Get decision boundaries (using default fine-grained grid)
+        xx_relu, yy_relu, Z_relu = get_decision_boundary(model_relu, X)
+        xx_linear, yy_linear, Z_linear = get_decision_boundary(model_linear, X)
 
         # Create visualizations
         boundary_relu = create_decision_boundary_mobject(axes_left, xx_relu, yy_relu, Z_relu, opacity=0.4)
@@ -582,13 +587,40 @@ class ConclusionScene(InteractiveScene):
 # ============================================================================
 
 class MLPVisualization(InteractiveScene):
-    """Main scene combining all MLP visualization scenes."""
+    """Main scene combining all MLP visualization scenes.
+    
+    This scene runs all individual scenes in sequence.
+    Each scene can also be rendered independently by calling its class directly.
+    
+    Usage:
+        # Render all scenes together:
+        manimgl 01_mlp_visualization.py MLPVisualization
+        
+        # Render individual scenes:
+        manimgl 01_mlp_visualization.py IntroductionScene
+        manimgl 01_mlp_visualization.py LinearTransformationScene
+        manimgl 01_mlp_visualization.py MLPNonlinearityScene
+        manimgl 01_mlp_visualization.py ComparisonScene
+        etc.
+    """
     def construct(self):
-        # Run each scene in sequence
-        # Note: Each scene can also be rendered independently
-        IntroductionScene.construct(self)
-        LinearTransformationScene.construct(self)
-        DimensionalityExpansionScene.construct(self)
-        MLPNonlinearityScene.construct(self)
-        ComparisonScene.construct(self)
-        ConclusionScene.construct(self)
+        # Create scene instances with shared camera and frame
+        scenes = [
+            IntroductionScene(),
+            LinearTransformationScene(),
+            DimensionalityExpansionScene(),
+            MLPNonlinearityScene(),
+            ComparisonScene(),
+            ConclusionScene(),
+        ]
+        
+        # Share camera, frame, and other scene attributes across all scenes
+        for scene in scenes:
+            scene.camera = self.camera
+            scene.frame = self.frame
+            # Copy other important attributes
+            if hasattr(self, 'file_writer'):
+                scene.file_writer = self.file_writer
+            if hasattr(self, 'renderer'):
+                scene.renderer = self.renderer
+            scene.construct()
