@@ -82,6 +82,13 @@ MODEL_PATHS = {
     "linear": os.path.join(MODEL_DIR, "mlp_linear.pth"),
 }
 
+WIDTH_MODEL_PATHS = {
+    2: os.path.join(MODEL_DIR, "mlp_relu_width_2.pth"),
+    4: os.path.join(MODEL_DIR, "mlp_relu_width_4.pth"),
+    8: os.path.join(MODEL_DIR, "mlp_relu_width_8.pth"),
+    16: os.path.join(MODEL_DIR, "mlp_relu_width_16.pth"),
+}
+
 
 def get_or_train_model(activation_cls=nn.ReLU, model_key="relu"):
     """Lazily load or train and save MLP model."""
@@ -101,6 +108,60 @@ def get_or_train_model(activation_cls=nn.ReLU, model_key="relu"):
         print(f"Model saved to {model_path}")
         model.eval()
         return model
+
+
+class MLP1Hidden(nn.Module):
+    """Simple 1-hidden-layer MLP for width comparison (cached per width)."""
+
+    def __init__(self, hidden_dim, activation_cls=nn.ReLU):
+        super().__init__()
+        self.fc1 = nn.Linear(2, int(hidden_dim))
+        self.fc2 = nn.Linear(int(hidden_dim), 1)
+        self.activation = activation_cls()
+
+    def forward(self, x_coordinates):
+        h = self.activation(self.fc1(x_coordinates))
+        scores = self.fc2(h)
+        return scores[:, 0]
+
+
+def train_width_model(model, learning_rate=0.02, n_steps=2500):
+    """Train a width-model on moons dataset (binary classification)."""
+    X, y = make_moons(n_samples=100, noise=0.1, random_state=1)
+    X_t = torch.tensor(X).float()
+    y_t = torch.tensor(y).float()
+    opt = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    for _ in range(n_steps):
+        opt.zero_grad()
+        logits = model.forward(X_t)
+        loss = F.binary_cross_entropy_with_logits(logits, y_t)
+        alpha = 1e-4
+        reg = alpha * sum((p * p).sum() for p in model.parameters())
+        (loss + reg).backward()
+        opt.step()
+    model.eval()
+    return model
+
+
+def get_or_train_width_model(hidden_dim, activation_cls=nn.ReLU):
+    """Lazily load or train and save MLP1Hidden model for a given hidden width."""
+    if hidden_dim not in WIDTH_MODEL_PATHS:
+        raise ValueError(f"Unsupported hidden_dim={hidden_dim}, expected one of {sorted(WIDTH_MODEL_PATHS.keys())}")
+    model_path = WIDTH_MODEL_PATHS[hidden_dim]
+    if os.path.exists(model_path):
+        print(f"Loading width-model from {model_path}")
+        model = MLP1Hidden(hidden_dim=hidden_dim, activation_cls=activation_cls)
+        model.load_state_dict(torch.load(model_path, map_location="cpu"))
+        model.eval()
+        return model
+
+    print(f"Training width-model (not found at {model_path})...")
+    model = MLP1Hidden(hidden_dim=hidden_dim, activation_cls=activation_cls)
+    model = train_width_model(model, learning_rate=0.02, n_steps=2500)
+    torch.save(model.state_dict(), model_path)
+    print(f"Width-model saved to {model_path}")
+    model.eval()
+    return model
 
 
 def get_decision_boundary(model, X, h=0.05):
@@ -623,74 +684,91 @@ class MLPNonlinearityScene(InteractiveScene):
         # Prepare data
         X, y = make_moons(n_samples=100, noise=0.1, random_state=1)
 
-        # Lazily load or train model
-        model = get_or_train_model(activation_cls=nn.ReLU, model_key="relu")
+        # Lazily load or train models of different widths
+        widths = [2, 4, 8, 16]
+        models = {w: get_or_train_width_model(hidden_dim=w, activation_cls=nn.ReLU) for w in widths}
 
         # Title
         title = Text("MLP with Nonlinearity", font_size=60)
         title.to_edge(UP, buff=0.5)
-        self.play(Write(title))
+        self.add(title)
         self.wait(1)
 
-        # Show MLP architecture
-        network = NeuralNetwork([2, 10, 10, 1])
-        network.scale(0.8)
-        network.to_edge(LEFT).shift(UP * 0.5)
-
-        self.play(LaggedStartMap(FadeIn, network.layers, lag_ratio=0.3))
-        self.play(LaggedStartMap(ShowCreation, network.lines, lag_ratio=0.01, run_time=2))
-        self.wait(1)
-
-        # Label layers
-        layer_labels = VGroup(
-            Text("Input\n(2)", font_size=24),
-            Text("Hidden\n(100)", font_size=24),
-            Text("Hidden\n(100)", font_size=24),
-            Text("Output\n(1)", font_size=24)
+        # Formula block (full MLP equations for 1-hidden-layer architecture)
+        mlp_formula = Tex(
+            r"""
+            \begin{aligned}
+            h &= \text{ReLU}(W_1 x + b_1) \\
+            y &= W_2 h + b_2
+            \end{aligned}
+            """,
+            font_size=34,
         )
-        for i, label in enumerate(layer_labels):
-            label.next_to(network.layers[i], DOWN, buff=0.3)
+        mlp_formula.to_edge(RIGHT).shift(UP * 2.0)
+        self.add(mlp_formula)
+        self.wait(0.1)
 
-        self.play(LaggedStartMap(Write, layer_labels, lag_ratio=0.3))
-        self.wait(1)
-
-        # Show ReLU activation
-        relu_text = Tex("\\text{ReLU}(x) = \\max(0, x)", font_size=36)
-        relu_text.to_edge(RIGHT).shift(UP * 2)
-        self.play(Write(relu_text))
-        self.wait(1)
-
-        # Move network to side and show decision boundary
-        self.play(
-            network.animate.scale(0.6).to_corner(UL, buff=0.5),
-            LaggedStartMap(FadeOut, layer_labels),
-            FadeOut(relu_text)
-        )
-
-        # Create axes for decision boundary
+        # Create axes for decision boundary (left side)
         axes = Axes(
-            x_range=[-2, 3, 0.5],
+            x_range=[-2, 2, 0.5],
             y_range=[-2, 2, 0.5],
-            width=10,
+            width=6,
             height=6,
             axis_config={"include_tip": True}
         )
-        axes.center().shift(0.5 * DOWN)
+        axes.to_edge(LEFT, buff=0.8).shift(0.5 * DOWN)
 
-        # Get decision boundary (using default fine-grained grid)
-        xx, yy, Z = get_decision_boundary(model, X)
+        # Show MLP architecture (schematic) - right bottom
+        network = NeuralNetwork([2, widths[0], 1])
+        network.scale(0.6)
+        network.to_edge(RIGHT, buff=0.8).shift(DOWN * 2.0)
 
-        # Create decision boundary visualization
-        boundary = create_decision_boundary_mobject(axes, xx, yy, Z, opacity=0.4)
+        # Label for hidden neurons count (below network)
+        width_label = Text(f"Hidden neurons: {widths[0]}", font_size=32)
+        width_label.next_to(network, DOWN, buff=0.3)
+
+        # Start with width=2
+        w0 = widths[0]
+        xx, yy, Z = get_decision_boundary(models[w0], X, h=0.08)
+        boundary = create_decision_boundary_mobject(axes, xx, yy, Z, opacity=0.35, step=2)
         dots = create_data_points(axes, X, y)
 
         self.play(FadeIn(axes))
         self.play(FadeIn(boundary))
         self.play(LaggedStartMap(FadeIn, dots, lag_ratio=0.02))
+        self.play(
+            LaggedStartMap(FadeIn, network.layers, lag_ratio=0.03),
+            FadeIn(width_label)
+        )
+        self.play(LaggedStartMap(ShowCreation, network.lines, lag_ratio=0.01, run_time=0.5))
         self.wait(1)
 
-        # Highlight nonlinear regions
-        text = Text("Nonlinearity enables learning\ncomplex decision boundaries", font_size=36)
+        # Cycle through widths and show how predictions change
+        for w in widths[1:]:
+            label_new = Text(f"Hidden neurons: {w}", font_size=32)
+            label_new.move_to(width_label)
+            xx, yy, Z = get_decision_boundary(models[w], X, h=0.08)
+            boundary_new = create_decision_boundary_mobject(axes, xx, yy, Z, opacity=0.35, step=2)
+            # Update network visualization to show current width
+            network_new = NeuralNetwork([2, w, 1])
+            network_new.scale(0.6)
+            network_new.move_to(network)
+            self.play(
+                FadeOut(boundary),
+                FadeIn(boundary_new),
+                Transform(network, network_new),
+                Transform(width_label, label_new),
+                run_time=1.6,
+            )
+            boundary = boundary_new
+            # Flash highlight to show the update
+            self.play(
+                FlashAround(width_label, color=YELLOW, time_width=0.8, run_time=0.8),
+                FlashAround(network, color=YELLOW, time_width=0.8, run_time=0.8),
+            )
+            self.wait(0.6)
+
+        text = Text("Wider hidden layers\n→ more flexible decision boundaries", font_size=36)
         text.to_edge(DOWN, buff=0.5)
         self.play(Write(text))
         self.wait(2)
@@ -699,9 +777,11 @@ class MLPNonlinearityScene(InteractiveScene):
         self.play(
             FadeOut(title),
             FadeOut(network),
+            FadeOut(mlp_formula),
             FadeOut(axes),
             FadeOut(boundary),
             FadeOut(dots),
+            FadeOut(width_label),
             FadeOut(text)
         )
         self.wait(0.5)
