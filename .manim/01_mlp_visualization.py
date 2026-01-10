@@ -166,7 +166,7 @@ def get_or_train_width_model(hidden_dim, activation_cls=nn.ReLU):
 
 def get_decision_boundary(model, X, h=0.05, x_range=None, y_range=None):
     """Get decision boundary mesh for visualization.
-
+    
     Uses fine-grained grid (h=0.05) for smooth boundaries.
     If x_range and y_range are provided, uses those instead of data bounds.
     """
@@ -176,11 +176,11 @@ def get_decision_boundary(model, X, h=0.05, x_range=None, y_range=None):
     else:
         x_min, x_max = X[:, 0].min() - 1, X[:, 0].max() + 1
         y_min, y_max = X[:, 1].min() - 1, X[:, 1].max() + 1
-    xx, yy = np.meshgrid(
-        np.arange(x_min, x_max, h),
-        np.arange(y_min, y_max, h)
-    )
-    Xmesh = np.c_[xx.ravel(), yy.ravel()]
+        xx, yy = np.meshgrid(
+            np.arange(x_min, x_max, h),
+            np.arange(y_min, y_max, h)
+        )
+        Xmesh = np.c_[xx.ravel(), yy.ravel()]
 
     with torch.no_grad():
         Xbatch = torch.tensor(Xmesh).float()
@@ -197,7 +197,7 @@ def get_decision_boundary(model, X, h=0.05, x_range=None, y_range=None):
 
 def create_decision_boundary_mobject(axes, xx, yy, Z, colors=[BLUE_E, RED_E], opacity=0.5, step=1):
     """Create a Manim mobject representing the decision boundary.
-
+    
     Uses fine-grained polygons for smooth boundaries.
     """
     positive_regions = VGroup()
@@ -327,7 +327,7 @@ class LinearTransformationScene(InteractiveScene):
             y_range=[-3.2, 3.2, 0.5],
             width=7.2,
             height=6.0,
-            axis_config={"include_tip": True},
+            axis_config={"include_tip": True, },
         )
         axes.to_edge(LEFT, buff=0.7).shift(0.25 * DOWN)
 
@@ -523,123 +523,200 @@ class LinearTransformationScene(InteractiveScene):
 
 
 class DimensionalityExpansionScene(InteractiveScene):
-    """Scene 2: Show dimensionality expansion."""
+    """Scene 2: Show that linear transforms preserve intrinsic dimensionality."""
     def construct(self):
         # Prepare data
         X, y = make_moons(n_samples=100, noise=0.1, random_state=1)
 
-        title = Text("Dimensionality expansion via a linear map", font_size=52)
+        title = Text("Linear transforms preserve intrinsic dimensionality", font_size=48)
         title.to_edge(UP, buff=0.4)
-        self.play(Write(title))
-        self.wait(0.4)
+        title.fix_in_frame()  # Keep text fixed during camera rotation
+        self.add(title)
 
-        # Left: original 2D space
-        axes_2d = Axes(
-            x_range=[-2, 3, 0.5],
-            y_range=[-2, 2, 0.5],
-            width=6.6,
-            height=6.0,
+        # Create 3D axes centered with arrow tips
+        axes_3d = ThreeDAxes(
+            x_range=[-3, 3, 1],
+            y_range=[-3, 3, 1],
+            z_range=[-3, 3, 1],
+            width=8,
+            height=8,
+            depth=8,
             axis_config={"include_tip": True},
         )
-        axes_2d.to_edge(LEFT, buff=0.7).shift(0.25 * DOWN)
-        dots_2d = create_data_points(axes_2d, X, y, radius=0.075)
+        axes_3d.move_to(ORIGIN).shift(0.3 * DOWN)
 
-        label_2d = Text(r"Input space: $\mathbb{R}^2$", font_size=30)
-        label_2d.next_to(axes_2d, UP, buff=0.2)
-
-        # Right: higher-dimensional space (3D)
-        axes_3d = ThreeDAxes(
-            x_range=[-2, 3, 0.5],
-            y_range=[-2, 2, 0.5],
-            z_range=[-3, 3, 1],
-            width=6.0,
-            height=6.0,
-            depth=4.2,
-        )
-        axes_3d.to_edge(RIGHT, buff=0.7).shift(0.25 * DOWN)
-
-        label_3d = Text(r"Output space: $\mathbb{R}^3$", font_size=30)
-        label_3d.next_to(axes_3d, UP, buff=0.2)
-
-        # Middle: generic affine form (no parameter values shown)
-        arrow = Arrow(axes_2d.get_right(), axes_3d.get_left(), buff=0.25)
-        map_tex = Tex(r"x' = A x + b", font_size=44)
-        map_tex.next_to(arrow, UP, buff=0.2)
-
-        map_caption = Text("Linear map into a higher-dimensional space", font_size=26)
-        map_caption.next_to(map_tex, UP, buff=0.15)
-
-        self.play(
-            FadeIn(axes_2d),
-            FadeIn(axes_3d),
-            FadeIn(label_2d),
-            FadeIn(label_3d),
-        )
-        self.play(LaggedStartMap(FadeIn, dots_2d, lag_ratio=0.02))
-        self.play(GrowArrow(arrow), FadeIn(map_tex), FadeIn(map_caption))
-        self.wait(0.6)
-
-        # A concrete 2D -> 3D linear embedding (values not shown on screen)
-        A = np.array(
+        # Initial embedding: 2D -> 3D (identity in first 2 dims, linear in 3rd)
+        A0 = np.array(
             [
                 [1.0, 0.0],
                 [0.0, 1.0],
-                [0.85, -0.35],
+                [0.6, -0.4],
             ],
             dtype=float,
         )
-        b = np.array([0.0, 0.0, 0.0], dtype=float)
+        b0 = np.array([0.0, 0.0, 0.0], dtype=float)
 
-        X3 = X @ A.T + b
+        def embed_points(X_data, A, b):
+            """Embed 2D points into 3D using linear map."""
+            return X_data @ A.T + b
 
-        # Visualize that the image of R^2 under a linear map sits on a plane in R^3
-        u_min, u_max = -2.5, 3.0
-        v_min, v_max = -2.0, 2.0
+        def create_3d_dots(X_3d, y_data, axes):
+            """Create 3D dots from embedded points."""
+            dots = VGroup()
+            for point, label in zip(X_3d, y_data):
+                dot = Dot(axes.c2p(point[0], point[1], point[2]), radius=0.08)
+                dot.set_color(BLUE if label == 0 else RED)
+                dots.add(dot)
+            return dots
 
-        def lift(u, v):
-            p = np.array([u, v], dtype=float)
-            q = A @ p + b
-            return axes_3d.c2p(float(q[0]), float(q[1]), float(q[2]))
+        def create_plane_mesh(A, b, axes, u_range=(-2.5, 3.0), v_range=(-2.0, 2.0), n=20):
+            """Create a mesh representing the 2D plane in 3D."""
+            u_min, u_max = u_range
+            v_min, v_max = v_range
+            u_vals = np.linspace(u_min, u_max, n)
+            v_vals = np.linspace(v_min, v_max, n)
 
-        plane = Polygon(
-            lift(u_min, v_min),
-            lift(u_max, v_min),
-            lift(u_max, v_max),
-            lift(u_min, v_max),
-            stroke_width=2,
-        )
-        plane.set_fill(BLUE_E, opacity=0.12)
-        plane.set_stroke(BLUE_E, opacity=0.6)
+            lines = VGroup()
+            # Lines along u direction
+            for v in v_vals:
+                points = []
+                for u in u_vals:
+                    p_2d = np.array([u, v], dtype=float)
+                    p_3d = A @ p_2d + b
+                    points.append(axes.c2p(float(p_3d[0]), float(p_3d[1]), float(p_3d[2])))
+                line = VMobject()
+                line.set_points_as_corners(points)
+                line.set_stroke(BLUE_E, width=1, opacity=0.3)
+                lines.add(line)
 
-        dots_3d = VGroup()
-        for point, label in zip(X3, y):
-            dot = Dot(axes_3d.c2p(point[0], point[1], point[2]), radius=0.075)
-            dot.set_color(BLUE if label == 0 else RED)
-            dots_3d.add(dot)
+            # Lines along v direction
+            for u in u_vals:
+                points = []
+                for v in v_vals:
+                    p_2d = np.array([u, v], dtype=float)
+                    p_3d = A @ p_2d + b
+                    points.append(axes.c2p(float(p_3d[0]), float(p_3d[1]), float(p_3d[2])))
+                line = VMobject()
+                line.set_points_as_corners(points)
+                line.set_stroke(BLUE_E, width=1, opacity=0.3)
+                lines.add(line)
 
-        group_3d = VGroup(axes_3d, plane, dots_3d)
+            return lines
 
-        self.play(FadeIn(plane))
+        # Initial state
+        X3_initial = embed_points(X, A0, b0)
+        dots_3d = create_3d_dots(X3_initial, y, axes_3d)
+        plane_mesh = create_plane_mesh(A0, b0, axes_3d)
 
-        # Animate "lifting": keep original dots, move a copy into the 3D embedding
-        travel = dots_2d.copy()
-        self.add(travel)
-        self.play(
-            Transform(travel, dots_3d.copy(), path_arc=PI / 6),
-            run_time=2.0,
-        )
-        self.remove(travel)
+        # Add everything
+        self.add(axes_3d)
+        self.add(plane_mesh)
         self.add(dots_3d)
-        self.wait(0.4)
 
-        # Show depth without changing the camera (prevents tilting 2D elements)
+        # Set initial camera angle - looking at center from above
+        initial_phi = 30  # elevation angle
+        initial_theta = 70  # azimuth angle
+        self.frame.reorient(initial_phi, initial_theta, 0)
+        self.wait(0.5)
+
+        # Prepare transforms that will be applied during camera flight
+        # 1) Rotation in XY plane
+        angle_xy = 45 * DEGREES
+        R_xy = np.array([
+            [np.cos(angle_xy), -np.sin(angle_xy), 0],
+            [np.sin(angle_xy), np.cos(angle_xy), 0],
+            [0, 0, 1],
+        ])
+        A1 = R_xy @ A0
+        b1 = R_xy @ b0
+
+        # 2) Stretch along Z axis
+        S = np.array([
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1.8],
+        ])
+        A2 = S @ A1
+        b2 = S @ b1
+
+        # 3) Translation (shift)
+        t = np.array([0.5, -0.3, 0.8])
+        A3 = A2
+        b3 = b2 + t
+
+        # Create target states for each transform
+        X3_rotated = embed_points(X, A1, b1)
+        dots_3d_rotated = create_3d_dots(X3_rotated, y, axes_3d)
+        plane_mesh_rotated = create_plane_mesh(A1, b1, axes_3d)
+
+        X3_stretched = embed_points(X, A2, b2)
+        dots_3d_stretched = create_3d_dots(X3_stretched, y, axes_3d)
+        plane_mesh_stretched = create_plane_mesh(A2, b2, axes_3d)
+
+        X3_shifted = embed_points(X, A3, b3)
+        dots_3d_shifted = create_3d_dots(X3_shifted, y, axes_3d)
+        plane_mesh_shifted = create_plane_mesh(A3, b3, axes_3d)
+
+        # Smooth camera rotation around Z axis while applying transforms
+        # Camera rotates slowly (6s), transforms happen quickly (2s) at the start
+
+        # Rate function: fast transformation in first 1/3 of time, then stay at 1
+        def fast_then_stay(t):
+            if t < 1/3:
+                # Smooth curve from 0 to 1 in first third
+                s = 3 * t
+                return s * s * (3 - 2 * s)  # Smoothstep function
+            return 1.0  # Stay at final state for rest of time
+
+        # Phase 1: Rotate 120 degrees slowly, apply rotation transform quickly at start
         self.play(
-            Rotate(group_3d, angle=22 * DEGREES, axis=UP),
-            run_time=1.2,
+            self.frame.animate.increment_theta(120 * DEGREES),
+            Transform(dots_3d, dots_3d_rotated, rate_func=fast_then_stay),
+            Transform(plane_mesh, plane_mesh_rotated, rate_func=fast_then_stay),
+            run_time=6.0,  # Slow camera rotation, fast moon transformation
         )
+
+        # Phase 2: Continue rotation 120 degrees slowly, apply stretch transform quickly at start
         self.play(
-            Rotate(group_3d, angle=-16 * DEGREES, axis=RIGHT),
-            run_time=1.2,
+            self.frame.animate.increment_theta(120 * DEGREES),
+            Transform(dots_3d, dots_3d_stretched, rate_func=fast_then_stay),
+            Transform(plane_mesh, plane_mesh_stretched, rate_func=fast_then_stay),
+            run_time=6.0,  # Slow camera rotation, fast moon transformation
+        )
+
+        # Phase 3: Final rotation 120 degrees slowly, apply translation transform quickly at start
+        self.play(
+            self.frame.animate.increment_theta(120 * DEGREES),
+            Transform(dots_3d, dots_3d_shifted, rate_func=fast_then_stay),
+            Transform(plane_mesh, plane_mesh_shifted, rate_func=fast_then_stay),
+            run_time=6.0,  # Slow camera rotation, fast moon transformation
+        )
+
+        self.wait(0.5)
+
+        # Key insight: intrinsic dimensionality is preserved
+        insight = Text(
+            "Linear transforms preserve intrinsic dimensionality:\n"
+            "2D manifold remains 2D, just rotated/stretched/shifted in 3D",
+            font_size=32,
+        )
+        insight.to_edge(DOWN, buff=0.4)
+        insight.fix_in_frame()  # Keep text fixed during camera rotation
+        insight_bg = BackgroundRectangle(insight, color=BLACK, fill_opacity=0.7, buff=0.2)
+        insight_bg.set_stroke(WHITE, width=2)
+        insight_bg.fix_in_frame()  # Keep background fixed during camera rotation
+        self.play(FadeIn(insight_bg), Write(insight))
+        self.wait(2.0)
+
+        # Clean up
+        self.frame.reorient(0, 0, 0)
+        self.play(
+            FadeOut(title),
+            FadeOut(axes_3d),
+            FadeOut(plane_mesh),
+            FadeOut(dots_3d),
+            FadeOut(insight_bg),
+            FadeOut(insight),
         )
         self.wait(0.5)
 
@@ -650,22 +727,6 @@ class DimensionalityExpansionScene(InteractiveScene):
         takeaway.to_edge(DOWN, buff=0.35)
         self.play(Write(takeaway))
         self.wait(2.0)
-
-        self.play(
-            FadeOut(title),
-            FadeOut(label_2d),
-            FadeOut(label_3d),
-            FadeOut(arrow),
-            FadeOut(map_tex),
-            FadeOut(map_caption),
-            FadeOut(axes_2d),
-            FadeOut(dots_2d),
-            FadeOut(plane),
-            FadeOut(dots_3d),
-            FadeOut(axes_3d),
-            FadeOut(takeaway),
-        )
-        self.wait(0.4)
 
 
 class MLPNonlinearityScene(InteractiveScene):
@@ -821,14 +882,14 @@ class ConclusionScene(InteractiveScene):
 
 class MLPVisualization(InteractiveScene):
     """Main scene combining all MLP visualization scenes.
-
+    
     This scene runs all individual scenes in sequence.
     Each scene can also be rendered independently by calling its class directly.
-
+    
     Usage:
         # Render all scenes together:
         manimgl 01_mlp_visualization.py MLPVisualization
-
+        
         # Render individual scenes:
         manimgl 01_mlp_visualization.py IntroductionScene
         manimgl 01_mlp_visualization.py LinearTransformationScene
@@ -844,7 +905,7 @@ class MLPVisualization(InteractiveScene):
             MLPNonlinearityScene(),
             ConclusionScene(),
         ]
-
+        
         # Share camera, frame, and other scene attributes across all scenes
         for scene in scenes:
             scene.camera = self.camera
