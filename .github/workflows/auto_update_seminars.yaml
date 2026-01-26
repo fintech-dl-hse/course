@@ -1,4 +1,4 @@
-name: Remove widgets from seminars
+name: Auto update seminars (remove widgets and update static links)
 
 on:
   push:
@@ -27,13 +27,16 @@ jobs:
       - name: Remove widgets from seminars
         run: bash ./seminars/rm_widgets.sh
 
+      - name: Update static links in seminars
+        run: python3 ./seminars/update_static_links.py
+
       - name: Configure Git
         run: |
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
       - name: Commit changes
-        run: git add ./seminars && git commit -m "Remove widgets from seminars" || exit 0
+        run: git add ./seminars && git commit -m "Update seminar notebooks" || exit 0
 
       - name: Push changes
         uses: ad-m/github-push-action@master
