@@ -53,7 +53,7 @@ def process_notebook(path: Path, seminars_dir: Path) -> bool:
 
     if updated:
         with path.open("w", encoding="utf-8") as handle:
-            json.dump(notebook, handle, ensure_ascii=False, indent=1)
+            json.dump(notebook, handle, ensure_ascii=False, indent=4)
             handle.write("\n")
 
     return updated
