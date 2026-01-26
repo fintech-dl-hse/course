@@ -32,6 +32,7 @@ def process_notebook(path: Path, seminars_dir: Path) -> bool:
     rel_dir = path.parent.relative_to(seminars_dir).as_posix()
     base_url = f"{BASE_REPO_URL}/{rel_dir}/static"
 
+    print("Processing", path)
     with path.open("r", encoding="utf-8") as handle:
         notebook = json.load(handle)
 
