@@ -59,30 +59,34 @@ When visualizing optimizer behavior, implement utilities that:
 
 Use a small 2D objective for pedagogy (quadratic bowl, rotated quadratic, Rosenbrock with care, etc.). Keep the function differentiable and stable.
 
-### 4) Manim scene structure
+### 4) Manim scene structure: single main class (like lth.py)
 
-- Keep scenes small and composable:
-  - one scene = one concept
-  - move data generation into helpers
+- **One main Scene class per file** whose `construct()` calls section methods in order (e.g. `scene1_title()`, `scene2_...()`, …). Do **not** split into many separate Scene classes when the result is one continuous narrative.
+- **Reference**: `seminars/02_activations_initialization_dataloader_trainer/lth.py` → `LotteryTicketHypothesis(Scene)` with `scene1_title()`, `scene2_dense_network()`, etc.
+- Each section method: show content, then `FadeOut(...)` of that section’s mobjects before the next (clean transitions).
+- Move data generation into helpers; keep scene methods focused on building and animating mobjects.
 - Make axes/scales explicit and label them.
-- Prefer simple, readable animations:
-  - `Create`, `Transform`, `FadeIn`, `FadeOut`
-  - `TracedPath` for a moving point trajectory
-  - `VMobject.set_points_smoothly(...)` for polyline paths
+- Prefer simple, readable animations: `Create`, `Transform`, `FadeIn`, `FadeOut`, `VMobject.set_points_smoothly(...)` for polyline paths.
+
+```bash
+~/miniconda3/envs/manim-ce/bin/manim -qm ./seminars/03_.../manim_optimizers.py OptimizerComparison
+```
+
+## Pitfalls and mistakes to avoid
+
+- **Optimizer state**: Read optimizer state (e.g. Adam `exp_avg`, `exp_avg_sq`) **after** `opt.step()`, not before; PyTorch fills state during/after the step → `KeyError` if read before.
+- **Axes API (Manim CE)**: Use `axes.coords_to_point(x, y)` for coordinate→point; `axes.plot_line_graph(x_values=..., y_values=...)` takes **x_values** and **y_values** (iterables), not `x_range`.
+- **Cache vs Manim import**: If the same file does cache generation when run as script and defines Scene when loaded by Manim, use `if __name__ != "__main__":` before `from manim import *` and scene class(es), so `python file.py` does not require Manim.
 
 ## Commands (Manim CE)
 
-Run a scene:
+Run the main scene (one class per file):
 
 ```bash
-manim -pqh path/to/file.py SceneName
+manim -qm path/to/file.py MainSceneName
 ```
 
-Faster iteration:
-
-```bash
-manim -pql path/to/file.py SceneName
-```
+Faster iteration: `-ql`. Higher quality: `-qh`. Use `--media_dir <path>` to send output to a custom directory (e.g. seminar `static/`).
 
 ## Quality checklist
 
@@ -98,3 +102,5 @@ See `reference.md` for ready-to-use templates:
 - cache utilities for torch artifacts
 - an optimizer trajectory generator that saves `.pt` files
 - a trajectory scene pattern using `TracedPath`
+
+**Do not** add a separate shell script to “render all scenes”; one main Scene class and one `manim ... MainSceneName` command is enough.
