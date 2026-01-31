@@ -18,6 +18,7 @@ Generate cache only (no Manim):
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -153,6 +154,30 @@ def make_objective_rotated_quadratic(
     def f(xy: torch.Tensor) -> torch.Tensor:
         uv = r_t @ xy
         return 0.5 * (a * uv[0] ** 2 + b * uv[1] ** 2)
+
+    return f
+
+
+def make_objective_with_local_minima(
+    *,
+    global_min: tuple[float, float] = (0.0, 0.0),
+    bump_scale: float = 0.3,
+    bump_freq: float = 2.0,
+) -> Callable[[torch.Tensor], torch.Tensor]:
+    """
+    Quadratic bowl with sinusoidal bumps creating local minima.
+    f(xy) = 0.5 * (x^2 + y^2) + bump_scale * (1 - cos(bump_freq * x)) * (1 - cos(bump_freq * y))
+
+    This creates a landscape where SGD can get stuck in local minima,
+    but momentum can escape due to accumulated velocity.
+    """
+    gx, gy = global_min
+
+    def f(xy: torch.Tensor) -> torch.Tensor:
+        x, y = xy[0] - gx, xy[1] - gy
+        quadratic = 0.5 * (x ** 2 + y ** 2)
+        bumps = bump_scale * (1 - torch.cos(bump_freq * x)) * (1 - torch.cos(bump_freq * y))
+        return quadratic + bumps
 
     return f
 
@@ -327,6 +352,50 @@ def get_trajectories(
     return payload["trajectories"]
 
 
+def get_trajectories_bumpy(
+    *,
+    steps: int = 200,
+    seed: int = 0,
+    x0: tuple[float, float] = (3.0, 2.5),
+) -> list[dict[str, Any]]:
+    """Load or generate trajectories on bumpy landscape with local minima."""
+    cache_path = cache_dir() / "optimizer_trajectories_bumpy.pt"
+    meta = {"steps": steps, "seed": seed, "x0": x0, "version": 2}
+    if cache_path.exists():
+        payload = torch.load(cache_path, map_location="cpu")
+        if payload.get("meta") == meta:
+            return payload["trajectories"]
+
+    f = make_objective_with_local_minima(bump_scale=0.4, bump_freq=2.5)
+    trajs = [
+        generate_trajectory(
+            name="SGD",
+            optim_ctor=lambda p: torch.optim.SGD(p, lr=0.05),
+            f=f,
+            x0=x0,
+            steps=steps,
+            seed=seed,
+        ),
+        generate_trajectory(
+            name="SGD + momentum",
+            optim_ctor=lambda p: torch.optim.SGD(p, lr=0.05, momentum=0.9),
+            f=f,
+            x0=x0,
+            steps=steps,
+            seed=seed,
+        ),
+    ]
+    payload = {
+        "meta": meta,
+        "trajectories": [
+            {"name": t.name, "xy": t.xy.cpu(), "loss": t.loss.cpu()}
+            for t in trajs
+        ],
+    }
+    torch.save(payload, cache_path)
+    return payload["trajectories"]
+
+
 # -----------------------------------------------------------------------------
 # Main: generate all caches when run as script
 # -----------------------------------------------------------------------------
@@ -347,6 +416,7 @@ if __name__ != "__main__":
             self.scene3_moving_average()
             self.scene4_moments_and_intuition()
             self.scene5_trajectory_comparison()
+            self.scene6_momentum_local_minima()
 
         def scene1_title(self):
             """Title card."""
@@ -923,10 +993,185 @@ if __name__ != "__main__":
             self.play(FadeIn(note))
             self.wait(2)
 
+        def scene6_momentum_local_minima(self):
+            """Demonstrate momentum escaping local minima on bumpy landscape."""
+            section_title = Text(
+                "5. Momentum escapes local minima",
+                font_size=36,
+                color=GRAY_B,
+            )
+            section_title.to_edge(UP, buff=0.6)
+            self.play(FadeIn(section_title), run_time=0.5)
+
+            trajs = get_trajectories_bumpy(steps=200)
+
+            # Compute axis ranges
+            all_xy = torch.cat([t["xy"] for t in trajs], dim=0)
+            x_min, x_max = float(all_xy[:, 0].min()), float(all_xy[:, 0].max())
+            y_min, y_max = float(all_xy[:, 1].min()), float(all_xy[:, 1].max())
+            pad = 0.5
+            # Ensure we show the global minimum at (0,0)
+            x_min = min(x_min, -0.5)
+            y_min = min(y_min, -0.5)
+            x_range = [x_min - pad, x_max + pad, 0.5]
+            y_range = [y_min - pad, y_max + pad, 0.5]
+
+            axes = Axes(
+                x_range=x_range,
+                y_range=y_range,
+                x_length=8,
+                y_length=6,
+                tips=True,
+                axis_config={"include_numbers": False, "tip_length": 0.2},
+            )
+            axes.shift(DOWN * 0.3)
+
+            # Axis labels
+            x_label = MathTex(r"\theta_1", font_size=28)
+            x_label.next_to(axes.x_axis, RIGHT, buff=0.1)
+            y_label = MathTex(r"\theta_2", font_size=28)
+            y_label.next_to(axes.y_axis, UP, buff=0.1)
+
+            # Draw bumpy contours
+            # f(xy) = 0.5*(x^2+y^2) + bump_scale*(1-cos(freq*x))*(1-cos(freq*y))
+            bump_scale, bump_freq = 0.4, 2.5
+            contour_lines = VGroup()
+            loss_levels = [0.5, 1.0, 2.0, 3.5, 5.0, 7.0]
+            num_points = 150
+
+            for idx, level in enumerate(loss_levels):
+                # Sample points on a grid and find contour
+                contour_points = []
+                for angle in torch.linspace(0, 2 * 3.14159, num_points):
+                    # Start from approximate radius and refine
+                    r_approx = (2 * level) ** 0.5
+                    for r in torch.linspace(0.1, r_approx * 1.5, 50):
+                        x = float(r * torch.cos(angle))
+                        y = float(r * torch.sin(angle))
+                        loss_val = 0.5 * (x**2 + y**2) + bump_scale * (1 - math.cos(bump_freq * x)) * (1 - math.cos(bump_freq * y))
+                        if abs(loss_val - level) < 0.15:
+                            contour_points.append(axes.coords_to_point(x, y))
+                            break
+
+                if len(contour_points) > 10:
+                    t_color = idx / (len(loss_levels) - 1) if len(loss_levels) > 1 else 0
+                    color = interpolate_color(PURPLE_E, PURPLE_A, t_color)
+                    contour = VMobject(color=color, stroke_width=1.5, stroke_opacity=0.6)
+                    contour.set_points_smoothly(contour_points + [contour_points[0]])
+                    contour_lines.add(contour)
+
+            # Show axes and contours
+            self.play(FadeIn(axes), FadeIn(x_label), FadeIn(y_label))
+            self.wait(0.3)
+
+            landscape_label = Text(
+                "Bumpy landscape with local minima",
+                font_size=22,
+                color=GRAY_B,
+            )
+            landscape_label.next_to(axes, UP, buff=0.2)
+            self.play(
+                LaggedStart(*[Create(c) for c in contour_lines], lag_ratio=0.1),
+                FadeIn(landscape_label),
+                run_time=1.5,
+            )
+
+            # Mark global minimum
+            min_dot = Dot(axes.coords_to_point(0, 0), radius=0.08, color=WHITE)
+            min_label = Text("global min", font_size=16, color=WHITE)
+            min_label.next_to(min_dot, DOWN, buff=0.1)
+            self.play(FadeIn(min_dot), FadeIn(min_label))
+
+            # Mark starting point
+            start_x, start_y = 3.0, 2.5
+            start_dot = Dot(axes.coords_to_point(start_x, start_y), radius=0.1, color=YELLOW)
+            start_label = Text("start", font_size=18, color=YELLOW)
+            start_label.next_to(start_dot, UP, buff=0.1)
+            self.play(FadeIn(start_dot), FadeIn(start_label))
+            self.wait(1)
+
+            self.play(FadeOut(landscape_label), FadeOut(min_label), FadeOut(start_label))
+
+            # Draw trajectories: SGD (red) vs SGD+momentum (green)
+            colors = [RED, GREEN]
+            names = [t["name"] for t in trajs]
+            stroke_widths = [3.0, 3.5]
+
+            # Prepare legend
+            legend_items = VGroup()
+            for name, color in zip(names, colors):
+                line_sample = Line(ORIGIN, RIGHT * 0.4, color=color, stroke_width=3)
+                t = Text(name, font_size=22, color=color)
+                t.next_to(line_sample, RIGHT, buff=0.1)
+                legend_items.add(VGroup(line_sample, t))
+            legend_items.arrange(RIGHT, buff=0.8)
+            legend_items.to_edge(DOWN, buff=0.5)
+
+            paths = []
+            end_dots = []
+            faded_opacity = 0.3
+
+            for idx, (traj, color, name) in enumerate(zip(trajs, colors, names)):
+                xy = traj["xy"]
+
+                # Include starting point
+                start_point = axes.coords_to_point(start_x, start_y)
+                path_points = [start_point] + [
+                    axes.coords_to_point(float(xy[i, 0]), float(xy[i, 1]))
+                    for i in range(xy.shape[0])
+                ]
+
+                path = VMobject(color=color, stroke_width=stroke_widths[idx])
+                path.set_points_smoothly(path_points)
+                paths.append(path)
+
+                end_dot = Dot(
+                    axes.coords_to_point(float(xy[-1, 0]), float(xy[-1, 1])),
+                    radius=0.1,
+                    color=color,
+                )
+                end_dots.append(end_dot)
+
+                # Fade previous
+                if idx > 0:
+                    self.play(
+                        paths[0].animate.set_stroke(opacity=faded_opacity),
+                        end_dots[0].animate.set_opacity(faded_opacity),
+                        run_time=0.3,
+                    )
+
+                self.play(
+                    Create(path),
+                    FadeIn(legend_items[idx]),
+                    run_time=3.0,
+                    rate_func=linear,
+                )
+                self.play(FadeIn(end_dot), run_time=0.3)
+                self.wait(0.3)
+
+            # Restore
+            self.play(
+                paths[0].animate.set_stroke(opacity=0.7),
+                end_dots[0].animate.set_opacity(0.7),
+                run_time=0.5,
+            )
+            self.wait(1)
+
+            # Final note
+            note = Text(
+                "Momentum accumulates velocity → escapes shallow local minima",
+                font_size=22,
+                color=GRAY_B,
+            )
+            note.next_to(legend_items, UP, buff=0.3)
+            self.play(FadeIn(note))
+            self.wait(2)
+
 
 if __name__ == "__main__":
     get_optimizer_state_sizes()
     generate_adam_moments_1d()
     generate_moving_average_demo()
     get_trajectories()
+    get_trajectories_bumpy()
     print("Cache generated at", cache_dir())
