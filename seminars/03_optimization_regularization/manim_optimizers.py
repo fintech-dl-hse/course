@@ -406,6 +406,206 @@ def get_trajectories_bumpy(
 
 if __name__ != "__main__":
     from manim import *
+    import numpy as np
+
+    # -------------------------------------------------------------------------
+    # Shared visualization helpers
+    # -------------------------------------------------------------------------
+
+    def create_filled_contours(
+        axes: Axes,
+        loss_fn: Callable[[float, float], float],
+        x_range: tuple[float, float],
+        y_range: tuple[float, float],
+        levels: list[float],
+        color_low: str,
+        color_high: str,
+        resolution: int = 50,
+    ) -> VGroup:
+        """
+        Create filled contour visualization (like matplotlib contourf).
+
+        Returns a VGroup of filled polygons representing loss regions.
+        """
+        x_min, x_max = x_range
+        y_min, y_max = y_range
+
+        # Create grid of loss values
+        xs = np.linspace(x_min, x_max, resolution)
+        ys = np.linspace(y_min, y_max, resolution)
+        loss_grid = np.zeros((resolution, resolution))
+        for i, x in enumerate(xs):
+            for j, y in enumerate(ys):
+                loss_grid[j, i] = loss_fn(x, y)
+
+        filled_regions = VGroup()
+
+        # Create filled regions from high to low (so lower values are on top)
+        for level_idx in range(len(levels) - 1, -1, -1):
+            level = levels[level_idx]
+            t_color = level_idx / (len(levels) - 1) if len(levels) > 1 else 0
+            color = interpolate_color(color_low, color_high, t_color)
+
+            # Find all grid cells below this level
+            for i in range(resolution - 1):
+                for j in range(resolution - 1):
+                    # Check if any corner is below level
+                    corners = [
+                        loss_grid[j, i],
+                        loss_grid[j, i + 1],
+                        loss_grid[j + 1, i],
+                        loss_grid[j + 1, i + 1],
+                    ]
+                    if min(corners) < level:
+                        # Create a small filled square
+                        x0, x1 = xs[i], xs[i + 1]
+                        y0, y1 = ys[j], ys[j + 1]
+                        square = Polygon(
+                            axes.coords_to_point(x0, y0),
+                            axes.coords_to_point(x1, y0),
+                            axes.coords_to_point(x1, y1),
+                            axes.coords_to_point(x0, y1),
+                            fill_color=color,
+                            fill_opacity=0.6,
+                            stroke_width=0,
+                        )
+                        filled_regions.add(square)
+
+        return filled_regions
+
+    def create_heatmap_background(
+        axes: Axes,
+        loss_fn: Callable[[float, float], float],
+        x_range: tuple[float, float],
+        y_range: tuple[float, float],
+        color_low: str,
+        color_high: str,
+        resolution: int = 40,
+        max_loss: float | None = None,
+    ) -> VGroup:
+        """
+        Create a heatmap-style background showing loss values.
+        """
+        x_min, x_max = x_range
+        y_min, y_max = y_range
+
+        xs = np.linspace(x_min, x_max, resolution)
+        ys = np.linspace(y_min, y_max, resolution)
+
+        # Compute all loss values
+        loss_values = []
+        for x in xs:
+            for y in ys:
+                loss_values.append(loss_fn(x, y))
+
+        if max_loss is None:
+            max_loss = max(loss_values)
+        min_loss = min(loss_values)
+
+        heatmap = VGroup()
+        idx = 0
+        for i, x in enumerate(xs[:-1]):
+            for j, y in enumerate(ys[:-1]):
+                loss = loss_fn((x + xs[i + 1]) / 2, (y + ys[j + 1]) / 2)
+                t = (loss - min_loss) / (max_loss - min_loss + 1e-8)
+                t = min(1.0, max(0.0, t))
+                color = interpolate_color(color_low, color_high, t)
+
+                square = Polygon(
+                    axes.coords_to_point(x, y),
+                    axes.coords_to_point(xs[i + 1], y),
+                    axes.coords_to_point(xs[i + 1], ys[j + 1]),
+                    axes.coords_to_point(x, ys[j + 1]),
+                    fill_color=color,
+                    fill_opacity=0.7,
+                    stroke_width=0,
+                )
+                heatmap.add(square)
+                idx += 1
+
+        return heatmap
+
+    def draw_trajectory_scene(
+        scene: Scene,
+        axes: Axes,
+        trajs: list[dict],
+        colors: list[str],
+        start_x: float,
+        start_y: float,
+        title: str = "Trajectories",
+    ) -> tuple[VGroup, VGroup, VGroup]:
+        """
+        Draw optimizer trajectories on given axes.
+        Returns (paths, end_dots, legend_items).
+        """
+        names = [t["name"] for t in trajs]
+        stroke_widths = [2.5 + 0.5 * i for i in range(len(trajs))]
+        faded_opacity = 0.25
+        final_opacities = [0.5 + 0.5 * i / (len(trajs) - 1) for i in range(len(trajs))]
+
+        # Prepare legend
+        legend_items = VGroup()
+        for name, color in zip(names, colors):
+            line_sample = Line(ORIGIN, RIGHT * 0.4, color=color, stroke_width=3)
+            t = Text(name, font_size=22, color=color)
+            t.next_to(line_sample, RIGHT, buff=0.1)
+            legend_items.add(VGroup(line_sample, t))
+        legend_items.arrange(RIGHT, buff=0.8)
+        legend_items.to_edge(DOWN, buff=0.5)
+
+        paths = []
+        end_dots = []
+
+        for idx, (traj, color) in enumerate(zip(trajs, colors)):
+            xy = traj["xy"]
+
+            start_point = axes.coords_to_point(start_x, start_y)
+            path_points = [start_point] + [
+                axes.coords_to_point(float(xy[i, 0]), float(xy[i, 1]))
+                for i in range(xy.shape[0])
+            ]
+
+            path = VMobject(color=color, stroke_width=stroke_widths[idx])
+            path.set_points_smoothly(path_points)
+            paths.append(path)
+
+            end_dot = Dot(
+                axes.coords_to_point(float(xy[-1, 0]), float(xy[-1, 1])),
+                radius=0.1,
+                color=color,
+            )
+            end_dots.append(end_dot)
+
+            # Fade previous paths
+            if idx > 0:
+                fade_anims = []
+                for prev_path in paths[:-1]:
+                    fade_anims.append(prev_path.animate.set_stroke(opacity=faded_opacity))
+                for prev_dot in end_dots[:-1]:
+                    fade_anims.append(prev_dot.animate.set_opacity(faded_opacity))
+                scene.play(*fade_anims, run_time=0.3)
+
+            scene.play(
+                Create(path),
+                FadeIn(legend_items[idx]),
+                run_time=2.5,
+                rate_func=linear,
+            )
+            scene.play(FadeIn(end_dot), run_time=0.3)
+            scene.wait(0.3)
+
+        # Restore to final opacities
+        restore_anims = []
+        for idx, (path, end_dot) in enumerate(zip(paths, end_dots)):
+            restore_anims.append(path.animate.set_stroke(opacity=final_opacities[idx]))
+            restore_anims.append(end_dot.animate.set_opacity(final_opacities[idx]))
+        scene.play(*restore_anims, run_time=0.5)
+
+        return VGroup(*paths), VGroup(*end_dots), legend_items
+
+    # -------------------------------------------------------------------------
+    # Main scene
+    # -------------------------------------------------------------------------
 
     class OptimizerComparison(Scene):
         """Main animation scene: SGD, SGD+momentum, Adam — state, moments, trajectories."""
@@ -772,253 +972,34 @@ if __name__ != "__main__":
                 run_time=0.6,
             )
 
-        def scene5_trajectory_comparison(self):
-            """Compare SGD, SGD+momentum, Adam on 2D loss with landscape."""
-            section_title = Text(
-                "4. Optimizer trajectories on 2D landscape",
-                font_size=36,
-                color=GRAY_B,
-            )
+        def _create_trajectory_scene(
+            self,
+            trajs: list[dict],
+            colors: list[str],
+            loss_fn: Callable[[float, float], float],
+            x_bounds: tuple[float, float],
+            y_bounds: tuple[float, float],
+            start_xy: tuple[float, float],
+            title: str,
+            color_low: str,
+            color_high: str,
+            final_note: str,
+        ) -> None:
+            """
+            Shared helper for trajectory visualization scenes.
+            Creates heatmap background, draws trajectories, and cleans up.
+            """
+            section_title = Text(title, font_size=36, color=GRAY_B)
             section_title.to_edge(UP, buff=0.6)
             self.play(FadeIn(section_title), run_time=0.5)
 
-            trajs = get_trajectories(steps=120)
-            all_xy = torch.cat([t["xy"] for t in trajs], dim=0)
-            x_min, x_max = float(all_xy[:, 0].min()), float(all_xy[:, 0].max())
-            y_min, y_max = float(all_xy[:, 1].min()), float(all_xy[:, 1].max())
-            pad = 0.5
-            x_range = [x_min - pad, x_max + pad, 0.5]
-            y_range = [y_min - pad, y_max + pad, 0.5]
+            x_min, x_max = x_bounds
+            y_min, y_max = y_bounds
+            start_x, start_y = start_xy
 
             axes = Axes(
-                x_range=x_range,
-                y_range=y_range,
-                x_length=8,
-                y_length=6,
-                tips=True,
-                axis_config={"include_numbers": False, "tip_length": 0.2},
-            )
-            axes.shift(DOWN * 0.3)
-
-            # Add axis labels
-            x_label = MathTex(r"\theta_1", font_size=28)
-            x_label.next_to(axes.x_axis, RIGHT, buff=0.1)
-            y_label = MathTex(r"\theta_2", font_size=28)
-            y_label.next_to(axes.y_axis, UP, buff=0.1)
-
-            # Parameters for the rotated quadratic (must match get_trajectories)
-            a, b, theta = 6.0, 1.0, 0.9
-            c = float(torch.cos(torch.tensor(theta)))
-            s = float(torch.sin(torch.tensor(theta)))
-
-            # Draw contour ellipses for the rotated quadratic loss
-            # Loss = 0.5 * (a*u^2 + b*v^2) where [u,v] = R^T [x,y]
-            # Level set: a*u^2 + b*v^2 = 2*level
-            # In principal coords: u^2/(2*level/a) + v^2/(2*level/b) = 1
-            contour_lines = VGroup()
-            loss_levels = [0.5, 1.5, 3.0, 6.0, 12.0, 20.0]
-            num_points = 100
-
-            for idx, level in enumerate(loss_levels):
-                # Semi-axes in principal coordinates
-                semi_a = (2 * level / a) ** 0.5
-                semi_b = (2 * level / b) ** 0.5
-
-                # Generate ellipse points in principal coords, then rotate
-                angles = torch.linspace(0, 2 * 3.14159, num_points)
-                u_pts = semi_a * torch.cos(angles)
-                v_pts = semi_b * torch.sin(angles)
-
-                # Rotate back to x,y: [x,y] = R @ [u,v]
-                x_pts = c * u_pts - s * v_pts
-                y_pts = s * u_pts + c * v_pts
-
-                # Create path
-                path_points = [
-                    axes.coords_to_point(float(x_pts[i]), float(y_pts[i]))
-                    for i in range(num_points)
-                ]
-
-                # Color interpolation from dark to light blue
-                t_color = idx / (len(loss_levels) - 1) if len(loss_levels) > 1 else 0
-                color = interpolate_color(BLUE_E, BLUE_A, t_color)
-
-                contour = VMobject(
-                    color=color,
-                    stroke_width=1.5,
-                    stroke_opacity=0.7,
-                )
-                contour.set_points_smoothly(path_points + [path_points[0]])
-                contour_lines.add(contour)
-
-            # Show landscape first
-            self.play(FadeIn(axes), FadeIn(x_label), FadeIn(y_label))
-            self.wait(0.3)
-
-            landscape_label = Text(
-                "Loss landscape (contour lines)",
-                font_size=22,
-                color=GRAY_B,
-            )
-            landscape_label.next_to(axes, UP, buff=0.2)
-            self.play(
-                LaggedStart(
-                    *[Create(c) for c in contour_lines],
-                    lag_ratio=0.1,
-                ),
-                FadeIn(landscape_label),
-                run_time=1.5,
-            )
-
-            # Mark the minimum
-            min_dot = Dot(
-                axes.coords_to_point(0, 0),
-                radius=0.08,
-                color=WHITE,
-            )
-            min_label = Text("minimum", font_size=18, color=WHITE)
-            min_label.next_to(min_dot, DOWN, buff=0.1)
-            self.play(FadeIn(min_dot), FadeIn(min_label))
-            self.wait(1)
-
-            # Mark the starting point
-            start_x, start_y = 2.5, 2.0
-            start_dot = Dot(
-                axes.coords_to_point(start_x, start_y),
-                radius=0.1,
-                color=YELLOW,
-            )
-            start_label = Text("start", font_size=18, color=YELLOW)
-            start_label.next_to(start_dot, UP, buff=0.1)
-            self.play(FadeIn(start_dot), FadeIn(start_label))
-            self.wait(1)
-
-            # Fade out labels before drawing trajectories
-            self.play(
-                FadeOut(landscape_label),
-                FadeOut(min_label),
-                FadeOut(start_label),
-            )
-
-            # Reorder trajectories: Adam, SGD+momentum, SGD
-            # Original order from get_trajectories: SGD (0), SGD+momentum (1), Adam (2)
-            traj_order = [2, 1, 0]  # Adam first, then SGD+momentum, then SGD
-            ordered_trajs = [trajs[i] for i in traj_order]
-            colors = [BLUE, GREEN, RED]  # Adam=blue, SGD+mom=green, SGD=red
-            names = [t["name"] for t in ordered_trajs]
-
-            # Prepare legend items (will appear incrementally)
-            legend_items = VGroup()
-            for name, color in zip(names, colors):
-                line_sample = Line(ORIGIN, RIGHT * 0.4, color=color, stroke_width=3)
-                t = Text(name, font_size=22, color=color)
-                t.next_to(line_sample, RIGHT, buff=0.1)
-                legend_items.add(VGroup(line_sample, t))
-            legend_items.arrange(RIGHT, buff=0.8)
-            legend_items.to_edge(DOWN, buff=0.5)
-
-            # Draw optimizer trajectories
-            # Use increasing stroke widths so later trajectories are more visible on top
-            stroke_widths = [2.5, 3.0, 3.5]
-            faded_opacity = 0.25
-            final_opacities = [0.5, 0.7, 1.0]  # Keep layered at end
-
-            paths = []
-            end_dots = []  # Dots marking end position of each trajectory
-
-            for idx, (traj, color, name) in enumerate(zip(ordered_trajs, colors, names)):
-                xy = traj["xy"]
-
-                # Include starting point in path for complete trajectory
-                start_point = axes.coords_to_point(start_x, start_y)
-                path_points = [start_point] + [
-                    axes.coords_to_point(float(xy[i, 0]), float(xy[i, 1]))
-                    for i in range(xy.shape[0])
-                ]
-
-                # Create path with increasing stroke width
-                path = VMobject(
-                    color=color,
-                    stroke_width=stroke_widths[idx],
-                )
-                path.set_points_smoothly(path_points)
-                paths.append(path)
-
-                # Create dot at end position to mark where optimizer ended
-                end_dot = Dot(
-                    axes.coords_to_point(float(xy[-1, 0]), float(xy[-1, 1])),
-                    radius=0.1,
-                    color=color,
-                )
-                end_dots.append(end_dot)
-
-                # Fade previous paths before drawing new one
-                if idx > 0:
-                    fade_anims = []
-                    for prev_path in paths[:-1]:
-                        fade_anims.append(
-                            prev_path.animate.set_stroke(opacity=faded_opacity)
-                        )
-                    for prev_dot in end_dots[:-1]:
-                        fade_anims.append(prev_dot.animate.set_opacity(faded_opacity))
-                    self.play(*fade_anims, run_time=0.3)
-
-                # Animate path creation with legend
-                self.play(
-                    Create(path),
-                    FadeIn(legend_items[idx]),
-                    run_time=2.5,
-                    rate_func=linear,
-                )
-                self.play(FadeIn(end_dot), run_time=0.3)
-                self.wait(0.3)
-
-            # Restore paths to final layered opacities (earlier = more transparent)
-            restore_anims = []
-            for idx, (path, end_dot) in enumerate(zip(paths, end_dots)):
-                restore_anims.append(
-                    path.animate.set_stroke(opacity=final_opacities[idx])
-                )
-                restore_anims.append(end_dot.animate.set_opacity(final_opacities[idx]))
-            self.play(*restore_anims, run_time=0.5)
-            self.wait(1)
-
-            # Final note
-            note = Text(
-                "SGD oscillates; momentum smooths; Adam adapts per-coordinate",
-                font_size=22,
-                color=GRAY_B,
-            )
-            note.next_to(legend_items, UP, buff=0.3)
-            self.play(FadeIn(note))
-            self.wait(2)
-
-        def scene6_momentum_local_minima(self):
-            """Demonstrate momentum escaping local minima on bumpy landscape."""
-            section_title = Text(
-                "5. Momentum escapes local minima",
-                font_size=36,
-                color=GRAY_B,
-            )
-            section_title.to_edge(UP, buff=0.6)
-            self.play(FadeIn(section_title), run_time=0.5)
-
-            trajs = get_trajectories_bumpy(steps=200)
-
-            # Compute axis ranges
-            all_xy = torch.cat([t["xy"] for t in trajs], dim=0)
-            x_min, x_max = float(all_xy[:, 0].min()), float(all_xy[:, 0].max())
-            y_min, y_max = float(all_xy[:, 1].min()), float(all_xy[:, 1].max())
-            pad = 0.5
-            # Ensure we show the global minimum at (0,0)
-            x_min = min(x_min, -0.5)
-            y_min = min(y_min, -0.5)
-            x_range = [x_min - pad, x_max + pad, 0.5]
-            y_range = [y_min - pad, y_max + pad, 0.5]
-
-            axes = Axes(
-                x_range=x_range,
-                y_range=y_range,
+                x_range=[x_min, x_max, 0.5],
+                y_range=[y_min, y_max, 0.5],
                 x_length=8,
                 y_length=6,
                 tips=True,
@@ -1032,140 +1013,136 @@ if __name__ != "__main__":
             y_label = MathTex(r"\theta_2", font_size=28)
             y_label.next_to(axes.y_axis, UP, buff=0.1)
 
-            # Draw bumpy contours
-            # f(xy) = 0.5*(x^2+y^2) + bump_scale*(1-cos(freq*x))*(1-cos(freq*y))
-            bump_scale, bump_freq = 0.4, 2.5
-            contour_lines = VGroup()
-            loss_levels = [0.5, 1.0, 2.0, 3.5, 5.0, 7.0]
-            num_points = 150
+            # Create heatmap background (contourf-like)
+            heatmap = create_heatmap_background(
+                axes=axes,
+                loss_fn=loss_fn,
+                x_range=(x_min, x_max),
+                y_range=(y_min, y_max),
+                color_low=color_low,
+                color_high=color_high,
+                resolution=35,
+            )
 
-            for idx, level in enumerate(loss_levels):
-                # Sample points on a grid and find contour
-                contour_points = []
-                for angle in torch.linspace(0, 2 * 3.14159, num_points):
-                    # Start from approximate radius and refine
-                    r_approx = (2 * level) ** 0.5
-                    for r in torch.linspace(0.1, r_approx * 1.5, 50):
-                        x = float(r * torch.cos(angle))
-                        y = float(r * torch.sin(angle))
-                        loss_val = 0.5 * (x**2 + y**2) + bump_scale * (1 - math.cos(bump_freq * x)) * (1 - math.cos(bump_freq * y))
-                        if abs(loss_val - level) < 0.15:
-                            contour_points.append(axes.coords_to_point(x, y))
-                            break
-
-                if len(contour_points) > 10:
-                    t_color = idx / (len(loss_levels) - 1) if len(loss_levels) > 1 else 0
-                    color = interpolate_color(PURPLE_E, PURPLE_A, t_color)
-                    contour = VMobject(color=color, stroke_width=1.5, stroke_opacity=0.6)
-                    contour.set_points_smoothly(contour_points + [contour_points[0]])
-                    contour_lines.add(contour)
-
-            # Show axes and contours
+            # Show heatmap and axes
+            self.play(FadeIn(heatmap), run_time=0.8)
             self.play(FadeIn(axes), FadeIn(x_label), FadeIn(y_label))
             self.wait(0.3)
 
-            landscape_label = Text(
-                "Bumpy landscape with local minima",
-                font_size=22,
-                color=GRAY_B,
-            )
-            landscape_label.next_to(axes, UP, buff=0.2)
-            self.play(
-                LaggedStart(*[Create(c) for c in contour_lines], lag_ratio=0.1),
-                FadeIn(landscape_label),
-                run_time=1.5,
-            )
-
-            # Mark global minimum
-            min_dot = Dot(axes.coords_to_point(0, 0), radius=0.08, color=WHITE)
-            min_label = Text("global min", font_size=16, color=WHITE)
+            # Mark the minimum
+            min_dot = Dot(axes.coords_to_point(0, 0), radius=0.1, color=WHITE)
+            min_label = Text("minimum", font_size=18, color=WHITE)
             min_label.next_to(min_dot, DOWN, buff=0.1)
             self.play(FadeIn(min_dot), FadeIn(min_label))
 
             # Mark starting point
-            start_x, start_y = 3.0, 2.5
-            start_dot = Dot(axes.coords_to_point(start_x, start_y), radius=0.1, color=YELLOW)
+            start_dot = Dot(
+                axes.coords_to_point(start_x, start_y),
+                radius=0.12,
+                color=YELLOW,
+            )
             start_label = Text("start", font_size=18, color=YELLOW)
             start_label.next_to(start_dot, UP, buff=0.1)
             self.play(FadeIn(start_dot), FadeIn(start_label))
             self.wait(1)
 
-            self.play(FadeOut(landscape_label), FadeOut(min_label), FadeOut(start_label))
+            self.play(FadeOut(min_label), FadeOut(start_label))
 
-            # Draw trajectories: SGD (red) vs SGD+momentum (green)
-            colors = [RED, GREEN]
-            names = [t["name"] for t in trajs]
-            stroke_widths = [3.0, 3.5]
-
-            # Prepare legend
-            legend_items = VGroup()
-            for name, color in zip(names, colors):
-                line_sample = Line(ORIGIN, RIGHT * 0.4, color=color, stroke_width=3)
-                t = Text(name, font_size=22, color=color)
-                t.next_to(line_sample, RIGHT, buff=0.1)
-                legend_items.add(VGroup(line_sample, t))
-            legend_items.arrange(RIGHT, buff=0.8)
-            legend_items.to_edge(DOWN, buff=0.5)
-
-            paths = []
-            end_dots = []
-            faded_opacity = 0.3
-
-            for idx, (traj, color, name) in enumerate(zip(trajs, colors, names)):
-                xy = traj["xy"]
-
-                # Include starting point
-                start_point = axes.coords_to_point(start_x, start_y)
-                path_points = [start_point] + [
-                    axes.coords_to_point(float(xy[i, 0]), float(xy[i, 1]))
-                    for i in range(xy.shape[0])
-                ]
-
-                path = VMobject(color=color, stroke_width=stroke_widths[idx])
-                path.set_points_smoothly(path_points)
-                paths.append(path)
-
-                end_dot = Dot(
-                    axes.coords_to_point(float(xy[-1, 0]), float(xy[-1, 1])),
-                    radius=0.1,
-                    color=color,
-                )
-                end_dots.append(end_dot)
-
-                # Fade previous
-                if idx > 0:
-                    self.play(
-                        paths[0].animate.set_stroke(opacity=faded_opacity),
-                        end_dots[0].animate.set_opacity(faded_opacity),
-                        run_time=0.3,
-                    )
-
-                self.play(
-                    Create(path),
-                    FadeIn(legend_items[idx]),
-                    run_time=3.0,
-                    rate_func=linear,
-                )
-                self.play(FadeIn(end_dot), run_time=0.3)
-                self.wait(0.3)
-
-            # Restore
-            self.play(
-                paths[0].animate.set_stroke(opacity=0.7),
-                end_dots[0].animate.set_opacity(0.7),
-                run_time=0.5,
+            # Draw trajectories using shared helper
+            paths, end_dots, legend_items = draw_trajectory_scene(
+                scene=self,
+                axes=axes,
+                trajs=trajs,
+                colors=colors,
+                start_x=start_x,
+                start_y=start_y,
             )
             self.wait(1)
 
             # Final note
-            note = Text(
-                "Momentum accumulates velocity → escapes shallow local minima",
-                font_size=22,
-                color=GRAY_B,
-            )
+            note = Text(final_note, font_size=22, color=GRAY_B)
             note.next_to(legend_items, UP, buff=0.3)
             self.play(FadeIn(note))
             self.wait(2)
+
+            # Clean up all objects
+            all_objects = [
+                section_title, axes, x_label, y_label, heatmap,
+                min_dot, start_dot, paths, end_dots, legend_items, note,
+            ]
+            self.play(*[FadeOut(obj) for obj in all_objects], run_time=0.6)
+
+        def scene5_trajectory_comparison(self):
+            """Compare SGD, SGD+momentum, Adam on 2D loss with landscape."""
+            trajs = get_trajectories(steps=120)
+
+            # Reorder: Adam, SGD+momentum, SGD
+            traj_order = [2, 1, 0]
+            ordered_trajs = [trajs[i] for i in traj_order]
+            colors = [BLUE, GREEN, RED]
+
+            # Loss function for rotated quadratic
+            a, b, theta = 6.0, 1.0, 0.9
+            c = float(torch.cos(torch.tensor(theta)))
+            s = float(torch.sin(torch.tensor(theta)))
+
+            def loss_fn(x: float, y: float) -> float:
+                u = c * x + s * y
+                v = -s * x + c * y
+                return 0.5 * (a * u**2 + b * v**2)
+
+            # Compute bounds from trajectories
+            all_xy = torch.cat([t["xy"] for t in trajs], dim=0)
+            x_min = float(all_xy[:, 0].min()) - 0.5
+            x_max = float(all_xy[:, 0].max()) + 0.5
+            y_min = float(all_xy[:, 1].min()) - 0.5
+            y_max = float(all_xy[:, 1].max()) + 0.5
+
+            self._create_trajectory_scene(
+                trajs=ordered_trajs,
+                colors=colors,
+                loss_fn=loss_fn,
+                x_bounds=(x_min, x_max),
+                y_bounds=(y_min, y_max),
+                start_xy=(2.5, 2.0),
+                title="4. Optimizer trajectories on 2D landscape",
+                color_low=BLUE_E,
+                color_high=BLUE_A,
+                final_note="SGD oscillates; momentum smooths; Adam adapts per-coordinate",
+            )
+
+        def scene6_momentum_local_minima(self):
+            """Demonstrate momentum escaping local minima on bumpy landscape."""
+            trajs = get_trajectories_bumpy(steps=200)
+            colors = [RED, GREEN]
+
+            # Loss function with bumps
+            bump_scale, bump_freq = 0.4, 2.5
+
+            def loss_fn(x: float, y: float) -> float:
+                quadratic = 0.5 * (x**2 + y**2)
+                bumps = bump_scale * (1 - math.cos(bump_freq * x)) * (1 - math.cos(bump_freq * y))
+                return quadratic + bumps
+
+            # Compute bounds
+            all_xy = torch.cat([t["xy"] for t in trajs], dim=0)
+            x_min = min(float(all_xy[:, 0].min()), -0.5) - 0.5
+            x_max = float(all_xy[:, 0].max()) + 0.5
+            y_min = min(float(all_xy[:, 1].min()), -0.5) - 0.5
+            y_max = float(all_xy[:, 1].max()) + 0.5
+
+            self._create_trajectory_scene(
+                trajs=trajs,
+                colors=colors,
+                loss_fn=loss_fn,
+                x_bounds=(x_min, x_max),
+                y_bounds=(y_min, y_max),
+                start_xy=(3.0, 2.5),
+                title="5. Momentum escapes local minima",
+                color_low=PURPLE_E,
+                color_high=PURPLE_A,
+                final_note="Momentum accumulates velocity → escapes shallow local minima",
+            )
 
 
 if __name__ == "__main__":
