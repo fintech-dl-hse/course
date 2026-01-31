@@ -81,7 +81,7 @@ def process_notebook(path: Path, seminars_dir: Path) -> bool:
 
     notebook["cells"] = [badge_cell] + cells
     with path.open("w", encoding="utf-8") as handle:
-        json.dump(notebook, handle, ensure_ascii=False, indent=4)
+        json.dump(notebook, handle, ensure_ascii=False, indent=2)
         handle.write("\n")
     return True
 
