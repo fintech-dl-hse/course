@@ -1,0 +1,32 @@
+---
+description: Seminar structure, themes, and lightweight notebook/SE style
+globs: seminars/**
+alwaysApply: false
+---
+
+### Seminars overview (Fintech DL HSE)
+
+#### Expected seminar flow
+- Start with quick feedback fixes (from last seminar / forms).
+- Short recap of previous material.
+- New material (hands-on first, then “how it works”).
+- Blitz questions on new concepts.
+- Homework overview (what matters, pitfalls, grading hints).
+
+#### Core themes we cover (use as anchors)
+- Training basics: backprop, losses, activations, weight init.
+- Optimization + regularization: SGD/Adam/Muon, LR schedules, weight decay, dropout.
+- CV: CNNs, vision tasks; later ViT + self-supervised/contrastive.
+- Generative: AR, GAN, VAE, diffusion.
+- NLP: word2vec, tokenization (BPE/WordPiece/SentencePiece), RNN/attention/transformers, pretrained LMs.
+- LLM engineering: scaling laws, in-context learning, test-time scaling, PEFT.
+- Agents & systems: function calling, agentic patterns, observability, MCP, RAG.
+- Multimodal models.
+
+#### Seminar crafting style (lightweight)
+- One concept per cell/section; keep cells short and runnable top-to-bottom.
+- Prefer clarity over cleverness: explicit names, small helper functions, minimal magic.
+- Add type hints + brief docstrings for reusable helpers.
+- Make experiments reproducible: fixed seeds, deterministic settings (when feasible), explicit dependencies.
+- Before committing notebooks: clear outputs; avoid huge artifacts in repo.
+- No trailing spaces.
