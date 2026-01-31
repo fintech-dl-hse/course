@@ -84,6 +84,7 @@ Use a small 2D objective for pedagogy (quadratic bowl, rotated quadratic, Rosenb
 - **Axes API (Manim CE)**: Use `axes.coords_to_point(x, y)` for coordinate→point; `axes.plot_line_graph(x_values=..., y_values=...)` takes **x_values** and **y_values** (iterables), not `x_range`.
 - **Implicit curves unreliable**: Avoid `plot_implicit_curve` for contour lines—it can fail or produce artifacts. For rotated quadratics, compute ellipse points parametrically and use `VMobject.set_points_smoothly(path_points)`.
 - **Color interpolation**: Use `interpolate_color(COLOR_A, COLOR_B, t)` for smooth color gradients (e.g., contour levels from dark to light).
+- **Latex**: Use `MathTex` for latex formulas.
 
 ### Layout and spacing
 
