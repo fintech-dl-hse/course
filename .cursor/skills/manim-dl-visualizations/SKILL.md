@@ -74,9 +74,46 @@ Use a small 2D objective for pedagogy (quadratic bowl, rotated quadratic, Rosenb
 
 ## Pitfalls and mistakes to avoid
 
+### PyTorch / data generation
+
 - **Optimizer state**: Read optimizer state (e.g. Adam `exp_avg`, `exp_avg_sq`) **after** `opt.step()`, not before; PyTorch fills state during/after the step → `KeyError` if read before.
-- **Axes API (Manim CE)**: Use `axes.coords_to_point(x, y)` for coordinate→point; `axes.plot_line_graph(x_values=..., y_values=...)` takes **x_values** and **y_values** (iterables), not `x_range`.
 - **Cache vs Manim import**: If the same file does cache generation when run as script and defines Scene when loaded by Manim, use `if __name__ != "__main__":` before `from manim import *` and scene class(es), so `python file.py` does not require Manim.
+
+### Manim API
+
+- **Axes API (Manim CE)**: Use `axes.coords_to_point(x, y)` for coordinate→point; `axes.plot_line_graph(x_values=..., y_values=...)` takes **x_values** and **y_values** (iterables), not `x_range`.
+- **Implicit curves unreliable**: Avoid `plot_implicit_curve` for contour lines—it can fail or produce artifacts. For rotated quadratics, compute ellipse points parametrically and use `VMobject.set_points_smoothly(path_points)`.
+- **Color interpolation**: Use `interpolate_color(COLOR_A, COLOR_B, t)` for smooth color gradients (e.g., contour levels from dark to light).
+
+### Layout and spacing
+
+- **Tight padding**: Use `buff=0.5` or `buff=0.6` for section titles (`.to_edge(UP, buff=0.6)`), not `buff=0.4`. Tight buffers crowd elements.
+- **Font sizes**: Section titles: 36. Body text/labels: 22-28. Annotations: 18-20. Formulas: 38-44.
+
+### Pedagogical structure
+
+- **Teach concepts before applications**: If scene B uses a concept from scene A, scene A must come first. Example: explain EMA before showing Adam moments (which are EMAs of gradients).
+- **Show formulas with plots**: When visualizing a mathematical concept (EMA, loss function), display the formula on screen alongside the plot.
+- **Merge related content**: Don't split tightly coupled topics (e.g., "moment formulas" and "moment intuition") into separate scenes—combine them into one cohesive scene.
+- **Establish context first**: For trajectory comparisons, show the loss landscape (contour lines) before drawing optimizer paths. Viewers need to see "what we're navigating" before "how optimizers navigate it".
+
+### Legends and labels
+
+- **Proper legends**: Don't just add colored text. Create legend items with line samples:
+  ```python
+  legend_items = VGroup()
+  for label, color in zip(labels, colors):
+      line_sample = Line(ORIGIN, RIGHT * 0.5, color=color, stroke_width=3)
+      text = Text(label, font_size=20, color=color)
+      text.next_to(line_sample, RIGHT, buff=0.15)
+      legend_items.add(VGroup(line_sample, text))
+  legend_items.arrange(RIGHT, buff=0.6).to_edge(DOWN, buff=0.5)
+  ```
+- **Mark key points**: On optimization landscapes, mark the minimum and starting point with labeled dots before animating trajectories.
+
+### Visual flow for memory/state diagrams
+
+- **Show relationships, not just bars**: When visualizing optimizer memory overhead, don't use plain bar charts. Instead show visual flow: Model Parameters box → arrows → Optimizer boxes → extra buffer boxes stacked below. This communicates that optimizer state derives from model parameters.
 
 ## Commands (Manim CE)
 
@@ -93,8 +130,13 @@ Faster iteration: `-ql`. Higher quality: `-qh`. Use `--media_dir <path>` to send
 - **Correctness**: data functions run standalone; no silent NaNs.
 - **Reproducibility**: set seeds, document hyperparams.
 - **Performance**: avoid heavy training during rendering; use cache.
-- **Pedagogy**: labels, legends, and short on-screen text; avoid clutter.
-- **Files**: no trailing spaces; don’t commit large caches.
+- **Pedagogy**:
+  - Concepts before applications (EMA before Adam moments).
+  - Formulas shown alongside visualizations.
+  - Context before action (loss landscape before trajectories).
+  - Proper legends with line samples, not just text.
+- **Layout**: adequate padding (`buff >= 0.5`), consistent font sizes, labeled axes and key points.
+- **Files**: no trailing spaces; don't commit large caches.
 
 ## Templates and copy-paste snippets
 

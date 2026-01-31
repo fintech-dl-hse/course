@@ -344,10 +344,9 @@ if __name__ != "__main__":
         def construct(self):
             self.scene1_title()
             self.scene2_state_memory()
-            self.scene3_moments_formulas()
-            self.scene4_moving_average()
-            self.scene5_first_second_moment()
-            self.scene6_trajectory_comparison()
+            self.scene3_moving_average()
+            self.scene4_moments_and_intuition()
+            self.scene5_trajectory_comparison()
 
         def scene1_title(self):
             """Title card."""
@@ -372,109 +371,161 @@ if __name__ != "__main__":
             """Optimizer state and GPU memory (SGD, SGD+momentum, Adam)."""
             section_title = Text(
                 "1. Optimizer state & GPU memory",
-                font_size=32,
+                font_size=36,
                 color=GRAY_B,
             )
-            section_title.to_edge(UP, buff=0.4)
+            section_title.to_edge(UP, buff=0.6)
             self.play(FadeIn(section_title), run_time=0.5)
 
-            data = get_optimizer_state_sizes()
-            labels = ["Model params", "SGD", "SGD + momentum", "Adam"]
-            values = [
-                data["params_kb"],
-                data["sgd_kb"],
-                data["sgd_momentum_kb"],
-                data["adam_kb"],
-            ]
-            max_v = max(values)
-            bar_width = 0.6
-            bar_max_height = 3.0
-
-            bars = VGroup()
-            baseline = DOWN * 1.5
-            for i, (label, v) in enumerate(zip(labels, values)):
-                height = bar_max_height * (v / max_v) if max_v > 0 else 0.1
-                bar = Rectangle(
-                    width=bar_width,
-                    height=height,
-                    fill_color=BLUE,
-                    fill_opacity=0.8,
-                    stroke_color=WHITE,
-                )
-                bar.move_to(baseline + (i - 1.5) * (bar_width + 0.4) * RIGHT)
-                bar.shift(UP * (height / 2))
-                txt = Text(f"{label}\n{v:.1f} KB", font_size=24)
-                txt.next_to(bar, DOWN, buff=0.2)
-                bars.add(VGroup(bar, txt))
-
-            self.play(LaggedStart(*(FadeIn(b) for b in bars), lag_ratio=0.15))
-            self.wait(1.5)
-
-            note = Text(
-                "SGD: no extra state. Momentum: 1 buffer (velocity). "
-                "Adam: 2 buffers (m, v) → ~2× params.",
-                font_size=26,
+            # Show model parameters box first
+            model_box = Rectangle(
+                width=2.5,
+                height=1.2,
+                fill_color=BLUE,
+                fill_opacity=0.7,
+                stroke_color=WHITE,
+                stroke_width=2,
             )
-            note.to_edge(DOWN)
+            model_label = Text("Model\nParameters", font_size=24)
+            model_label.move_to(model_box)
+            model_group = VGroup(model_box, model_label)
+            model_group.shift(UP * 2 + LEFT * 4)
+
+            self.play(FadeIn(model_group))
+            self.wait(0.5)
+
+            # Memory indicator for model params
+            data = get_optimizer_state_sizes()
+            params_kb = data["params_kb"]
+
+            mem_text = Text(f"1× ({params_kb:.1f} KB)", font_size=20, color=YELLOW)
+            mem_text.next_to(model_box, DOWN, buff=0.15)
+            self.play(FadeIn(mem_text))
+            self.wait(0.5)
+
+            # Create optimizer state visualizations
+            optimizers_info = [
+                ("SGD", GRAY, 0, "0× extra"),
+                ("SGD + momentum", GREEN, 1, "+1× (velocity)"),
+                ("Adam", TEAL, 2, "+2× (m, v)"),
+            ]
+
+            opt_groups = VGroup()
+            arrows = VGroup()
+            start_x = -1.5
+            spacing = 3.5
+
+            for i, (name, color, multiplier, extra_label) in enumerate(optimizers_info):
+                # Optimizer box
+                opt_box = Rectangle(
+                    width=2.2,
+                    height=0.9,
+                    fill_color=color,
+                    fill_opacity=0.6,
+                    stroke_color=WHITE,
+                    stroke_width=2,
+                )
+                opt_label = Text(name, font_size=22)
+                opt_label.move_to(opt_box)
+                opt_group = VGroup(opt_box, opt_label)
+                opt_group.move_to(RIGHT * (start_x + i * spacing) + DOWN * 0.3)
+
+                # Arrow from model to optimizer
+                arrow = Arrow(
+                    model_box.get_right() + DOWN * 0.3,
+                    opt_box.get_top(),
+                    buff=0.15,
+                    color=WHITE,
+                    stroke_width=2,
+                )
+
+                # Extra memory boxes below optimizer
+                extra_group = VGroup()
+                if multiplier > 0:
+                    for j in range(multiplier):
+                        extra_box = Rectangle(
+                            width=2.0,
+                            height=0.6,
+                            fill_color=color,
+                            fill_opacity=0.4,
+                            stroke_color=color,
+                            stroke_width=1.5,
+                        )
+                        extra_box.next_to(
+                            opt_box if j == 0 else extra_group[-1],
+                            DOWN,
+                            buff=0.1,
+                        )
+                        extra_group.add(extra_box)
+
+                # Memory label
+                total_mult = 1 + multiplier
+                mem_label = Text(
+                    f"{total_mult}× total",
+                    font_size=18,
+                    color=YELLOW,
+                )
+                if multiplier > 0:
+                    mem_label.next_to(extra_group, DOWN, buff=0.15)
+                else:
+                    mem_label.next_to(opt_box, DOWN, buff=0.15)
+
+                extra_label_text = Text(extra_label, font_size=16, color=GRAY_B)
+                extra_label_text.next_to(mem_label, DOWN, buff=0.08)
+
+                full_group = VGroup(opt_group, extra_group, mem_label, extra_label_text)
+                opt_groups.add(full_group)
+                arrows.add(arrow)
+
+            # Animate optimizers appearing
+            for arrow, opt_group in zip(arrows, opt_groups):
+                self.play(
+                    GrowArrow(arrow),
+                    FadeIn(opt_group),
+                    run_time=0.8,
+                )
+                self.wait(0.3)
+
+            self.wait(1)
+
+            # Summary note
+            note = Text(
+                "Each moment buffer = same size as model parameters",
+                font_size=24,
+                color=GRAY_B,
+            )
+            note.to_edge(DOWN, buff=0.5)
             self.play(FadeIn(note))
             self.wait(2)
 
             self.play(
                 FadeOut(section_title),
-                FadeOut(bars),
+                FadeOut(model_group),
+                FadeOut(mem_text),
+                FadeOut(opt_groups),
+                FadeOut(arrows),
                 FadeOut(note),
-                run_time=0.5,
+                run_time=0.6,
             )
 
-        def scene3_moments_formulas(self):
-            """How moments are computed (m_t, v_t)."""
-            section_title = Text(
-                "2. Adam: how moments are computed",
-                font_size=32,
-                color=GRAY_B,
-            )
-            section_title.to_edge(UP, buff=0.4)
-            self.play(FadeIn(section_title), run_time=0.5)
-
-            m_formula = MathTex(
-                r"m_t = \beta_1 m_{t-1} + (1 - \beta_1) g_t",
-                font_size=44,
-            )
-            m_label = Text("First moment (gradient EMA)", font_size=28)
-            m_label.next_to(m_formula, UP, buff=0.3)
-            m_formula.shift(UP * 0.5)
-
-            v_formula = MathTex(
-                r"v_t = \beta_2 v_{t-1} + (1 - \beta_2) g_t^2",
-                font_size=44,
-            )
-            v_formula.next_to(m_formula, DOWN, buff=0.8)
-            v_label = Text("Second moment (squared gradient EMA)", font_size=28)
-            v_label.next_to(v_formula, UP, buff=0.2)
-
-            self.play(Write(m_label), Write(m_formula))
-            self.wait(1.5)
-            self.play(Write(v_label), Write(v_formula))
-            self.wait(2)
-
-            self.play(
-                FadeOut(section_title),
-                FadeOut(m_label),
-                FadeOut(m_formula),
-                FadeOut(v_label),
-                FadeOut(v_formula),
-                run_time=0.5,
-            )
-
-        def scene4_moving_average(self):
+        def scene3_moving_average(self):
             """Why moving average; how EMA smooths noisy signal."""
             section_title = Text(
-                "3. Exponential moving average",
-                font_size=32,
+                "2. Exponential moving average (EMA)",
+                font_size=36,
                 color=GRAY_B,
             )
-            section_title.to_edge(UP, buff=0.4)
+            section_title.to_edge(UP, buff=0.6)
             self.play(FadeIn(section_title), run_time=0.5)
+
+            # Show EMA formula first
+            ema_formula = MathTex(
+                r"\text{EMA}_t = \beta \cdot \text{EMA}_{t-1} + (1 - \beta) \cdot x_t",
+                font_size=40,
+            )
+            ema_formula.next_to(section_title, DOWN, buff=0.5)
+            self.play(Write(ema_formula))
+            self.wait(1)
 
             data = generate_moving_average_demo()
             raw = data["raw"]
@@ -483,14 +534,14 @@ if __name__ != "__main__":
 
             axes = Axes(
                 x_range=[0, len(raw), 20],
-                y_range=[float(raw.min()) - 0.02, float(raw.max()) + 0.02, 0.02],
-                x_length=10,
-                y_length=5,
+                y_range=[float(raw.min()) - 0.02, float(raw.max()) + 0.02, 0.05],
+                x_length=9,
+                y_length=4,
                 tips=False,
+                axis_config={"include_numbers": False},
             )
-            axes.center()
-            axes.shift(DOWN * 0.5)
-            self.add(axes)
+            axes.shift(DOWN * 0.8)
+            self.play(FadeIn(axes))
 
             x_vals = list(range(len(raw)))
             y_vals_raw = [float(raw[i]) for i in range(len(raw))]
@@ -499,11 +550,10 @@ if __name__ != "__main__":
                 y_values=y_vals_raw,
                 line_color=GRAY,
                 add_vertex_dots=False,
+                stroke_width=2,
             )
             self.play(Create(raw_line))
-            raw_label = Text("raw", font_size=24).set_color(GRAY).to_corner(UR)
-            self.add(raw_label)
-            self.wait(1)
+            self.wait(0.5)
 
             colors = [YELLOW, GREEN, TEAL]
             ema_lines = []
@@ -514,120 +564,313 @@ if __name__ != "__main__":
                     y_values=y_vals,
                     line_color=color,
                     add_vertex_dots=False,
+                    stroke_width=2.5,
                 )
                 ema_lines.append(line)
-                self.play(Create(line), run_time=1.2)
-                self.wait(0.3)
-            legend = Text(
-                f"β = {betas[0]}, {betas[1]}, {betas[2]}  (larger β → smoother)",
-                font_size=26,
-            )
-            legend.to_edge(DOWN)
-            self.play(FadeIn(legend))
-            self.wait(2)
+                self.play(Create(line), run_time=1.0)
+                self.wait(0.2)
 
-            to_fade = [section_title, axes, raw_line, raw_label, legend] + ema_lines
-            self.play(*[FadeOut(m) for m in to_fade], run_time=0.5)
+            # Create proper legend
+            legend_items = VGroup()
+            legend_labels = ["raw signal"] + [f"β = {b}" for b in betas]
+            legend_colors = [GRAY] + colors
 
-        def scene5_first_second_moment(self):
-            """Intuition: first moment = direction; second = scale/variance."""
-            section_title = Text(
-                "4. First vs second moment intuition",
-                font_size=32,
+            for label, color in zip(legend_labels, legend_colors):
+                line_sample = Line(ORIGIN, RIGHT * 0.5, color=color, stroke_width=3)
+                text = Text(label, font_size=20, color=color)
+                text.next_to(line_sample, RIGHT, buff=0.15)
+                item = VGroup(line_sample, text)
+                legend_items.add(item)
+
+            legend_items.arrange(RIGHT, buff=0.6)
+            legend_items.to_edge(DOWN, buff=0.5)
+            self.play(FadeIn(legend_items))
+
+            # Note about beta
+            note = Text(
+                "Larger β → smoother (more history, slower to adapt)",
+                font_size=22,
                 color=GRAY_B,
             )
-            section_title.to_edge(UP, buff=0.4)
+            note.next_to(ema_formula, DOWN, buff=0.3)
+            self.play(FadeIn(note))
+            self.wait(2)
+
+            to_fade = [section_title, ema_formula, axes, raw_line, legend_items, note] + ema_lines
+            self.play(*[FadeOut(m) for m in to_fade], run_time=0.6)
+
+        def scene4_moments_and_intuition(self):
+            """Combined scene: Adam moments formulas + intuition."""
+            section_title = Text(
+                "3. Adam: moments & intuition",
+                font_size=36,
+                color=GRAY_B,
+            )
+            section_title.to_edge(UP, buff=0.6)
             self.play(FadeIn(section_title), run_time=0.5)
 
-            first = VGroup(
-                Text("First moment m_t", font_size=32).set_color(YELLOW),
-                Text("≈ average gradient direction", font_size=28),
-                Text("→ where to step (like momentum)", font_size=26),
+            # First moment formula and intuition (left side)
+            m_formula = MathTex(
+                r"m_t = \beta_1 m_{t-1} + (1 - \beta_1) g_t",
+                font_size=38,
             )
-            first.arrange(DOWN, aligned_edge=LEFT).shift(LEFT * 2.8 + UP * 0.2)
-            second = VGroup(
-                Text("Second moment v_t", font_size=32).set_color(TEAL),
-                Text("≈ average squared gradient", font_size=28),
-                Text("→ scale / variance per coordinate", font_size=26),
-                Text("→ larger v → smaller step (adaptive lr)", font_size=26),
-            )
-            second.arrange(DOWN, aligned_edge=LEFT).shift(RIGHT * 2.8 + UP * 0.2)
+            m_formula.shift(UP * 1.8 + LEFT * 0.5)
 
-            self.play(FadeIn(first))
+            m_intuition = VGroup(
+                Text("First moment", font_size=28, color=YELLOW),
+                Text("= EMA of gradients", font_size=24),
+                Text("→ gradient direction", font_size=22, color=GRAY_B),
+                Text("→ like momentum", font_size=22, color=GRAY_B),
+            )
+            m_intuition.arrange(DOWN, aligned_edge=LEFT, buff=0.15)
+            m_intuition.next_to(m_formula, DOWN, buff=0.4)
+            m_intuition.align_to(m_formula, LEFT)
+
+            self.play(Write(m_formula))
+            self.wait(0.5)
+            self.play(FadeIn(m_intuition))
+            self.wait(1)
+
+            # Second moment formula and intuition (below)
+            v_formula = MathTex(
+                r"v_t = \beta_2 v_{t-1} + (1 - \beta_2) g_t^2",
+                font_size=38,
+            )
+            v_formula.shift(DOWN * 0.8 + LEFT * 0.5)
+
+            v_intuition = VGroup(
+                Text("Second moment", font_size=28, color=TEAL),
+                Text("= EMA of squared gradients", font_size=24),
+                Text("→ gradient variance", font_size=22, color=GRAY_B),
+                Text("→ adaptive learning rate", font_size=22, color=GRAY_B),
+            )
+            v_intuition.arrange(DOWN, aligned_edge=LEFT, buff=0.15)
+            v_intuition.next_to(v_formula, DOWN, buff=0.4)
+            v_intuition.align_to(v_formula, LEFT)
+
+            self.play(Write(v_formula))
+            self.wait(0.5)
+            self.play(FadeIn(v_intuition))
             self.wait(1.5)
-            self.play(FadeIn(second))
-            self.wait(1.5)
+
+            # Move formulas up and show update rule
+            self.play(
+                m_formula.animate.shift(UP * 0.5),
+                m_intuition.animate.shift(UP * 0.5),
+                v_formula.animate.shift(UP * 0.5),
+                v_intuition.animate.shift(UP * 0.5),
+            )
+
+            # Adam update rule
+            update_title = Text("Adam update rule:", font_size=26, color=GRAY_B)
+            update_title.to_edge(DOWN, buff=1.8)
 
             update = MathTex(
-                r"\theta_{t+1} = \theta_t - \alpha \frac{\hat m_t}{\sqrt{\hat v_t} + \varepsilon}",
-                font_size=36,
+                r"\theta_{t+1} = \theta_t - \alpha \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \varepsilon}",
+                font_size=40,
             )
-            update.to_edge(DOWN)
-            self.play(Write(update))
-            self.wait(2)
+            update.next_to(update_title, DOWN, buff=0.3)
+
+            bias_note = Text(
+                "(with bias correction: m̂ = m/(1-β₁ᵗ), v̂ = v/(1-β₂ᵗ))",
+                font_size=20,
+                color=GRAY_B,
+            )
+            bias_note.next_to(update, DOWN, buff=0.2)
+
+            self.play(FadeIn(update_title), Write(update))
+            self.play(FadeIn(bias_note))
+            self.wait(2.5)
 
             self.play(
                 FadeOut(section_title),
-                FadeOut(first),
-                FadeOut(second),
+                FadeOut(m_formula),
+                FadeOut(m_intuition),
+                FadeOut(v_formula),
+                FadeOut(v_intuition),
+                FadeOut(update_title),
                 FadeOut(update),
-                run_time=0.5,
+                FadeOut(bias_note),
+                run_time=0.6,
             )
 
-        def scene6_trajectory_comparison(self):
-            """Compare SGD, SGD+momentum, Adam on 2D loss."""
+        def scene5_trajectory_comparison(self):
+            """Compare SGD, SGD+momentum, Adam on 2D loss with landscape."""
             section_title = Text(
-                "5. Optimizer comparison: same 2D objective",
-                font_size=32,
+                "4. Optimizer trajectories on 2D landscape",
+                font_size=36,
                 color=GRAY_B,
             )
-            section_title.to_edge(UP, buff=0.4)
+            section_title.to_edge(UP, buff=0.6)
             self.play(FadeIn(section_title), run_time=0.5)
 
             trajs = get_trajectories(steps=120)
             all_xy = torch.cat([t["xy"] for t in trajs], dim=0)
             x_min, x_max = float(all_xy[:, 0].min()), float(all_xy[:, 0].max())
             y_min, y_max = float(all_xy[:, 1].min()), float(all_xy[:, 1].max())
-            pad = 0.3
-            x_range = [x_min - pad, x_max + pad, (x_max - x_min + 2 * pad) / 4]
-            y_range = [y_min - pad, y_max + pad, (y_max - y_min + 2 * pad) / 4]
+            pad = 0.5
+            x_range = [x_min - pad, x_max + pad, 0.5]
+            y_range = [y_min - pad, y_max + pad, 0.5]
 
             axes = Axes(
                 x_range=x_range,
                 y_range=y_range,
-                x_length=10,
-                y_length=10,
+                x_length=8,
+                y_length=6,
                 tips=False,
+                axis_config={"include_numbers": False},
             )
-            axes.center().shift(DOWN * 0.3)
-            self.add(axes)
+            axes.shift(DOWN * 0.3)
 
+            # Parameters for the rotated quadratic (must match get_trajectories)
+            a, b, theta = 6.0, 1.0, 0.9
+            c = float(torch.cos(torch.tensor(theta)))
+            s = float(torch.sin(torch.tensor(theta)))
+
+            # Draw contour ellipses for the rotated quadratic loss
+            # Loss = 0.5 * (a*u^2 + b*v^2) where [u,v] = R^T [x,y]
+            # Level set: a*u^2 + b*v^2 = 2*level
+            # In principal coords: u^2/(2*level/a) + v^2/(2*level/b) = 1
+            contour_lines = VGroup()
+            loss_levels = [0.5, 1.5, 3.0, 6.0, 12.0, 20.0]
+            num_points = 100
+
+            for idx, level in enumerate(loss_levels):
+                # Semi-axes in principal coordinates
+                semi_a = (2 * level / a) ** 0.5
+                semi_b = (2 * level / b) ** 0.5
+
+                # Generate ellipse points in principal coords, then rotate
+                angles = torch.linspace(0, 2 * 3.14159, num_points)
+                u_pts = semi_a * torch.cos(angles)
+                v_pts = semi_b * torch.sin(angles)
+
+                # Rotate back to x,y: [x,y] = R @ [u,v]
+                x_pts = c * u_pts - s * v_pts
+                y_pts = s * u_pts + c * v_pts
+
+                # Create path
+                path_points = [
+                    axes.coords_to_point(float(x_pts[i]), float(y_pts[i]))
+                    for i in range(num_points)
+                ]
+
+                # Color interpolation from dark to light blue
+                t_color = idx / (len(loss_levels) - 1) if len(loss_levels) > 1 else 0
+                color = interpolate_color(BLUE_E, BLUE_A, t_color)
+
+                contour = VMobject(
+                    color=color,
+                    stroke_width=1.5,
+                    stroke_opacity=0.7,
+                )
+                contour.set_points_smoothly(path_points + [path_points[0]])
+                contour_lines.add(contour)
+
+            # Show landscape first
+            self.play(FadeIn(axes))
+            self.wait(0.3)
+
+            landscape_label = Text(
+                "Loss landscape (contour lines)",
+                font_size=22,
+                color=GRAY_B,
+            )
+            landscape_label.next_to(axes, UP, buff=0.2)
+            self.play(
+                LaggedStart(
+                    *[Create(c) for c in contour_lines],
+                    lag_ratio=0.1,
+                ),
+                FadeIn(landscape_label),
+                run_time=1.5,
+            )
+
+            # Mark the minimum
+            min_dot = Dot(
+                axes.coords_to_point(0, 0),
+                radius=0.08,
+                color=WHITE,
+            )
+            min_label = Text("minimum", font_size=18, color=WHITE)
+            min_label.next_to(min_dot, DOWN, buff=0.1)
+            self.play(FadeIn(min_dot), FadeIn(min_label))
+            self.wait(1)
+
+            # Mark the starting point
+            start_x, start_y = 2.5, 2.0
+            start_dot = Dot(
+                axes.coords_to_point(start_x, start_y),
+                radius=0.1,
+                color=YELLOW,
+            )
+            start_label = Text("start", font_size=18, color=YELLOW)
+            start_label.next_to(start_dot, UP, buff=0.1)
+            self.play(FadeIn(start_dot), FadeIn(start_label))
+            self.wait(1)
+
+            # Fade out labels before drawing trajectories
+            self.play(
+                FadeOut(landscape_label),
+                FadeOut(min_label),
+                FadeOut(start_label),
+            )
+
+            # Now draw optimizer trajectories
             colors = [RED, GREEN, BLUE]
             names = [t["name"] for t in trajs]
-            paths_and_dots = []
-            for traj, color in zip(trajs, colors):
+            paths = []
+            trace_dots = []
+
+            for traj, color, name in zip(trajs, colors, names):
                 xy = traj["xy"]
                 path_points = [
                     axes.coords_to_point(float(xy[i, 0]), float(xy[i, 1]))
                     for i in range(xy.shape[0])
                 ]
+
+                # Create path
                 path = VMobject(color=color, stroke_width=3)
                 path.set_points_smoothly(path_points)
-                dot = Dot(
+                paths.append(path)
+
+                # Create moving dot that traces the path
+                trace_dot = Dot(
                     axes.coords_to_point(float(xy[0, 0]), float(xy[0, 1])),
-                    radius=0.06,
+                    radius=0.08,
                     color=color,
                 )
-                paths_and_dots.extend([path, dot])
-                self.play(Create(path), FadeIn(dot), run_time=1.5)
-                self.wait(0.2)
+                trace_dots.append(trace_dot)
 
+                # Animate path creation with dot following
+                self.play(
+                    Create(path),
+                    MoveAlongPath(trace_dot, path),
+                    run_time=2.5,
+                    rate_func=linear,
+                )
+                self.wait(0.3)
+
+            # Legend
             legend = VGroup()
             for name, color in zip(names, colors):
-                t = Text(name, font_size=24).set_color(color)
-                legend.add(t)
-            legend.arrange(RIGHT, buff=0.5).to_edge(DOWN)
+                line_sample = Line(ORIGIN, RIGHT * 0.4, color=color, stroke_width=3)
+                t = Text(name, font_size=22, color=color)
+                t.next_to(line_sample, RIGHT, buff=0.1)
+                legend.add(VGroup(line_sample, t))
+            legend.arrange(RIGHT, buff=0.8)
+            legend.to_edge(DOWN, buff=0.5)
             self.play(FadeIn(legend))
+            self.wait(2)
+
+            # Final note
+            note = Text(
+                "Adam adapts step size per coordinate → faster convergence",
+                font_size=22,
+                color=GRAY_B,
+            )
+            note.next_to(legend, UP, buff=0.3)
+            self.play(FadeIn(note))
             self.wait(2)
 
 
