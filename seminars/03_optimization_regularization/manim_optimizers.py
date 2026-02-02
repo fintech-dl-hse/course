@@ -254,6 +254,7 @@ def generate_adam_moments_1d(
         "v": torch.tensor(v_list, dtype=torch.float32),
         "steps": steps,
     }
+    # breakpoint()
     torch.save({"data": data, "meta": meta}, cache_path)
     return data
 
@@ -1153,7 +1154,7 @@ if __name__ != "__main__":
             )
             line_v_adam = axes_adam.plot_line_graph(
                 x_values=list(range(steps_adam)),
-                y_values=[float(v) for v in v_adam],
+                y_values=[float(torch.sqrt(v)) for v in v_adam],
                 line_color=TEAL,
                 add_vertex_dots=False,
                 stroke_width=2.5,
@@ -1162,7 +1163,7 @@ if __name__ != "__main__":
             for label, color in [
                 ("g_t", GRAY),
                 ("m_t (1st moment)", YELLOW),
-                ("v_t (2nd moment)", TEAL),
+                ("√v_t (2nd moment sqrt)", TEAL),
             ]:
                 line_sample = Line(ORIGIN, RIGHT * 0.35, color=color, stroke_width=3)
                 t = Text(label, font_size=20, color=color)
@@ -1237,7 +1238,7 @@ if __name__ != "__main__":
                 y_range=(y_min, y_max),
                 color_low=color_low,
                 color_high=color_high,
-                resolution=35,
+                resolution=100,
             )
 
             # Show heatmap and axes
