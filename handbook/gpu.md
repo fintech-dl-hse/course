@@ -23,5 +23,8 @@
 * [YouTube видео](https://www.youtube.com/watch?v=Axd50ew4pco), в котором объясняется разница
 * [WebGPU Puzzles](https://gpupuzzles.answer.ai/intro)
 
+TODO
+https://www.youtube.com/watch?v=GKQz4-esU5M
+
 
 TODO TPUs
