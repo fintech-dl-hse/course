@@ -13,7 +13,7 @@ Render (one main scene, like lth.py):
   ~/miniconda3/envs/manim-ce/bin/manim -qm ./seminars/03_optimization_regularization/manim_optimizers.py OptimizerComparison
 
 Generate cache only (no Manim):
-  python manim_optimizers.py
+  ~/miniconda3/envs/audio/bin/python manim_optimizers.py
 """
 
 from __future__ import annotations
@@ -111,8 +111,8 @@ def get_optimizer_state_sizes(seed: int = 0) -> dict[str, Any]:
     model_adam = _tiny_mlp()
 
     sgd = torch.optim.SGD(model_sgd.parameters(), lr=1e-2)
-    sgd_mom = torch.optim.SGD(model_sgd_mom.parameters(), lr=1e-2, momentum=0.9)
-    adam = torch.optim.Adam(model_adam.parameters(), lr=1e-3)
+    sgd_mom = torch.optim.SGD(model_sgd_mom.parameters(), lr=1e-3, momentum=0.9)
+    adam = torch.optim.Adam(model_adam.parameters(), lr=1e-2)
 
     init_optimizer_state(sgd, model_sgd, seed=seed)
     init_optimizer_state(sgd_mom, model_sgd_mom, seed=seed)
@@ -258,6 +258,56 @@ def generate_adam_moments_1d(
 
 
 # -----------------------------------------------------------------------------
+# SGD with momentum: first moment (velocity) per step (1D)
+# -----------------------------------------------------------------------------
+
+def generate_sgd_momentum_moments_1d(
+    *,
+    steps: int = 50,
+    seed: int = 0,
+    lr: float = 0.1,
+    momentum: float = 0.9,
+) -> dict[str, Any]:
+    """
+    Single scalar parameter; we record g_t and velocity (first moment) each step.
+    Same loss as Adam 1D for comparable visualization.
+    """
+    cache_path = cache_dir() / "sgd_momentum_moments_1d.pt"
+    meta = {"steps": steps, "seed": seed, "lr": lr, "momentum": momentum, "version": 1}
+    if cache_path.exists():
+        payload = torch.load(cache_path, map_location="cpu")
+        if payload.get("meta") == meta:
+            return payload["data"]
+
+    torch.manual_seed(seed)
+    theta = torch.tensor(1.5, dtype=torch.float32, requires_grad=True)
+    opt = torch.optim.SGD([theta], lr=lr, momentum=momentum)
+
+    grads: list[float] = []
+    m_list: list[float] = []
+
+    for step in range(steps):
+        opt.zero_grad(set_to_none=True)
+        loss = (theta - 0.2) ** 2 + 0.01 * (theta ** 4)
+        loss.backward()
+        g = theta.grad.item() if theta.grad is not None else 0.0
+        grads.append(g)
+        opt.step()
+        state = opt.state[theta]
+        # SGD with momentum stores velocity in "momentum_buffer"
+        vel = state["momentum_buffer"].item() if "momentum_buffer" in state else 0.0
+        m_list.append(vel)
+
+    data = {
+        "grads": torch.tensor(grads, dtype=torch.float32),
+        "m": torch.tensor(m_list, dtype=torch.float32),
+        "steps": steps,
+    }
+    torch.save({"data": data, "meta": meta}, cache_path)
+    return data
+
+
+# -----------------------------------------------------------------------------
 # Moving average demo (raw + EMA curves)
 # -----------------------------------------------------------------------------
 
@@ -304,6 +354,7 @@ def get_trajectories(
     *,
     steps: int = 120,
     seed: int = 0,
+    adam_betas=(0.9, 0.999),
     x0: tuple[float, float] = (2.5, 2.0),
 ) -> list[dict[str, Any]]:
     """Load or generate SGD, SGD+momentum, Adam trajectories."""
@@ -317,7 +368,7 @@ def get_trajectories(
     f = make_objective_rotated_quadratic(a=6.0, b=1.0, theta=0.9)
     trajs = [
         generate_trajectory(
-            name="SGD",
+            name="SGD lr=1e-2",
             optim_ctor=lambda p: torch.optim.SGD(p, lr=0.01),
             f=f,
             x0=x0,
@@ -325,16 +376,25 @@ def get_trajectories(
             seed=seed,
         ),
         generate_trajectory(
-            name="SGD + momentum",
+            name="SGD + momentum lr=1e-1",
             optim_ctor=lambda p: torch.optim.SGD(p, lr=0.01, momentum=0.9),
             f=f,
             x0=x0,
             steps=steps,
             seed=seed,
         ),
+
         generate_trajectory(
-            name="Adam",
-            optim_ctor=lambda p: torch.optim.Adam(p, lr=0.01),
+            name="SGD + momentum lr=1e-3",
+            optim_ctor=lambda p: torch.optim.SGD(p, lr=0.001, momentum=0.9),
+            f=f,
+            x0=x0,
+            steps=steps,
+            seed=seed,
+        ),
+        generate_trajectory(
+            name="Adam lr=1e-2",
+            optim_ctor=lambda p: torch.optim.Adam(p, lr=0.01, betas=adam_betas),
             f=f,
             x0=x0,
             steps=steps,
@@ -378,7 +438,15 @@ def get_trajectories_bumpy(
         ),
         generate_trajectory(
             name="SGD + momentum",
-            optim_ctor=lambda p: torch.optim.SGD(p, lr=0.05, momentum=0.9),
+            optim_ctor=lambda p: torch.optim.SGD(p, lr=0.005, momentum=0.9),
+            f=f,
+            x0=x0,
+            steps=steps,
+            seed=seed,
+        ),
+        generate_trajectory(
+            name="Adam",
+            optim_ctor=lambda p: torch.optim.Adam(p, lr=0.05),
             f=f,
             x0=x0,
             steps=steps,
@@ -959,16 +1027,148 @@ if __name__ != "__main__":
             self.play(Write(v_formula))
             self.wait(0.3)
             self.play(FadeIn(v_intuition))
-            self.wait(2.5)
+            self.wait(1.5)
 
+            # Fade formulas, show moment curves (SGD+momentum then Adam)
             self.play(
-                FadeOut(section_title),
                 FadeOut(update_group),
                 FadeOut(update_box),
                 FadeOut(m_formula),
                 FadeOut(m_intuition),
                 FadeOut(v_formula),
                 FadeOut(v_intuition),
+                run_time=0.5,
+            )
+
+            # --- SGD + momentum: gradient and first moment (velocity) ---
+            plot_title = Text("SGD + momentum: gradient & first moment (velocity)", font_size=28, color=GRAY_B)
+            plot_title.next_to(section_title, DOWN, buff=0.35)
+            self.play(FadeIn(plot_title))
+
+            sgd_data = generate_sgd_momentum_moments_1d()
+            steps_sgd = sgd_data["steps"]
+            grads_sgd = sgd_data["grads"]
+            m_sgd = sgd_data["m"]
+            y_min_sgd = min(float(grads_sgd.min()), float(m_sgd.min())) - 0.1
+            y_max_sgd = max(float(grads_sgd.max()), float(m_sgd.max())) + 0.1
+
+            axes_sgd = Axes(
+                x_range=[0, steps_sgd, 20],
+                y_range=[y_min_sgd, y_max_sgd, 0.5],
+                x_length=8,
+                y_length=3.5,
+                tips=False,
+                axis_config={"include_numbers": False},
+            )
+            axes_sgd.next_to(plot_title, DOWN, buff=0.4)
+            self.play(FadeIn(axes_sgd))
+
+            x_vals = list(range(steps_sgd))
+            line_g_sgd = axes_sgd.plot_line_graph(
+                x_values=x_vals,
+                y_values=[float(g) for g in grads_sgd],
+                line_color=GRAY,
+                add_vertex_dots=False,
+                stroke_width=2,
+            )
+            line_m_sgd = axes_sgd.plot_line_graph(
+                x_values=x_vals,
+                y_values=[float(m) for m in m_sgd],
+                line_color=GREEN,
+                add_vertex_dots=False,
+                stroke_width=2.5,
+            )
+            legend_sgd = VGroup()
+            for label, color in [("g_t (gradient)", GRAY), ("m_t (first moment)", GREEN)]:
+                line_sample = Line(ORIGIN, RIGHT * 0.35, color=color, stroke_width=3)
+                t = Text(label, font_size=20, color=color)
+                t.next_to(line_sample, RIGHT, buff=0.1)
+                legend_sgd.add(VGroup(line_sample, t))
+            legend_sgd.arrange(RIGHT, buff=0.5).next_to(axes_sgd, DOWN, buff=0.2)
+            self.play(Create(line_g_sgd), Create(line_m_sgd), FadeIn(legend_sgd))
+            self.wait(2)
+
+            self.play(
+                FadeOut(plot_title),
+                FadeOut(axes_sgd),
+                FadeOut(line_g_sgd),
+                FadeOut(line_m_sgd),
+                FadeOut(legend_sgd),
+                run_time=0.5,
+            )
+
+            # --- Adam: gradient, first moment, second moment ---
+            plot_title_adam = Text("Adam: gradient, first moment & second moment", font_size=28, color=GRAY_B)
+            plot_title_adam.next_to(section_title, DOWN, buff=0.35)
+            self.play(FadeIn(plot_title_adam))
+
+            adam_data = generate_adam_moments_1d()
+            steps_adam = adam_data["steps"]
+            grads_adam = adam_data["grads"]
+            m_adam = adam_data["m"]
+            v_adam = adam_data["v"]
+            y_min_adam = min(float(grads_adam.min()), float(m_adam.min()), float(v_adam.min())) - 0.05
+            y_max_adam = max(float(grads_adam.max()), float(m_adam.max()), float(v_adam.max())) + 0.05
+
+            axes_adam = Axes(
+                x_range=[0, steps_adam, 20],
+                y_range=[y_min_adam, y_max_adam, 0.5],
+                x_length=8,
+                y_length=3.5,
+                tips=False,
+                axis_config={"include_numbers": False},
+            )
+            axes_adam.next_to(plot_title_adam, DOWN, buff=0.4)
+            self.play(FadeIn(axes_adam))
+
+            line_g_adam = axes_adam.plot_line_graph(
+                x_values=list(range(steps_adam)),
+                y_values=[float(g) for g in grads_adam],
+                line_color=GRAY,
+                add_vertex_dots=False,
+                stroke_width=2,
+            )
+            line_m_adam = axes_adam.plot_line_graph(
+                x_values=list(range(steps_adam)),
+                y_values=[float(m) for m in m_adam],
+                line_color=YELLOW,
+                add_vertex_dots=False,
+                stroke_width=2.5,
+            )
+            line_v_adam = axes_adam.plot_line_graph(
+                x_values=list(range(steps_adam)),
+                y_values=[float(v) for v in v_adam],
+                line_color=TEAL,
+                add_vertex_dots=False,
+                stroke_width=2.5,
+            )
+            legend_adam = VGroup()
+            for label, color in [
+                ("g_t", GRAY),
+                ("m_t (1st moment)", YELLOW),
+                ("v_t (2nd moment)", TEAL),
+            ]:
+                line_sample = Line(ORIGIN, RIGHT * 0.35, color=color, stroke_width=3)
+                t = Text(label, font_size=20, color=color)
+                t.next_to(line_sample, RIGHT, buff=0.1)
+                legend_adam.add(VGroup(line_sample, t))
+            legend_adam.arrange(RIGHT, buff=0.4).next_to(axes_adam, DOWN, buff=0.2)
+            self.play(
+                Create(line_g_adam),
+                Create(line_m_adam),
+                Create(line_v_adam),
+                FadeIn(legend_adam),
+            )
+            self.wait(2.5)
+
+            self.play(
+                FadeOut(section_title),
+                FadeOut(plot_title_adam),
+                FadeOut(axes_adam),
+                FadeOut(line_g_adam),
+                FadeOut(line_m_adam),
+                FadeOut(line_v_adam),
+                FadeOut(legend_adam),
                 run_time=0.6,
             )
 
@@ -1147,8 +1347,9 @@ if __name__ != "__main__":
 
 if __name__ == "__main__":
     get_optimizer_state_sizes()
-    generate_adam_moments_1d()
+    generate_sgd_momentum_moments_1d(steps = 50, seed = 0, lr = 0.1, momentum = 0.9)
+    generate_adam_moments_1d(steps = 50, seed = 0, lr = 0.1)
     generate_moving_average_demo()
-    get_trajectories()
-    get_trajectories_bumpy()
+    get_trajectories(steps=500)
+    get_trajectories_bumpy(steps=500)
     print("Cache generated at", cache_dir())
