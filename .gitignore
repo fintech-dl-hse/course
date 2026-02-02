@@ -13,3 +13,6 @@ build
 media
 wandb
 .cache
+*.pth
+runs
+tmp
