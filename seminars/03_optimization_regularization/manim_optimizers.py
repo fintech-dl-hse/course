@@ -153,16 +153,17 @@ def make_objective_rotated_quadratic(
 
     def f(xy: torch.Tensor) -> torch.Tensor:
         uv = r_t @ xy
-        return 0.5 * (a * uv[0] ** 2 + b * uv[1] ** 2)
+        return 2.0 * (a * uv[0] ** 2 + b * uv[1] ** 2)
 
     return f
 
 
+BUMP_SCALE = 1.2
+BUMP_FREQ = 8
+
 def make_objective_with_local_minima(
     *,
     global_min: tuple[float, float] = (0.0, 0.0),
-    bump_scale: float = 0.3,
-    bump_freq: float = 2.0,
 ) -> Callable[[torch.Tensor], torch.Tensor]:
     """
     Quadratic bowl with sinusoidal bumps creating local minima.
@@ -176,7 +177,7 @@ def make_objective_with_local_minima(
     def f(xy: torch.Tensor) -> torch.Tensor:
         x, y = xy[0] - gx, xy[1] - gy
         quadratic = 0.5 * (x ** 2 + y ** 2)
-        bumps = bump_scale * (1 - torch.cos(bump_freq * x)) * (1 - torch.cos(bump_freq * y))
+        bumps = BUMP_SCALE * (1 - torch.cos(BUMP_FREQ * x)) * (1 - torch.cos(BUMP_FREQ * y))
         return quadratic + bumps
 
     return f
@@ -350,6 +351,8 @@ def generate_moving_average_demo(
 # Load or generate trajectory comparison
 # -----------------------------------------------------------------------------
 
+
+
 def get_trajectories(
     *,
     steps: int = 120,
@@ -358,14 +361,14 @@ def get_trajectories(
     x0: tuple[float, float] = (2.5, 2.0),
 ) -> list[dict[str, Any]]:
     """Load or generate SGD, SGD+momentum, Adam trajectories."""
-    cache_path = cache_dir() / "optimizer_trajectories.pt"
+    cache_path = cache_dir() / "optimizer_trajectories_v2.pt"
     meta = {"steps": steps, "seed": seed, "x0": x0, "version": 1}
     if cache_path.exists():
         payload = torch.load(cache_path, map_location="cpu")
         if payload.get("meta") == meta:
             return payload["trajectories"]
 
-    f = make_objective_rotated_quadratic(a=6.0, b=1.0, theta=0.9)
+    f = make_objective_rotated_quadratic(a=5.0, b=1.0, theta=0.9)
     trajs = [
         generate_trajectory(
             name="SGD lr=1e-2",
@@ -376,7 +379,7 @@ def get_trajectories(
             seed=seed,
         ),
         generate_trajectory(
-            name="SGD + momentum lr=1e-1",
+            name="SGD + momentum lr=1e-2",
             optim_ctor=lambda p: torch.optim.SGD(p, lr=0.01, momentum=0.9),
             f=f,
             x0=x0,
@@ -417,42 +420,53 @@ def get_trajectories_bumpy(
     steps: int = 200,
     seed: int = 0,
     x0: tuple[float, float] = (3.0, 2.5),
+    adam_betas=(0.9, 0.999),
 ) -> list[dict[str, Any]]:
     """Load or generate trajectories on bumpy landscape with local minima."""
-    cache_path = cache_dir() / "optimizer_trajectories_bumpy.pt"
-    meta = {"steps": steps, "seed": seed, "x0": x0, "version": 2}
+    cache_path = cache_dir() / "optimizer_trajectories_bumpy_v4.pt"
+    meta = {"steps": steps, "seed": seed, "x0": x0, "version": 4}
     if cache_path.exists():
         payload = torch.load(cache_path, map_location="cpu")
         if payload.get("meta") == meta:
             return payload["trajectories"]
 
-    f = make_objective_with_local_minima(bump_scale=0.4, bump_freq=2.5)
+    f = make_objective_with_local_minima()
     trajs = [
         generate_trajectory(
-            name="SGD",
-            optim_ctor=lambda p: torch.optim.SGD(p, lr=0.05),
+            name="SGD lr=1e-2",
+            optim_ctor=lambda p: torch.optim.SGD(p, lr=0.01),
             f=f,
             x0=x0,
             steps=steps,
             seed=seed,
         ),
         generate_trajectory(
-            name="SGD + momentum",
-            optim_ctor=lambda p: torch.optim.SGD(p, lr=0.005, momentum=0.9),
+            name="SGD + momentum lr=1e-2",
+            optim_ctor=lambda p: torch.optim.SGD(p, lr=0.01, momentum=0.9),
+            f=f,
+            x0=x0,
+            steps=steps,
+            seed=seed,
+        ),
+
+        generate_trajectory(
+            name="SGD + momentum lr=1e-3",
+            optim_ctor=lambda p: torch.optim.SGD(p, lr=0.001, momentum=0.9),
             f=f,
             x0=x0,
             steps=steps,
             seed=seed,
         ),
         generate_trajectory(
-            name="Adam",
-            optim_ctor=lambda p: torch.optim.Adam(p, lr=0.05),
+            name="Adam lr=1e-2",
+            optim_ctor=lambda p: torch.optim.Adam(p, lr=0.01, betas=adam_betas),
             f=f,
             x0=x0,
             steps=steps,
             seed=seed,
         ),
     ]
+
     payload = {
         "meta": meta,
         "trajectories": [
@@ -618,8 +632,10 @@ if __name__ != "__main__":
             t = Text(name, font_size=22, color=color)
             t.next_to(line_sample, RIGHT, buff=0.1)
             legend_items.add(VGroup(line_sample, t))
-        legend_items.arrange(RIGHT, buff=0.8)
-        legend_items.to_edge(DOWN, buff=0.5)
+
+        legend_items.arrange(DOWN, buff=0.25, aligned_edge=LEFT)
+        legend_items.next_to(axes, RIGHT, buff=0.4, aligned_edge=LEFT)
+        legend_items.shift(RIGHT * 4.0)
 
         paths = []
         end_dots = []
@@ -653,9 +669,9 @@ if __name__ != "__main__":
                     fade_anims.append(prev_dot.animate.set_opacity(faded_opacity))
                 scene.play(*fade_anims, run_time=0.3)
 
+            scene.add(legend_items[idx])
             scene.play(
                 Create(path),
-                FadeIn(legend_items[idx]),
                 run_time=2.5,
                 rate_func=linear,
             )
@@ -684,7 +700,7 @@ if __name__ != "__main__":
             self.scene3_moving_average()
             self.scene4_moments_and_intuition()
             self.scene5_trajectory_comparison()
-            self.scene6_momentum_local_minima()
+            # self.scene6_momentum_local_minima()
 
         def scene1_title(self):
             """Title card."""
@@ -1205,7 +1221,7 @@ if __name__ != "__main__":
                 tips=True,
                 axis_config={"include_numbers": False, "tip_length": 0.2},
             )
-            axes.shift(DOWN * 0.3)
+            axes.shift(DOWN * 0.3 + LEFT * 1.5)
 
             # Axis labels
             x_label = MathTex(r"\theta_1", font_size=28)
@@ -1248,7 +1264,7 @@ if __name__ != "__main__":
 
             self.play(FadeOut(min_label), FadeOut(start_label))
 
-            # Draw trajectories using shared helper
+            # Draw trajectories using shared helper (legend to the right of axes)
             paths, end_dots, legend_items = draw_trajectory_scene(
                 scene=self,
                 axes=axes,
@@ -1261,7 +1277,7 @@ if __name__ != "__main__":
 
             # Final note
             note = Text(final_note, font_size=22, color=GRAY_B)
-            note.next_to(legend_items, UP, buff=0.3)
+            note.next_to(legend_items, UP, buff=6.0)
             self.play(FadeIn(note))
             self.wait(2)
 
@@ -1274,12 +1290,11 @@ if __name__ != "__main__":
 
         def scene5_trajectory_comparison(self):
             """Compare SGD, SGD+momentum, Adam on 2D loss with landscape."""
-            trajs = get_trajectories(steps=120)
+            trajs = get_trajectories(steps=500)
 
             # Reorder: Adam, SGD+momentum, SGD
-            traj_order = [2, 1, 0]
-            ordered_trajs = [trajs[i] for i in traj_order]
-            colors = [BLUE, GREEN, RED]
+            ordered_trajs = trajs
+            colors = [BLUE, GREEN, RED, YELLOW]
 
             # Loss function for rotated quadratic
             a, b, theta = 6.0, 1.0, 0.9
@@ -1306,18 +1321,19 @@ if __name__ != "__main__":
                 y_bounds=(y_min, y_max),
                 start_xy=(2.5, 2.0),
                 title="4. Optimizer trajectories on 2D landscape",
-                color_low=BLUE_E,
-                color_high=BLUE_A,
-                final_note="SGD oscillates; momentum smooths; Adam adapts per-coordinate",
+                color_low=GREY_E,
+                color_high=WHITE,
+                final_note="SGD oscillates;\nMomentum smooths;\nAdam adapts per-coordinate",
             )
 
         def scene6_momentum_local_minima(self):
             """Demonstrate momentum escaping local minima on bumpy landscape."""
-            trajs = get_trajectories_bumpy(steps=200)
-            colors = [RED, GREEN]
+            trajs = get_trajectories_bumpy(steps=500)
+            colors = [BLUE, GREEN, RED, YELLOW]
+
 
             # Loss function with bumps
-            bump_scale, bump_freq = 0.4, 2.5
+            bump_scale, bump_freq = BUMP_SCALE, BUMP_FREQ
 
             def loss_fn(x: float, y: float) -> float:
                 quadratic = 0.5 * (x**2 + y**2)
@@ -1339,16 +1355,16 @@ if __name__ != "__main__":
                 y_bounds=(y_min, y_max),
                 start_xy=(3.0, 2.5),
                 title="5. Momentum escapes local minima",
-                color_low=PURPLE_E,
-                color_high=PURPLE_A,
-                final_note="Momentum accumulates velocity → escapes shallow local minima",
+                color_low=GREY_E,
+                color_high=WHITE,
+                final_note="Momentum accumulates velocity →\nescapes shallow local minima",
             )
 
 
 if __name__ == "__main__":
     get_optimizer_state_sizes()
-    generate_sgd_momentum_moments_1d(steps = 50, seed = 0, lr = 0.1, momentum = 0.9)
-    generate_adam_moments_1d(steps = 50, seed = 0, lr = 0.1)
+    generate_sgd_momentum_moments_1d(steps = 500, seed = 0, lr = 0.1, momentum = 0.9)
+    generate_adam_moments_1d(steps = 500, seed = 0, lr = 0.1)
     generate_moving_average_demo()
     get_trajectories(steps=500)
     get_trajectories_bumpy(steps=500)
