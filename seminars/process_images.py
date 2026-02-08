@@ -31,6 +31,10 @@ MIME_TO_EXT = {
     "image/jpeg": "jpg",
     "image/jpg": "jpg",
     "image/gif": "gif",
+    "png": "png",
+    "jpeg": "jpg",
+    "jpg": "jpg",
+    "gif": "gif",
 }
 
 
@@ -63,31 +67,38 @@ def process_cell_source(
     changed = False
 
     # 1) Markdown image with data URL: ![alt](data:image/xxx;base64,...)
+    # Regex with DOTALL so base64 can span newlines; .+? stops at first ")" (base64 has no ")").
     def replace_data_url(match: re.Match) -> str:
         nonlocal changed
-        mime = match.group(3)  # e.g. png
-        b64 = match.group(4)
-        ext = MIME_TO_EXT.get(mime.lower())
+        mime = match.group(2).strip().lower()
+        b64_raw = match.group(3)
+        ext = MIME_TO_EXT.get(mime)
         if not ext:
+            print("Unknown mime type:", mime)
             return match.group(0)
+        b64_clean = b64_raw.replace("\n", "").replace("\r", "").strip()
         idx = image_counter[0]
         image_counter[0] += 1
         if dry_run:
-            src_path = f"static/img_{idx}.{ext}"
-        else:
-            try:
-                data = base64.b64decode(b64.replace("\n", "").replace("\r", ""))
-            except Exception:
-                return match.group(0)
-            src_path = _save_base64_image(static_dir, data, mime, idx)
+            changed = True
+            return f'<img src="static/img_{idx}.{ext}" width={MAX_WIDTH} />'
+        try:
+            data = base64.b64decode(b64_clean)
+        except Exception:
+            print("Failed to decode base64:", b64_clean)
+            return match.group(0)
+        src_path = _save_base64_image(static_dir, data, mime, idx)
         changed = True
         return f'<img src="{src_path}" width={MAX_WIDTH} />'
 
-    text = re.sub(
-        r"!\[([^\]]*)\]\((data:image/([^;]+);base64,([A-Za-z0-9+/=\s]+))\)",
-        replace_data_url,
-        text,
+    _data_url_re = re.compile(
+        r"!\[[^\]]*\]\((data:image/([^;]+);base64,(.+?))\)",
+        re.DOTALL,
     )
+    new_text = _data_url_re.sub(replace_data_url, text)
+    if new_text != text:
+        changed = True
+        text = new_text
 
     # 2) Markdown image with remote URL: ![alt](https?://...)
     def replace_remote_url(match: re.Match) -> str:
