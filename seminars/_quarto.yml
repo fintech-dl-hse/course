@@ -1,0 +1,20 @@
+project:
+  type: website
+  output-dir: _site
+
+execute:
+  eval: false
+
+website:
+  title: "Seminars — Fintech DL HSE"
+  sidebar:
+    style: docked
+    contents:
+      - href: index.qmd
+        text: "Обзор"
+      - section: "Семинары"
+        contents:
+          - 01_seminar_mlp_autograd/01_seminar_mlp_autograd.ipynb
+          - 02_activations_initialization_dataloader_trainer/02_activations_initialization_dataloader_trainer.ipynb
+          - 03_optimization_regularization/03_seminar_optimization_regularization.ipynb
+          - 04_cnn/04_seminar_cnn.ipynb

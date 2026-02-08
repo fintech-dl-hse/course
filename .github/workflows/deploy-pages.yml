@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - '.public/**'
+      - 'seminars/**'
   workflow_dispatch:
 
 permissions:
@@ -27,6 +28,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Render seminars
+        uses: quarto-dev/quarto-actions/render@v2
+        with:
+          path: seminars
+
+      - name: Merge seminars into .public
+        run: |
+          mkdir -p .public/seminars
+          cp -r seminars/_site/* .public/seminars/
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
