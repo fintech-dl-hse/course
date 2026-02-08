@@ -34,3 +34,4 @@ alwaysApply: false
 - Before committing notebooks: clear outputs; avoid huge artifacts in repo.
 - Do not run `./seminars/rm_widgets.sh` manually: it is executed automatically.
 - No trailing spaces.
+- First Cell must be Heading 1 title of seminar (# MLP)
