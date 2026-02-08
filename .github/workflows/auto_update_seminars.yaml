@@ -33,6 +33,9 @@ jobs:
       - name: Add Colab badges to seminars
         run: python3 ./seminars/add_colab_badge.py
 
+      - name: Update Quarto sidebar with seminar notebooks
+        run: python3 ./seminars/update_quarto_sidebar.py
+
       - name: Configure Git
         run: |
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
