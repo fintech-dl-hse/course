@@ -30,6 +30,17 @@ alwaysApply: false
 - Add type hints + brief docstrings for reusable helpers.
 - Jupyter math: use `$...$` for inline math (not `\(...\)`), and `$$...$$` for display math on separate lines (not `\[...\]`).
 - Questions in seminars: one question per separate cell; format as a level-4 heading with ❓ and bold **Вопрос**, e.g. `#### ❓ **Вопрос**: зачем делать Softmax? Ведь на выходе модельки мы уже получаем логиты?`
+- Answers on questions: all answers must be hidden by spoilers. Example:
+```md
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Текст ответа</br>
+Следующая строчка ответа</br>
+
+</details>
+```
 - Make experiments reproducible: fixed seeds, deterministic settings (when feasible), explicit dependencies.
 - Before committing notebooks: clear outputs; avoid huge artifacts in repo.
 - Do not run `./seminars/rm_widgets.sh` manually: it is executed automatically.
