@@ -683,7 +683,7 @@
             if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
             if (!Array.isArray(data)) throw new Error('Invalid data format');
-            HW_DATA = data;
+            HW_DATA = data.filter(h => h.classroom_invite_link);
             init();
         } catch (err) {
             showError('Failed to load homework data. ' + (err.message || 'Please try again later.'));
