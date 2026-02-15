@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homeworks | Fintech DL HSE</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --surface2: #232736;
+            --border: #2e3348;
+            --text: #e4e6f0;
+            --text-dim: #8b8fa8;
+            --accent: #6c8cff;
+            --accent-glow: rgba(108, 140, 255, 0.15);
+            --green: #34d399;
+            --green-bg: rgba(52, 211, 153, 0.12);
+            --yellow: #fbbf24;
+            --yellow-bg: rgba(251, 191, 36, 0.12);
+            --red: #f87171;
+            --red-bg: rgba(248, 113, 113, 0.12);
+            --purple: #a78bfa;
+            --purple-bg: rgba(167, 139, 250, 0.12);
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.4rem;
+        }
+
+        header p {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1rem 1.5rem;
+            text-align: center;
+            min-width: 140px;
+            flex: 1;
+            max-width: 200px;
+        }
+
+        .stat-card .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .stat-card .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.2rem;
+        }
+
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            border-color: var(--accent);
+            color: var(--text);
+        }
+
+        .filter-btn.active {
+            background: var(--accent-glow);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .table-wrapper {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead th {
+            background: var(--surface2);
+            padding: 0.85rem 1rem;
+            text-align: left;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-dim);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+            transition: color 0.2s;
+        }
+
+        thead th:hover {
+            color: var(--accent);
+        }
+
+        thead th .sort-icon {
+            display: inline-block;
+            margin-left: 4px;
+            opacity: 0.3;
+            transition: opacity 0.2s;
+        }
+
+        thead th.sorted .sort-icon {
+            opacity: 1;
+            color: var(--accent);
+        }
+
+        tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+
+        tbody tr:last-child { border-bottom: none; }
+
+        tbody tr:hover {
+            background: rgba(108, 140, 255, 0.04);
+        }
+
+        tbody td {
+            padding: 0.8rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .hw-name {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .hw-name .hw-num {
+            color: var(--accent);
+            margin-right: 0.3rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .badge-bonus {
+            background: var(--purple-bg);
+            color: var(--purple);
+        }
+
+        .badge-required {
+            background: var(--accent-glow);
+            color: var(--accent);
+        }
+
+        .status-active {
+            color: var(--green);
+        }
+
+        .status-upcoming {
+            color: var(--yellow);
+        }
+
+        .status-expired {
+            color: var(--text-dim);
+        }
+
+        .countdown {
+            font-size: 0.82rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .countdown.urgent {
+            color: var(--red);
+            font-weight: 600;
+        }
+
+        .countdown.comfortable {
+            color: var(--green);
+        }
+
+        .countdown.expired {
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        .points {
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .links a {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.82rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            transition: background 0.15s;
+            white-space: nowrap;
+        }
+
+        .links a:hover {
+            background: var(--accent-glow);
+        }
+
+        .links a + a {
+            margin-left: 0.25rem;
+        }
+
+        .links a svg {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+        }
+
+        .deadline-date {
+            white-space: nowrap;
+        }
+
+        .progress-section {
+            margin-top: 2rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.5rem;
+        }
+
+        .progress-section h3 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+            margin-bottom: 1rem;
+        }
+
+        .progress-bar-container {
+            display: flex;
+            gap: 3px;
+            height: 28px;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .progress-segment {
+            position: relative;
+            border-radius: 4px;
+            transition: all 0.3s;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .progress-segment:hover {
+            filter: brightness(1.3);
+            transform: scaleY(1.15);
+        }
+
+        .progress-segment .seg-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.8);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 0 4px;
+        }
+
+        .progress-legend {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+        }
+
+        .tooltip {
+            position: fixed;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.6rem 0.8rem;
+            font-size: 0.82rem;
+            color: var(--text);
+            pointer-events: none;
+            z-index: 100;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+
+        .tooltip.visible {
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            header h1 { font-size: 1.5rem; }
+            .stats-row { gap: 0.5rem; }
+            .stat-card { min-width: 100px; padding: 0.75rem 1rem; }
+            .stat-card .stat-value { font-size: 1.3rem; }
+            .table-wrapper { overflow-x: auto; }
+            table { min-width: 700px; }
+            .filters { gap: 0.4rem; }
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Deep Learning Homeworks</h1>
+            <p>Fintech DL @ HSE 2025</p>
+        </header>
+
+        <div class="stats-row" id="stats-row"></div>
+
+        <div class="filters" id="filters"></div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr id="table-head"></tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+        </div>
+
+        <div class="progress-section">
+            <h3>Timeline</h3>
+            <div class="progress-bar-container" id="progress-bar"></div>
+            <div class="progress-legend" id="progress-legend"></div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+    const HW_DATA = [
+        {"id":"hw-mlp","deadline":"2026-01-28T23:59:59","bonus":false,"max_points":100,"feedback_form_url":"https://forms.gle/6FMiKQJ1Gtpie8CA6","classroom_invite_link":"https://classroom.github.com/a/h2_hqtxe"},
+        {"id":"hw-activations","deadline":"2026-02-04T23:59:59","bonus":false,"max_points":100,"feedback_form_url":"https://forms.gle/iLjqp8SH75u78RsZ6","classroom_invite_link":"https://classroom.github.com/a/yx6ppUC3"},
+        {"id":"hw-weight-init","deadline":"2026-02-04T23:59:59","bonus":false,"max_points":100,"feedback_form_url":"https://forms.gle/iLjqp8SH75u78RsZ6","classroom_invite_link":"https://classroom.github.com/a/RaJ9-xWr"},
+        {"id":"hw-optimization","deadline":"2026-02-11T23:59:59","bonus":false,"max_points":200,"feedback_form_url":"https://forms.gle/uoGrqgaZ3R6214c36","classroom_invite_link":"https://classroom.github.com/a/jeX_hXTA"},
+        {"id":"hw-dropout","deadline":"2026-02-11T23:59:59","bonus":false,"max_points":100,"feedback_form_url":"https://forms.gle/uoGrqgaZ3R6214c36","classroom_invite_link":"https://classroom.github.com/a/tsetmelu"},
+        {"id":"hw-batchnorm","deadline":"2026-03-04T23:59:59","bonus":false,"max_points":100,"feedback_form_url":"https://forms.gle/ZpQh7TCyme5Hq1PTA","classroom_invite_link":"https://classroom.github.com/a/mIBVliHe"},
+        {"id":"hw-pytorch-basics","deadline":"2026-03-04T23:59:59","bonus":false,"max_points":200,"feedback_form_url":"https://forms.gle/ZpQh7TCyme5Hq1PTA","classroom_invite_link":"https://classroom.github.com/a/JLAScX3R"},
+        {"id":"hw-vae","deadline":"2026-03-29T23:59:59","bonus":false,"max_points":200,"feedback_form_url":"https://forms.gle/WhL7H15d26LAkggy7"},
+        {"id":"hw-diffusion","deadline":"2026-03-29T23:59:59","bonus":false,"max_points":200,"feedback_form_url":"https://forms.gle/WhL7H15d26LAkggy7"},
+        {"id":"hw-autograd-mlp","deadline":"2026-06-17T02:59:59","bonus":true,"max_points":100,"feedback_form_url":"https://forms.gle/QPmStUACp56tGkmK9","classroom_invite_link":"https://classroom.github.com/a/Z9xvjHWX"},
+        {"id":"hw-muon","deadline":"2026-06-17T02:59:59","bonus":true,"max_points":200,"feedback_form_url":"https://forms.gle/wNgv6cQA6TpfeyGp7","classroom_invite_link":"https://classroom.github.com/a/xxlI9YxV"},
+        {"id":"hw-tokenization","deadline":"2026-04-15T23:59:59","bonus":false,"max_points":200,"feedback_form_url":"https://forms.gle/RgBdUuegx7BFbc5X6"},
+        {"id":"hw-rnn-attention","deadline":"2026-05-06T23:59:59","bonus":false,"max_points":200,"feedback_form_url":"https://forms.gle/9Vmt31tQ6ohPtvzw5"},
+        {"id":"hw-transformer-attention","deadline":"2026-05-06T23:59:59","bonus":false,"max_points":200,"feedback_form_url":"https://forms.gle/9Vmt31tQ6ohPtvzw5"},
+        {"id":"hw-efficiency","deadline":"2026-05-20T23:59:59","bonus":false,"max_points":100,"feedback_form_url":"https://forms.gle/oVPzavqwXSJYPwXq7"},
+        {"id":"hw-llm-agent","deadline":"2026-06-16T23:59:59","bonus":false,"max_points":200,"feedback_form_url":"https://forms.gle/ySbswCdyRzGYTBwL6"},
+        {"id":"hw-multimodal-llm","deadline":"2026-06-17T02:59:59","bonus":true,"max_points":400,"feedback_form_url":"https://forms.gle/a4wipLVXiy1VT45X8"},
+        {"id":"hw-letters","deadline":"2026-06-17T02:59:59","bonus":true,"max_points":400,"feedback_form_url":"https://forms.gle/vjpmW821EiM6xULm6"}
+    ];
+
+    const TOPIC_COLORS = {
+        'mlp': '#6c8cff',
+        'activations': '#818cf8',
+        'weight-init': '#a78bfa',
+        'optimization': '#c084fc',
+        'dropout': '#e879f9',
+        'batchnorm': '#f472b6',
+        'pytorch-basics': '#fb7185',
+        'vae': '#f87171',
+        'diffusion': '#fb923c',
+        'autograd-mlp': '#fbbf24',
+        'muon': '#a3e635',
+        'tokenization': '#34d399',
+        'rnn-attention': '#2dd4bf',
+        'transformer-attention': '#22d3ee',
+        'efficiency': '#38bdf8',
+        'llm-agent': '#60a5fa',
+        'multimodal-llm': '#818cf8',
+        'letters': '#c084fc'
+    };
+
+    function formatName(id) {
+        return id.replace('hw-', '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+
+    function getStatus(deadline) {
+        const now = new Date();
+        const dl = new Date(deadline);
+        const diff = dl - now;
+        if (diff < 0) return 'expired';
+        if (diff < 3 * 24 * 60 * 60 * 1000) return 'urgent';
+        return 'active';
+    }
+
+    function formatCountdown(deadline) {
+        const now = new Date();
+        const dl = new Date(deadline);
+        const diff = dl - now;
+        if (diff < 0) return { text: 'Expired', cls: 'expired' };
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        if (days > 30) return { text: `${days}d`, cls: 'comfortable' };
+        if (days > 3) return { text: `${days}d ${hours}h`, cls: 'comfortable' };
+        if (days > 0) return { text: `${days}d ${hours}h`, cls: 'urgent' };
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        return { text: `${hours}h ${mins}m`, cls: 'urgent' };
+    }
+
+    function formatDate(deadline) {
+        const d = new Date(deadline);
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    }
+
+    const svgGithub = `<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`;
+    const svgForm = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`;
+
+    let currentFilter = 'all';
+    let sortCol = 'deadline';
+    let sortDir = 1;
+
+    const columns = [
+        { key: 'num', label: '#', sortable: true },
+        { key: 'name', label: 'Homework', sortable: true },
+        { key: 'type', label: 'Type', sortable: true },
+        { key: 'points', label: 'Points', sortable: true },
+        { key: 'deadline', label: 'Deadline', sortable: true },
+        { key: 'countdown', label: 'Time Left', sortable: true },
+        { key: 'links', label: 'Links', sortable: false }
+    ];
+
+    function buildStats() {
+        const el = document.getElementById('stats-row');
+        const total = HW_DATA.length;
+        const required = HW_DATA.filter(h => !h.bonus);
+        const bonus = HW_DATA.filter(h => h.bonus);
+        const totalPts = HW_DATA.reduce((s, h) => s + h.max_points, 0);
+        const reqPts = required.reduce((s, h) => s + h.max_points, 0);
+        const active = HW_DATA.filter(h => getStatus(h.deadline) !== 'expired').length;
+
+        const stats = [
+            { value: total, label: 'Total HWs' },
+            { value: required.length, label: 'Required' },
+            { value: bonus.length, label: 'Bonus' },
+            { value: totalPts, label: 'Total Points' },
+            { value: active, label: 'Active' }
+        ];
+
+        el.innerHTML = stats.map(s => `
+            <div class="stat-card">
+                <div class="stat-value">${s.value}</div>
+                <div class="stat-label">${s.label}</div>
+            </div>
+        `).join('');
+    }
+
+    function buildFilters() {
+        const el = document.getElementById('filters');
+        const filters = [
+            { key: 'all', label: 'All' },
+            { key: 'active', label: 'Active' },
+            { key: 'required', label: 'Required' },
+            { key: 'bonus', label: 'Bonus' },
+            { key: 'expired', label: 'Expired' }
+        ];
+        el.innerHTML = filters.map(f =>
+            `<button class="filter-btn ${f.key === currentFilter ? 'active' : ''}" data-filter="${f.key}">${f.label}</button>`
+        ).join('');
+        el.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentFilter = btn.dataset.filter;
+                buildFilters();
+                renderTable();
+            });
+        });
+    }
+
+    function buildHead() {
+        const el = document.getElementById('table-head');
+        el.innerHTML = columns.map(c => {
+            const sorted = sortCol === c.key;
+            const icon = c.sortable
+                ? `<span class="sort-icon">${sorted ? (sortDir === 1 ? '&#9650;' : '&#9660;') : '&#9650;'}</span>`
+                : '';
+            return `<th class="${sorted ? 'sorted' : ''}" data-col="${c.key}" ${c.sortable ? '' : 'style="cursor:default"'}>${c.label}${icon}</th>`;
+        }).join('');
+        el.querySelectorAll('th[data-col]').forEach(th => {
+            const col = columns.find(c => c.key === th.dataset.col);
+            if (!col.sortable) return;
+            th.addEventListener('click', () => {
+                if (sortCol === col.key) sortDir *= -1;
+                else { sortCol = col.key; sortDir = 1; }
+                buildHead();
+                renderTable();
+            });
+        });
+    }
+
+    function getFiltered() {
+        let data = HW_DATA.map((h, i) => ({ ...h, num: i + 1 }));
+        if (currentFilter === 'active') data = data.filter(h => getStatus(h.deadline) !== 'expired');
+        else if (currentFilter === 'required') data = data.filter(h => !h.bonus);
+        else if (currentFilter === 'bonus') data = data.filter(h => h.bonus);
+        else if (currentFilter === 'expired') data = data.filter(h => getStatus(h.deadline) === 'expired');
+
+        data.sort((a, b) => {
+            let va, vb;
+            switch (sortCol) {
+                case 'num': va = a.num; vb = b.num; break;
+                case 'name': va = a.id; vb = b.id; break;
+                case 'type': va = a.bonus ? 1 : 0; vb = b.bonus ? 1 : 0; break;
+                case 'points': va = a.max_points; vb = b.max_points; break;
+                case 'deadline': case 'countdown':
+                    va = new Date(a.deadline).getTime(); vb = new Date(b.deadline).getTime(); break;
+                default: va = 0; vb = 0;
+            }
+            if (va < vb) return -1 * sortDir;
+            if (va > vb) return 1 * sortDir;
+            return 0;
+        });
+        return data;
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('table-body');
+        const data = getFiltered();
+        tbody.innerHTML = data.map(h => {
+            const cd = formatCountdown(h.deadline);
+            const status = getStatus(h.deadline);
+            const name = formatName(h.id);
+            const links = [];
+            if (h.classroom_invite_link) links.push(`<a href="${h.classroom_invite_link}" target="_blank" rel="noopener">${svgGithub} GitHub</a>`);
+            if (h.feedback_form_url) links.push(`<a href="${h.feedback_form_url}" target="_blank" rel="noopener">${svgForm} Feedback</a>`);
+            return `<tr>
+                <td style="color:var(--text-dim);font-variant-numeric:tabular-nums">${h.num}</td>
+                <td class="hw-name">${name}</td>
+                <td><span class="badge ${h.bonus ? 'badge-bonus' : 'badge-required'}">${h.bonus ? 'Bonus' : 'Required'}</span></td>
+                <td class="points">${h.max_points}</td>
+                <td class="deadline-date">${formatDate(h.deadline)}</td>
+                <td><span class="countdown ${cd.cls}">${cd.text}</span></td>
+                <td class="links">${links.join('')}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function buildTimeline() {
+        const bar = document.getElementById('progress-bar');
+        const legend = document.getElementById('progress-legend');
+        const now = new Date();
+        const totalPts = HW_DATA.reduce((s, h) => s + h.max_points, 0);
+
+        bar.innerHTML = HW_DATA.map(h => {
+            const pct = (h.max_points / totalPts * 100).toFixed(1);
+            const topic = h.id.replace('hw-', '');
+            const color = TOPIC_COLORS[topic] || '#6c8cff';
+            const expired = new Date(h.deadline) < now;
+            const opacity = expired ? 0.35 : 1;
+            const label = pct > 3 ? formatName(h.id) : '';
+            return `<div class="progress-segment" style="width:${pct}%;background:${color};opacity:${opacity}" data-hw="${h.id}" data-points="${h.max_points}" data-deadline="${formatDate(h.deadline)}">
+                <span class="seg-label">${label}</span>
+            </div>`;
+        }).join('');
+
+        const expiredCount = HW_DATA.filter(h => new Date(h.deadline) < now).length;
+        const activeCount = HW_DATA.length - expiredCount;
+        legend.innerHTML = `
+            <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div> Active (${activeCount})</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--accent);opacity:0.35"></div> Expired (${expiredCount})</div>
+        `;
+
+        const tooltip = document.getElementById('tooltip');
+        bar.querySelectorAll('.progress-segment').forEach(seg => {
+            seg.addEventListener('mouseenter', e => {
+                tooltip.innerHTML = `<strong>${formatName(seg.dataset.hw)}</strong><br>${seg.dataset.points} pts &middot; ${seg.dataset.deadline}`;
+                tooltip.classList.add('visible');
+            });
+            seg.addEventListener('mousemove', e => {
+                tooltip.style.left = e.clientX + 12 + 'px';
+                tooltip.style.top = e.clientY - 10 + 'px';
+            });
+            seg.addEventListener('mouseleave', () => {
+                tooltip.classList.remove('visible');
+            });
+        });
+    }
+
+    function init() {
+        buildStats();
+        buildFilters();
+        buildHead();
+        renderTable();
+        buildTimeline();
+        setInterval(() => renderTable(), 60000);
+    }
+
+    init();
+    </script>
+</body>
+</html>
