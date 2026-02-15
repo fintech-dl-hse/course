@@ -16,3 +16,6 @@ wandb
 *.pth
 runs
 tmp
+
+seminars/05_cv/yolov5s.pt
+seminars/05_cv/dog_bike_car.jpg

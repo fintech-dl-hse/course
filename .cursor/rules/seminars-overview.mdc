@@ -43,6 +43,7 @@ alwaysApply: false
 ```
 - All questions in section `Блиц` must have answers hidden by spoilers. Add them if there is no answer yet.
 - Make experiments reproducible: fixed seeds, deterministic settings (when feasible), explicit dependencies.
+- **Models:** each mentioned model must have a link to arXiv and the year of publication (e.g. “ResNet [He et al., 2016](https://arxiv.org/abs/1512.03385)”).
 - Before committing notebooks: clear outputs; avoid huge artifacts in repo.
 - Do not run `./seminars/rm_widgets.sh` manually: it is executed automatically.
 - No trailing spaces.
