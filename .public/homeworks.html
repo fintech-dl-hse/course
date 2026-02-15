@@ -418,26 +418,8 @@
     <div class="tooltip" id="tooltip"></div>
 
     <script>
-    const HW_DATA = [
-        {"id":"hw-mlp","deadline":"2026-01-28T23:59:59","bonus":false,"max_points":100,"feedback_form_url":"https://forms.gle/6FMiKQJ1Gtpie8CA6","classroom_invite_link":"https://classroom.github.com/a/h2_hqtxe"},
-        {"id":"hw-activations","deadline":"2026-02-04T23:59:59","bonus":false,"max_points":100,"feedback_form_url":"https://forms.gle/iLjqp8SH75u78RsZ6","classroom_invite_link":"https://classroom.github.com/a/yx6ppUC3"},
-        {"id":"hw-weight-init","deadline":"2026-02-04T23:59:59","bonus":false,"max_points":100,"feedback_form_url":"https://forms.gle/iLjqp8SH75u78RsZ6","classroom_invite_link":"https://classroom.github.com/a/RaJ9-xWr"},
-        {"id":"hw-optimization","deadline":"2026-02-11T23:59:59","bonus":false,"max_points":200,"feedback_form_url":"https://forms.gle/uoGrqgaZ3R6214c36","classroom_invite_link":"https://classroom.github.com/a/jeX_hXTA"},
-        {"id":"hw-dropout","deadline":"2026-02-11T23:59:59","bonus":false,"max_points":100,"feedback_form_url":"https://forms.gle/uoGrqgaZ3R6214c36","classroom_invite_link":"https://classroom.github.com/a/tsetmelu"},
-        {"id":"hw-batchnorm","deadline":"2026-03-04T23:59:59","bonus":false,"max_points":100,"feedback_form_url":"https://forms.gle/ZpQh7TCyme5Hq1PTA","classroom_invite_link":"https://classroom.github.com/a/mIBVliHe"},
-        {"id":"hw-pytorch-basics","deadline":"2026-03-04T23:59:59","bonus":false,"max_points":200,"feedback_form_url":"https://forms.gle/ZpQh7TCyme5Hq1PTA","classroom_invite_link":"https://classroom.github.com/a/JLAScX3R"},
-        {"id":"hw-vae","deadline":"2026-03-29T23:59:59","bonus":false,"max_points":200,"feedback_form_url":"https://forms.gle/WhL7H15d26LAkggy7"},
-        {"id":"hw-diffusion","deadline":"2026-03-29T23:59:59","bonus":false,"max_points":200,"feedback_form_url":"https://forms.gle/WhL7H15d26LAkggy7"},
-        {"id":"hw-autograd-mlp","deadline":"2026-06-17T02:59:59","bonus":true,"max_points":100,"feedback_form_url":"https://forms.gle/QPmStUACp56tGkmK9","classroom_invite_link":"https://classroom.github.com/a/Z9xvjHWX"},
-        {"id":"hw-muon","deadline":"2026-06-17T02:59:59","bonus":true,"max_points":200,"feedback_form_url":"https://forms.gle/wNgv6cQA6TpfeyGp7","classroom_invite_link":"https://classroom.github.com/a/xxlI9YxV"},
-        {"id":"hw-tokenization","deadline":"2026-04-15T23:59:59","bonus":false,"max_points":200,"feedback_form_url":"https://forms.gle/RgBdUuegx7BFbc5X6"},
-        {"id":"hw-rnn-attention","deadline":"2026-05-06T23:59:59","bonus":false,"max_points":200,"feedback_form_url":"https://forms.gle/9Vmt31tQ6ohPtvzw5"},
-        {"id":"hw-transformer-attention","deadline":"2026-05-06T23:59:59","bonus":false,"max_points":200,"feedback_form_url":"https://forms.gle/9Vmt31tQ6ohPtvzw5"},
-        {"id":"hw-efficiency","deadline":"2026-05-20T23:59:59","bonus":false,"max_points":100,"feedback_form_url":"https://forms.gle/oVPzavqwXSJYPwXq7"},
-        {"id":"hw-llm-agent","deadline":"2026-06-16T23:59:59","bonus":false,"max_points":200,"feedback_form_url":"https://forms.gle/ySbswCdyRzGYTBwL6"},
-        {"id":"hw-multimodal-llm","deadline":"2026-06-17T02:59:59","bonus":true,"max_points":400,"feedback_form_url":"https://forms.gle/a4wipLVXiy1VT45X8"},
-        {"id":"hw-letters","deadline":"2026-06-17T02:59:59","bonus":true,"max_points":400,"feedback_form_url":"https://forms.gle/vjpmW821EiM6xULm6"}
-    ];
+    const HW_META_URL = 'https://raw.githubusercontent.com/fintech-dl-hse/checkhw/main/terraform/functions/grades/hw-meta.json';
+    let HW_DATA = [];
 
     const TOPIC_COLORS = {
         'mlp': '#6c8cff',
@@ -667,6 +649,24 @@
         });
     }
 
+    function showLoading() {
+        document.getElementById('stats-row').innerHTML = '<div class="stat-card" style="max-width:100%"><div class="stat-value" style="font-size:1rem">Loading…</div></div>';
+        document.getElementById('filters').innerHTML = '';
+        document.getElementById('table-head').innerHTML = '';
+        document.getElementById('table-body').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-dim)">Loading homework data…</td></tr>';
+        document.getElementById('progress-bar').innerHTML = '';
+        document.getElementById('progress-legend').innerHTML = '';
+    }
+
+    function showError(message) {
+        document.getElementById('stats-row').innerHTML = '';
+        document.getElementById('filters').innerHTML = '';
+        document.getElementById('table-head').innerHTML = '<th colspan="7" style="text-align:left;padding:1rem">Homeworks</th>';
+        document.getElementById('table-body').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--red)">' + message + '</td></tr>';
+        document.getElementById('progress-bar').innerHTML = '';
+        document.getElementById('progress-legend').innerHTML = '';
+    }
+
     function init() {
         buildStats();
         buildFilters();
@@ -676,7 +676,21 @@
         setInterval(() => renderTable(), 60000);
     }
 
-    init();
+    async function loadHwData() {
+        showLoading();
+        try {
+            const response = await fetch(HW_META_URL);
+            if (!response.ok) throw new Error('Network response was not ok');
+            const data = await response.json();
+            if (!Array.isArray(data)) throw new Error('Invalid data format');
+            HW_DATA = data;
+            init();
+        } catch (err) {
+            showError('Failed to load homework data. ' + (err.message || 'Please try again later.'));
+        }
+    }
+
+    loadHwData();
     </script>
 </body>
 </html>
