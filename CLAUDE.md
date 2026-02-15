@@ -325,3 +325,47 @@ ls -lh <notebook>.ipynb  # Should be < 100 KB without outputs
 - Update README.md when adding new seminars
 - Keep different years in separate branches
 - Maintain clean main branch structure
+
+## Seminars Overview
+
+### Expected seminar flow
+- Start with quick feedback fixes (from last seminar / forms).
+- Short recap of previous material.
+- New material (hands-on first, then "how it works").
+- Blitz questions on new concepts.
+- Homework overview (what matters, pitfalls, grading hints).
+
+### Core themes we cover (use as anchors)
+- In each seminar, avoid topics that students have not covered yet; use the plan implied by the list below. For example, do not use CNNs in seminars until the CV block has been covered.
+- Training basics: backprop, losses, activations, weight init.
+- Optimization + regularization: SGD/Adam/Muon, LR schedules, weight decay, dropout.
+- CV: CNNs, vision tasks; later ViT + self-supervised/contrastive.
+- Generative: AR, GAN, VAE, diffusion.
+- NLP: word2vec, tokenization (BPE/WordPiece/SentencePiece), RNN/attention/transformers, pretrained LMs.
+- LLM engineering: scaling laws, in-context learning, test-time scaling, PEFT.
+- Agents & systems: function calling, agentic patterns, observability, MCP, RAG.
+- Multimodal models.
+
+### Seminar crafting style (lightweight)
+- One concept per cell/section; keep cells short and runnable top-to-bottom.
+- Prefer clarity over cleverness: explicit names, small helper functions, minimal magic.
+- Add type hints + brief docstrings for reusable helpers.
+- Jupyter math: use `$...$` for inline math (not `\(...\)`), and `$$...$$` for display math on separate lines (not `\[...\]`).
+- Questions in seminars: one question per separate cell; format as a level-4 heading with ❓ and bold **Вопрос**, e.g. `#### ❓ **Вопрос**: зачем делать Softmax? Ведь на выходе модельки мы уже получаем логиты?`
+- Answers on questions: all answers must be hidden by spoilers. Example:
+```md
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Текст ответа</br>
+Следующая строчка ответа</br>
+
+</details>
+```
+- All questions in section `Блиц` must have answers hidden by spoilers. Add them if there is no answer yet.
+- Make experiments reproducible: fixed seeds, deterministic settings (when feasible), explicit dependencies.
+- Before committing notebooks: clear outputs; avoid huge artifacts in repo.
+- Do not run `./seminars/rm_widgets.sh` manually: it is executed automatically.
+- No trailing spaces.
+- First Cell must be Heading 1 title of seminar (# MLP)
