@@ -6,22 +6,22 @@
     <title>Homeworks | Fintech DL HSE</title>
     <style>
         :root {
-            --bg: #0f1117;
-            --surface: #1a1d27;
-            --surface2: #232736;
-            --border: #2e3348;
-            --text: #e4e6f0;
-            --text-dim: #8b8fa8;
-            --accent: #6c8cff;
-            --accent-glow: rgba(108, 140, 255, 0.15);
-            --green: #34d399;
-            --green-bg: rgba(52, 211, 153, 0.12);
-            --yellow: #fbbf24;
-            --yellow-bg: rgba(251, 191, 36, 0.12);
-            --red: #f87171;
-            --red-bg: rgba(248, 113, 113, 0.12);
-            --purple: #a78bfa;
-            --purple-bg: rgba(167, 139, 250, 0.12);
+            --bg: #f5f6f8;
+            --surface: #ffffff;
+            --surface2: #eef0f4;
+            --border: #dde0e6;
+            --text: #1a1d27;
+            --text-dim: #5c6178;
+            --accent: #4f6af5;
+            --accent-glow: rgba(79, 106, 245, 0.12);
+            --green: #0d9668;
+            --green-bg: rgba(13, 150, 104, 0.12);
+            --yellow: #c5910a;
+            --yellow-bg: rgba(197, 145, 10, 0.12);
+            --red: #c73e3e;
+            --red-bg: rgba(199, 62, 62, 0.12);
+            --purple: #7c5dd6;
+            --purple-bg: rgba(124, 93, 214, 0.12);
             --radius: 12px;
         }
 
@@ -60,6 +60,12 @@
         header p {
             color: var(--text-dim);
             font-size: 0.95rem;
+        }
+
+        header .grade-cap {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            margin-top: 0.35rem;
         }
 
         .stats-row {
@@ -177,7 +183,7 @@
         tbody tr:last-child { border-bottom: none; }
 
         tbody tr:hover {
-            background: rgba(108, 140, 255, 0.04);
+            background: var(--accent-glow);
         }
 
         tbody td {
@@ -222,10 +228,6 @@
             color: var(--yellow);
         }
 
-        .status-expired {
-            color: var(--text-dim);
-        }
-
         .countdown {
             font-size: 0.82rem;
             font-variant-numeric: tabular-nums;
@@ -240,7 +242,7 @@
             color: var(--green);
         }
 
-        .countdown.expired {
+        .countdown.late {
             color: var(--text-dim);
             font-style: italic;
         }
@@ -323,7 +325,8 @@
         .progress-segment .seg-label {
             font-size: 0.65rem;
             font-weight: 700;
-            color: rgba(255,255,255,0.8);
+            color: rgba(255, 255, 255, 0.95);
+            text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -353,7 +356,7 @@
 
         .tooltip {
             position: fixed;
-            background: var(--surface2);
+            background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 8px;
             padding: 0.6rem 0.8rem;
@@ -361,7 +364,7 @@
             color: var(--text);
             pointer-events: none;
             z-index: 100;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
             opacity: 0;
             transition: opacity 0.15s;
         }
@@ -389,6 +392,7 @@
         <header>
             <h1>Deep Learning Homeworks</h1>
             <p>Fintech DL @ HSE 2025</p>
+            <p class="grade-cap">Maximum grade from homeworks: 22 points.</p>
         </header>
 
         <div class="stats-row" id="stats-row"></div>
@@ -464,7 +468,7 @@
         const now = new Date();
         const dl = new Date(deadline);
         const diff = dl - now;
-        if (diff < 0) return 'expired';
+        if (diff < 0) return 'late';
         if (diff < 3 * 24 * 60 * 60 * 1000) return 'urgent';
         return 'active';
     }
@@ -473,7 +477,7 @@
         const now = new Date();
         const dl = new Date(deadline);
         const diff = dl - now;
-        if (diff < 0) return { text: 'Expired', cls: 'expired' };
+        if (diff < 0) return { text: 'Past deadline (−10%/day, max −30%)', cls: 'late' };
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         if (days > 30) return { text: `${days}d`, cls: 'comfortable' };
@@ -513,14 +517,16 @@
         const bonus = HW_DATA.filter(h => h.bonus);
         const totalPts = HW_DATA.reduce((s, h) => s + h.max_points, 0);
         const reqPts = required.reduce((s, h) => s + h.max_points, 0);
-        const active = HW_DATA.filter(h => getStatus(h.deadline) !== 'expired').length;
+        const beforeDeadline = HW_DATA.filter(h => getStatus(h.deadline) !== 'late').length;
+        const pastDeadline = HW_DATA.filter(h => getStatus(h.deadline) === 'late').length;
 
         const stats = [
             { value: total, label: 'Total HWs' },
             { value: required.length, label: 'Required' },
             { value: bonus.length, label: 'Bonus' },
             { value: totalPts, label: 'Total Points' },
-            { value: active, label: 'Active' }
+            { value: beforeDeadline, label: 'Before deadline' },
+            { value: pastDeadline, label: 'Past deadline' }
         ];
 
         el.innerHTML = stats.map(s => `
@@ -535,10 +541,10 @@
         const el = document.getElementById('filters');
         const filters = [
             { key: 'all', label: 'All' },
-            { key: 'active', label: 'Active' },
+            { key: 'active', label: 'Before deadline' },
+            { key: 'late', label: 'Past deadline' },
             { key: 'required', label: 'Required' },
-            { key: 'bonus', label: 'Bonus' },
-            { key: 'expired', label: 'Expired' }
+            { key: 'bonus', label: 'Bonus' }
         ];
         el.innerHTML = filters.map(f =>
             `<button class="filter-btn ${f.key === currentFilter ? 'active' : ''}" data-filter="${f.key}">${f.label}</button>`
@@ -575,10 +581,10 @@
 
     function getFiltered() {
         let data = HW_DATA.map((h, i) => ({ ...h, num: i + 1 }));
-        if (currentFilter === 'active') data = data.filter(h => getStatus(h.deadline) !== 'expired');
+        if (currentFilter === 'active') data = data.filter(h => getStatus(h.deadline) !== 'late');
+        else if (currentFilter === 'late') data = data.filter(h => getStatus(h.deadline) === 'late');
         else if (currentFilter === 'required') data = data.filter(h => !h.bonus);
         else if (currentFilter === 'bonus') data = data.filter(h => h.bonus);
-        else if (currentFilter === 'expired') data = data.filter(h => getStatus(h.deadline) === 'expired');
 
         data.sort((a, b) => {
             let va, vb;
@@ -630,19 +636,19 @@
             const pct = (h.max_points / totalPts * 100).toFixed(1);
             const topic = h.id.replace('hw-', '');
             const color = TOPIC_COLORS[topic] || '#6c8cff';
-            const expired = new Date(h.deadline) < now;
-            const opacity = expired ? 0.35 : 1;
+            const pastDeadline = new Date(h.deadline) < now;
+            const opacity = pastDeadline ? 0.35 : 1;
             const label = pct > 3 ? formatName(h.id) : '';
             return `<div class="progress-segment" style="width:${pct}%;background:${color};opacity:${opacity}" data-hw="${h.id}" data-points="${h.max_points}" data-deadline="${formatDate(h.deadline)}">
                 <span class="seg-label">${label}</span>
             </div>`;
         }).join('');
 
-        const expiredCount = HW_DATA.filter(h => new Date(h.deadline) < now).length;
-        const activeCount = HW_DATA.length - expiredCount;
+        const pastDeadlineCount = HW_DATA.filter(h => new Date(h.deadline) < now).length;
+        const beforeDeadlineCount = HW_DATA.length - pastDeadlineCount;
         legend.innerHTML = `
-            <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div> Active (${activeCount})</div>
-            <div class="legend-item"><div class="legend-dot" style="background:var(--accent);opacity:0.35"></div> Expired (${expiredCount})</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div> Before deadline (${beforeDeadlineCount})</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--accent);opacity:0.35"></div> Past deadline (${pastDeadlineCount})</div>
         `;
 
         const tooltip = document.getElementById('tooltip');
