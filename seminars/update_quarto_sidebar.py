@@ -20,7 +20,8 @@ def discover_seminar_notebooks(seminars_dir: Path) -> list[str]:
 
     Each direct subdir of seminars_dir that looks like a seminar folder
     (contains at least one .ipynb) contributes one path. Prefer the .ipynb
-    whose stem matches the dir name; otherwise use the first .ipynb by name.
+    whose stem matches the dir name; else one with same numeric prefix and
+    "seminar" in the name; else the first .ipynb by name.
     """
     entries: list[tuple[str, str]] = []
     for path in sorted(seminars_dir.iterdir()):
@@ -34,7 +35,10 @@ def discover_seminar_notebooks(seminars_dir: Path) -> list[str]:
         if preferred.exists():
             nb = preferred
         else:
-            nb = ipynbs[0]
+            # Prefer main seminar notebook: same numeric prefix as dir + "seminar" in name
+            prefix = path.name.split("_")[0] + "_" if path.name else ""
+            seminar_nbs = [p for p in ipynbs if p.stem.startswith(prefix) and "seminar" in p.stem.lower()]
+            nb = seminar_nbs[0] if seminar_nbs else ipynbs[0]
         rel = nb.relative_to(seminars_dir).as_posix()
         entries.append((path.name, rel))
     return [rel for _, rel in sorted(entries, key=lambda x: x[0])]
@@ -51,23 +55,10 @@ def update_quarto_yml(seminars_dir: Path, notebook_paths: list[str]) -> bool:
 
     # Replace the list under "Семинары" / contents: (only the - dir/file.ipynb lines)
     # Pattern: section "Семинары" then contents: then indented - path lines until next key
-    block_start = re.compile(
-        r"(- section: [\"']Семинары[\"']\s*\n\s+contents:\s*\n)",
-        re.MULTILINE,
-    )
-    list_line = re.compile(r"^(\s+)-\s+[\w./]+\\.ipynb\s*$", re.MULTILINE)
-
-    def repl(match: re.Match[str]) -> str:
-        prefix = match.group(1)
-        indent = "          "
-        new_lines = [f"{indent}- {p}\n" for p in notebook_paths]
-        return prefix + "".join(new_lines)
-
-    # Find the contents block and the following list lines to replace
     new_list = "\n".join(f"          - {p}" for p in notebook_paths)
     # Match from "section: Семинары" through the last "          - ...ipynb"
     pattern = re.compile(
-        r"(- section: [\"']Семинары[\"']\s*\n\s+contents:\s*\n)(?:\s+-\s+[\w./]+\\.ipynb\s*\n)+",
+        r"(- section: [\"']Семинары[\"']\s*\n\s+contents:\s*\n)(?:\s+-\s+[\w/]+\.ipynb\s*\n)+",
         re.MULTILINE,
     )
     new_text = pattern.sub(r"\g<1>" + new_list + "\n", text)

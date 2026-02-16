@@ -18,3 +18,4 @@ website:
           - 02_activations_initialization_dataloader_trainer/02_activations_initialization_dataloader_trainer.ipynb
           - 03_optimization_regularization/03_seminar_optimization_regularization.ipynb
           - 04_cnn/04_seminar_cnn.ipynb
+          - 05_cv/05_seminar_cv.ipynb
