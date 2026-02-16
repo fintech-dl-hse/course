@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fintech DL HSE — Глубокое обучение</title>
+    <style>
+        :root {
+            --bg: #f5f6f8;
+            --surface: #ffffff;
+            --surface2: #eef0f4;
+            --border: #dde0e6;
+            --text: #1a1d27;
+            --text-dim: #5c6178;
+            --accent: #4f6af5;
+            --accent-glow: rgba(79, 106, 245, 0.12);
+            --purple: #7c5dd6;
+            --purple-bg: rgba(124, 93, 214, 0.12);
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.4rem;
+        }
+
+        header p {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+        }
+
+        .links {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .link-card {
+            display: block;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.5rem;
+            text-decoration: none;
+            color: var(--text);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .link-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+
+        .link-card h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .link-card p {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Fintech DL HSE</h1>
+            <p>Курс «Глубокое обучение», Финтех, ВШЭ</p>
+        </header>
+
+        <nav class="links">
+            <a href="homeworks.html" class="link-card">
+                <h2>Домашние задания</h2>
+                <p>Список и статусы домашних работ</p>
+            </a>
+            <a href="hw.html" class="link-card">
+                <h2>HW</h2>
+                <p>Форма сдачи домашних заданий</p>
+            </a>
+            <a href="hwd.html" class="link-card">
+                <h2>HW Detailed</h2>
+                <p>Подробная форма домашних заданий</p>
+            </a>
+            <a href="seminars/" class="link-card">
+                <h2>Семинары</h2>
+                <p>Материалы семинаров курса</p>
+            </a>
+        </nav>
+    </div>
+</body>
+</html>
