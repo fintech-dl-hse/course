@@ -119,15 +119,15 @@ $ O_{exam3} $ и $ O_{exam4} $ - оценки за экзамен соответ
 | 02.03 | Генеративные модели: VAE, GAN.                                   | vae                              |
 | 09.03 | -                                                                |                                  |
 | 16.03 | -                                                                |                                  |
-| 23.03 | Генеративные модели: Diffusion.                                  |  diffusion                   |
+| 23.03 | Генеративные модели: Diffusion.                                  |  diffusion                       |
 | 30.03 | _сессия_                                                         |                                  |
 | 06.04 | _экзамен_                                                        |                                  |
 | 13.04 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
 | 20.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE, YaRN. | transformer-attention, rnn-attention |
-| 27.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models.  |                 |
-| 04.05 | -                                                                |                                  |
-| 11.05 | Scaling Laws. In context learning. Test time scaling (thinking models). PEFT. | efficiency          |
-| 18.05 | -                                                                |                                  |
+| 27.04 | -                                                                |                                  |
+| 04.05 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models.  |                 |
+| 11.05 | -                                                                |                                  |
+| 18.05 | Scaling Laws. In context learning. Test time scaling (thinking models). PEFT. | efficiency          |
 | 01.06 | Function Calling. Agentic patterns. Observability. MCP. RAG.     | llm-agent (+mcp)                 |
 | 08.06 | Vision Transformers. Self-supervised, contrastive learning.      | clip                             |
 | 22.06 | Мультимодальные модели                                           | 🎁 multimodal-llm        |
