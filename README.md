@@ -116,21 +116,21 @@ $ O_{exam3} $ и $ O_{exam4} $ - оценки за экзамен соответ
 | 09.02 | Сверточные сети.                                                 | pytorch-basics, batchnorm        |
 | 16.02 | Задачи Computer Vision.                                          | 🎁 letters                |
 | 23.02 | -                                                                |                                  |
-| 02.03 | Генеративные модели: VAE, GAN.                     | vae                              |
-| 09.03 | Генеративные модели: Diffusion.                             |  diffusion                   |
+| 02.03 | Генеративные модели: VAE, GAN.                                   | vae                              |
+| 09.03 | -                                                                |                                  |
 | 16.03 | -                                                                |                                  |
-| 23.03 | -                                                                |                                  |
-| 30.03 | _экзамен_                                                        |                                  |
-| 06.04 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
-| 13.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE, YaRN. | transformer-attention, rnn-attention |
-| 20.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models.  |                 |
-| 27.04 | -                                                                |                                  |
-| 04.05 | Scaling Laws. In context learning. Test time scaling (thinking models). PEFT. | efficiency          |
-| 11.05 | -                                                                |                                  |
-| 18.05 | Function Calling. Agentic patterns. Observability. MCP. RAG.     | llm-agent (+mcp)                 |
-| 01.06 | Vision Transformers. Self-supervised, contrastive learning.      | clip                             |
-| 08.06 | Мультимодальные модели                                           | 🎁 multimodal-llm        |
-| 22.06 | -                                                                |                                  |
+| 23.03 | Генеративные модели: Diffusion.                                  |  diffusion                   |
+| 30.03 | _сессия_                                                         |                                  |
+| 06.04 | _экзамен_                                                        |                                  |
+| 13.04 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
+| 20.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE, YaRN. | transformer-attention, rnn-attention |
+| 27.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models.  |                 |
+| 04.05 | -                                                                |                                  |
+| 11.05 | Scaling Laws. In context learning. Test time scaling (thinking models). PEFT. | efficiency          |
+| 18.05 | -                                                                |                                  |
+| 01.06 | Function Calling. Agentic patterns. Observability. MCP. RAG.     | llm-agent (+mcp)                 |
+| 08.06 | Vision Transformers. Self-supervised, contrastive learning.      | clip                             |
+| 22.06 | Мультимодальные модели                                           | 🎁 multimodal-llm        |
 | 15.06 | -                                                                |                                  |
 | 17.06 | _экзамен_                                                        |                                  |
 
