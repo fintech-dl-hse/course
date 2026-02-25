@@ -125,8 +125,8 @@ $ O_{exam3} $ и $ O_{exam4} $ - оценки за экзамен соответ
 | 13.04 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
 | 20.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE, YaRN. | transformer-attention, rnn-attention |
 | 27.04 | -                                                                |                                  |
-| 04.05 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models.  |                 |
-| 11.05 | -                                                                |                                  |
+| 04.05 | -                                                                |                                  |
+| 11.05 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models.  |                 |
 | 18.05 | Scaling Laws. In context learning. Test time scaling (thinking models). PEFT. | efficiency          |
 | 01.06 | Function Calling. Agentic patterns. Observability. MCP. RAG.     | llm-agent (+mcp)                 |
 | 08.06 | Vision Transformers. Self-supervised, contrastive learning.      | clip                             |
