@@ -116,10 +116,10 @@ $ O_{exam3} $ и $ O_{exam4} $ - оценки за экзамен соответ
 | 09.02 | Сверточные сети.                                                 | pytorch-basics, batchnorm        |
 | 16.02 | Задачи Computer Vision.                                          | 🎁 letters                |
 | 23.02 | -                                                                |                                  |
-| 02.03 | Генеративные модели: AE, VAE, GAN.                               | vae                              |
+| 02.03 | Генеративные модели: GAN.                                        |                                  |
 | 09.03 | -                                                                |                                  |
 | 16.03 | -                                                                |                                  |
-| 23.03 | Генеративные модели: Diffusion.                                  |  diffusion                       |
+| 23.03 | Генеративные модели: AE, VAE, Diffusion.                         | vae,  diffusion                       |
 | 30.03 | _сессия_                                                         |                                  |
 | 06.04 | _экзамен_                                                        |                                  |
 | 13.04 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
