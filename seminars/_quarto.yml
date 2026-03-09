@@ -19,4 +19,5 @@ website:
           - 03_optimization_regularization/03_seminar_optimization_regularization.ipynb
           - 04_cnn/04_seminar_cnn.ipynb
           - 05_cv/05_seminar_cv.ipynb
-          - 06_vae_gan/06_vae_gan.ipynb
+          - 06_gan/06_gan.ipynb
+          - 07_vae_diffusion/07_vae_diffusion.ipynb
