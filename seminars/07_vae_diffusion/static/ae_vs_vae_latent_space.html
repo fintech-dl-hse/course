@@ -1,4 +1,7 @@
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
 <style>
   .panel { display: inline-block; vertical-align: top; width: 48%; }
   .panel-label { font-size: 14px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 8px; }
@@ -6,6 +9,8 @@
   canvas { border-radius: var(--border-radius-md); background: var(--color-background-secondary); width: 100%; aspect-ratio: 1; }
   .wrap { display: flex; gap: 16px; }
 </style>
+</head>
+<body>
 <div class="wrap">
   <div class="panel">
     <div class="panel-label">Autoencoder latent space</div>
@@ -85,3 +90,5 @@ function draw(id, mode) {
 draw('ae', 'ae');
 draw('vae', 'vae');
 </script>
+</body>
+</html>
