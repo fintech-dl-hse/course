@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 """
-Process Jupyter notebook markdown cells: normalize images to HTML with max width=400.
+Process Jupyter notebook cells:
+1. Markdown cells — normalize images to HTML with max width=400.
+2. Code cells — inline HTML renders from static/ files.
 
+Image normalization:
 - Remote URLs: keep as-is, wrap in <img src="..." width=400 />.
 - Local paths (static/...): keep, ensure <img src="static/..." width=400 />.
 - Base64 inline images: decode and save to ./static/<name>.(png|jpg|gif), then use
   <img src="static/<name>.<ext>" width=400 />.
+
+HTML render inlining:
+- Code cells like ``HTML(Path("static/foo.html").read_text())`` are replaced with
+  inlined HTML content, removing the file dependency.
 
 Usage:
   python process_images.py path/to/notebook.ipynb [path/to/another.ipynb ...]
@@ -162,9 +169,51 @@ def process_cell_source(
     return new_source, True
 
 
+_HTML_RENDER_RE = re.compile(
+    r"""HTML\(Path\(["']([^"']+\.html)["']\)\.read_text\(\)\)""",
+)
+
+
+def _inline_html_render(
+    source: list[str],
+    static_dir: Path,
+    dry_run: bool = False,
+) -> tuple[list[str], bool]:
+    """
+    Replace `HTML(Path("static/foo.html").read_text())` with inlined HTML content.
+
+    Returns (new_source_lines, changed).
+    """
+    text = "".join(source)
+    match = _HTML_RENDER_RE.search(text)
+    if not match:
+        return source, False
+
+    html_path = static_dir / Path(match.group(1)).name
+    if not html_path.exists():
+        print(f"  HTML file not found, skipping: {html_path}")
+        return source, False
+
+    if dry_run:
+        print(f"  Would inline: {html_path}")
+        return source, True
+
+    html_content = html_path.read_text(encoding="utf-8").strip()
+    escaped = html_content.replace("\\", "\\\\").replace('"""', '""\\"')
+
+    new_source = [
+        "from IPython.display import HTML\n",
+        "\n",
+        f'HTML("""{escaped}""")\n',
+    ]
+    return new_source, True
+
+
 def process_notebook(notebook_path: Path, dry_run: bool = False) -> bool:
     """
-    Process a single notebook: extract base64 images to static/, normalize all images to width=400.
+    Process a single notebook:
+    - Markdown cells: extract base64 images to static/, normalize all images to width=400.
+    - Code cells: inline HTML renders from static/ files.
 
     Returns True if notebook was modified.
     """
@@ -182,17 +231,26 @@ def process_notebook(notebook_path: Path, dry_run: bool = False) -> bool:
     image_counter = [0]
 
     for cell in nb.get("cells", []):
-        if cell.get("cell_type") != "markdown":
-            continue
         src = cell.get("source", [])
         if not src:
             continue
-        new_src, cell_changed = process_cell_source(
-            src, static_dir, image_counter, dry_run=dry_run
-        )
-        if cell_changed:
-            cell["source"] = new_src
-            modified = True
+        cell_type = cell.get("cell_type")
+
+        if cell_type == "markdown":
+            new_src, cell_changed = process_cell_source(
+                src, static_dir, image_counter, dry_run=dry_run
+            )
+            if cell_changed:
+                cell["source"] = new_src
+                modified = True
+
+        elif cell_type == "code":
+            new_src, cell_changed = _inline_html_render(
+                src, static_dir, dry_run=dry_run
+            )
+            if cell_changed:
+                cell["source"] = new_src
+                modified = True
 
     if modified and not dry_run:
         with open(notebook_path, "w", encoding="utf-8") as f:
@@ -204,7 +262,7 @@ def process_notebook(notebook_path: Path, dry_run: bool = False) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Normalize notebook images to HTML with width=400; extract base64 to static/."
+        description="Normalize notebook images to HTML with width=400; extract base64 to static/; inline HTML renders."
     )
     parser.add_argument(
         "notebooks",

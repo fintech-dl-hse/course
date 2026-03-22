@@ -1,0 +1,87 @@
+
+<style>
+  .panel { display: inline-block; vertical-align: top; width: 48%; }
+  .panel-label { font-size: 14px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 8px; }
+  .panel-sub { font-size: 12px; color: var(--color-text-secondary); margin-top: 6px; line-height: 1.5; }
+  canvas { border-radius: var(--border-radius-md); background: var(--color-background-secondary); width: 100%; aspect-ratio: 1; }
+  .wrap { display: flex; gap: 16px; }
+</style>
+<div class="wrap">
+  <div class="panel">
+    <div class="panel-label">Autoencoder latent space</div>
+    <canvas id="ae" width="300" height="300"></canvas>
+    <div class="panel-sub">Deterministic points. Gaps between clusters produce meaningless outputs when sampled.</div>
+  </div>
+  <div class="panel">
+    <div class="panel-label">VAE latent space</div>
+    <canvas id="vae" width="300" height="300"></canvas>
+    <div class="panel-sub">Overlapping distributions. Smooth, continuous — every point decodes to something plausible.</div>
+  </div>
+</div>
+<script>
+function draw(id, mode) {
+  const c = document.getElementById(id);
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  ctx.clearRect(0,0,W,H);
+
+  const clusters = [
+    {cx: 0.3, cy: 0.3, color: dark ? '#AFA9EC' : '#534AB7'},
+    {cx: 0.7, cy: 0.35, color: dark ? '#5DCAA5' : '#0F6E56'},
+    {cx: 0.5, cy: 0.7, color: dark ? '#F0997B' : '#993C1D'},
+    {cx: 0.25, cy: 0.65, color: dark ? '#85B7EB' : '#185FA5'},
+  ];
+
+  const rng = (function(s){return function(){s=(s*16807)%2147483647;return(s-1)/2147483646};})(42);
+  function gauss(m,s){let u=0,v=0;while(!u)u=rng();v=rng();return m+s*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+
+  if (mode === 'ae') {
+    clusters.forEach(cl => {
+      for (let i = 0; i < 40; i++) {
+        const x = gauss(cl.cx * W, 12);
+        const y = gauss(cl.cy * H, 12);
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = cl.color;
+        ctx.globalAlpha = 0.85;
+        ctx.fill();
+      }
+    });
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = dark ? '#888780' : '#B4B2A9';
+    ctx.lineWidth = 1;
+    const qx = W * 0.5, qy = W * 0.45;
+    ctx.beginPath(); ctx.arc(qx, qy, 8, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle = dark ? '#F09595' : '#A32D2D';
+    ctx.globalAlpha = 0.6;
+    ctx.font = '500 11px sans-serif';
+    ctx.fillText('?', qx - 3, qy + 4);
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([]);
+  } else {
+    clusters.forEach(cl => {
+      for (let r = 40; r > 0; r -= 4) {
+        ctx.beginPath();
+        ctx.arc(cl.cx * W, cl.cy * H, r, 0, Math.PI * 2);
+        ctx.fillStyle = cl.color;
+        ctx.globalAlpha = 0.04;
+        ctx.fill();
+      }
+      for (let i = 0; i < 40; i++) {
+        const x = gauss(cl.cx * W, 22);
+        const y = gauss(cl.cy * H, 22);
+        ctx.beginPath();
+        ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = cl.color;
+        ctx.globalAlpha = 0.6;
+        ctx.fill();
+      }
+    });
+    ctx.globalAlpha = 1;
+  }
+}
+draw('ae', 'ae');
+draw('vae', 'vae');
+</script>

@@ -1,0 +1,127 @@
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<style>.katex-display{text-align:left!important;margin:0!important;padding:0!important}.katex-display>.katex{text-align:left!important}</style>
+<div id="root" style="max-width: 680px;"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script>
+const hl = {
+  ev: "background:#EEEDFE;padding:2px 5px;border-radius:3px",
+  rec: "background:#EAF3DE;padding:2px 5px;border-radius:3px",
+  kl: "background:#E6F1FB;padding:2px 5px;border-radius:3px",
+  gap: "background:#FCEBEB;padding:2px 5px;border-radius:3px"
+};
+
+const kOpts = { displayMode: true, throwOnError: false, trust: true };
+const kInline = { displayMode: false, throwOnError: false, trust: true };
+
+const pillColors = [
+  { bg: "#EEEDFE", c: "#534AB7" },
+  { bg: "#E1F5EE", c: "#0F6E56" },
+  { bg: "#FAECE7", c: "#993C1D" },
+  { bg: "#E6F1FB", c: "#185FA5" }
+];
+
+const steps = [
+  {
+    label: `\\text{Definition of KL}`,
+    tex: `D_{\\mathrm{KL}}\\!\\bigl(q_\\phi(\\mathbf{z}|\\mathbf{x})\\,\\|\\,p_\\theta(\\mathbf{z}|\\mathbf{x})\\bigr) = \\mathbb{E}_{q}\\!\\left[\\log q_\\phi(\\mathbf{z}|\\mathbf{x}) - \\log p_\\theta(\\mathbf{z}|\\mathbf{x})\\right]`,
+    color: "#7F77DD",
+    note: null
+  },
+  {
+    label: `\\text{Bayes' rule on } p_\\theta(\\mathbf{z}|\\mathbf{x})`,
+    tex: `= \\mathbb{E}_{q}\\!\\left[\\log q_\\phi(\\mathbf{z}|\\mathbf{x}) - \\log p_\\theta(\\mathbf{x}|\\mathbf{z}) - \\log p(\\mathbf{z}) + \\htmlStyle{${hl.ev}}{\\log p_\\theta(\\mathbf{x})} \\right]`,
+    color: "#5DCAA5",
+    note: `\\htmlStyle{${hl.ev}}{\\log p_\\theta(\\mathbf{x})} \\text{ doesn't depend on } \\mathbf{z} \\;\\Rightarrow\\; \\text{pull out of expectation}`
+  },
+  {
+    label: `\\text{Pull out constant + rearrange}`,
+    tex: `= -\\htmlStyle{${hl.rec}}{\\mathbb{E}_{q}\\!\\left[\\log p_\\theta(\\mathbf{x}|\\mathbf{z})\\right]} + \\htmlStyle{${hl.kl}}{\\mathbb{E}_{q}\\!\\left[\\log q_\\phi(\\mathbf{z}|\\mathbf{x}) - \\log p(\\mathbf{z})\\right]} + \\htmlStyle{${hl.ev}}{\\log p_\\theta(\\mathbf{x})}`,
+    color: "#D85A30",
+    note: `\\text{Second term} = \\htmlStyle{${hl.kl}}{D_{\\mathrm{KL}}\\!\\bigl(q_\\phi(\\mathbf{z}|\\mathbf{x})\\,\\|\\,p(\\mathbf{z})\\bigr)} \\text{ by definition}`
+  },
+  {
+    label: `\\text{Solve for } \\log p_\\theta(\\mathbf{x})`,
+    tex: `\\htmlStyle{${hl.ev}}{\\log p_\\theta(\\mathbf{x})} = \\htmlStyle{${hl.rec}}{\\mathbb{E}_{q}\\!\\left[\\log p_\\theta(\\mathbf{x}|\\mathbf{z})\\right]} - \\htmlStyle{${hl.kl}}{D_{\\mathrm{KL}}\\!\\bigl(q\\,\\|\\,p(\\mathbf{z})\\bigr)} + \\htmlStyle{${hl.gap}}{D_{\\mathrm{KL}}\\!\\bigl(q\\,\\|\\,p_\\theta(\\mathbf{z}|\\mathbf{x})\\bigr)}`,
+    color: "#378ADD",
+    note: null
+  }
+];
+
+const root = document.getElementById("root");
+
+steps.forEach((s, i) => {
+  const pc = pillColors[i];
+  const box = document.createElement("div");
+  box.style.cssText = `background:var(--color-background-secondary);border-left:3px solid ${s.color};border-radius:0;padding:12px 14px;margin-bottom:10px;overflow-x:auto;`;
+
+  const header = document.createElement("div");
+  header.style.cssText = "display:flex;align-items:center;gap:8px;margin:0 0 20px;";
+
+  const pill = document.createElement("span");
+  pill.style.cssText = `display:inline-block;background:${pc.bg};color:${pc.c};font-size:10px;font-weight:500;padding:1px 7px;border-radius:8px;text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap;`;
+  pill.textContent = `Step ${i + 1}`;
+
+  const label = document.createElement("span");
+  label.style.cssText = "font-size:12px;color:var(--color-text-secondary);";
+  katex.render(s.label, label, kInline);
+
+  header.appendChild(pill);
+  header.appendChild(label);
+  box.appendChild(header);
+
+  const mathDiv = document.createElement("div");
+  mathDiv.style.cssText = `font-size:13px;overflow-x:auto;${s.note ? "margin-bottom:20px;" : ""}`;
+  katex.render(s.tex, mathDiv, kOpts);
+  box.appendChild(mathDiv);
+
+  if (s.note) {
+    const noteDiv = document.createElement("div");
+    noteDiv.style.cssText = "font-size:12px;color:var(--color-text-secondary);overflow-x:auto;";
+    katex.render(s.note, noteDiv, kInline);
+    box.appendChild(noteDiv);
+  }
+
+  root.appendChild(box);
+});
+
+const result = document.createElement("div");
+result.style.cssText = "background:var(--color-background-secondary);border-left:3px solid var(--color-border-info);border-radius:0;padding:12px 14px;overflow-x:auto;";
+
+const rLabel = document.createElement("div");
+rLabel.style.cssText = "font-size:12px;margin:0 0 20px;color:var(--color-text-secondary);";
+katex.render(`\\text{Since } \\htmlStyle{${hl.gap}}{D_{\\mathrm{KL}} \\geq 0} \\text{ always, drop it to get a lower bound}`, rLabel, kInline);
+
+const rMath = document.createElement("div");
+rMath.style.cssText = "font-size:13px;overflow-x:auto;margin-bottom:20px;";
+katex.render(
+  `\\log p_\\theta(\\mathbf{x}) \\geq \\htmlStyle{${hl.rec}}{\\mathbb{E}_{q}\\!\\left[\\log p_\\theta(\\mathbf{x}|\\mathbf{z})\\right]} - \\htmlStyle{${hl.kl}}{D_{\\mathrm{KL}}\\!\\bigl(q_\\phi(\\mathbf{z}|\\mathbf{x})\\,\\|\\,p(\\mathbf{z})\\bigr)} \\;=\\; \\textbf{ELBO}`,
+  rMath, kOpts
+);
+
+const legend = document.createElement("div");
+legend.style.cssText = "font-size:12px;color:var(--color-text-secondary);display:flex;flex-direction:column;gap:3px;";
+const legs = [
+  { bg: "#EAF3DE", c: "#27500A", t: "Reconstruction", tex: `\\text{ — "does the decoder recover } \\mathbf{x} \\text{ from } \\mathbf{z} \\text{?"}` },
+  { bg: "#E6F1FB", c: "#0C447C", t: "KL to prior", tex: `\\text{ — "does the encoder stay close to } \\mathcal{N}(\\mathbf{0}, \\mathbf{I}) \\text{?"}` },
+  { bg: "#FCEBEB", c: "#791F1F", t: "Gap", tex: `\\text{ — vanishes as } q_\\phi \\text{ approaches the true posterior}` }
+];
+legs.forEach(l => {
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;align-items:center;gap:6px;";
+  const badge = document.createElement("span");
+  badge.style.cssText = `background:${l.bg};color:${l.c};padding:1px 6px;border-radius:3px;font-size:12px;font-weight:500;`;
+  badge.textContent = l.t;
+  const desc = document.createElement("span");
+  desc.style.cssText = "display:inline-block;";
+  katex.render(l.tex, desc, kInline);
+  row.appendChild(badge);
+  row.appendChild(desc);
+  legend.appendChild(row);
+});
+
+result.appendChild(rLabel);
+result.appendChild(rMath);
+result.appendChild(legend);
+root.appendChild(result);
+</script>
