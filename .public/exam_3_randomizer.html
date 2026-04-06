@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Рандомизатор билетов — Экзамен 3</title>
+    <style>
+        :root {
+            --bg: #f5f6f8;
+            --surface: #ffffff;
+            --surface2: #eef0f4;
+            --border: #dde0e6;
+            --text: #1a1d27;
+            --text-dim: #5c6178;
+            --accent: #4f6af5;
+            --accent-glow: rgba(79, 106, 245, 0.12);
+            --purple: #7c5dd6;
+            --purple-bg: rgba(124, 93, 214, 0.12);
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1.5rem;
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .back-link:hover { text-decoration: underline; }
+
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.4rem;
+        }
+
+        header p {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+        }
+
+        .randomizer {
+            text-align: center;
+        }
+
+        .randomizer-btn {
+            display: inline-block;
+            padding: 1rem 2.5rem;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            color: #fff;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        .randomizer-btn:hover { opacity: 0.9; }
+        .randomizer-btn:active { transform: scale(0.97); }
+
+        .result {
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .result.visible { display: block; }
+
+        .result-card {
+            background: var(--surface);
+            border: 1px solid var(--accent);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 4px 12px var(--accent-glow);
+            text-align: left;
+        }
+
+        .result-card .label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--accent);
+            margin-bottom: 0.25rem;
+        }
+
+        .result-card .question-text {
+            font-size: 1.05rem;
+            font-weight: 500;
+        }
+
+        .hint {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            margin-top: 1.5rem;
+        }
+
+        .hint a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .hint a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="exam_3.html" class="back-link">&larr; Список вопросов</a>
+
+        <header>
+            <h1>Рандомизатор билетов</h1>
+            <p>Экзамен за 3 модуль по курсу «Глубокое обучение»</p>
+        </header>
+
+        <div class="randomizer">
+            <button class="randomizer-btn" id="randomizeBtn">Получить билет</button>
+
+            <div class="result" id="result">
+                <div class="result-card">
+                    <div class="label">Вопрос 1</div>
+                    <div class="question-text" id="q1"></div>
+                </div>
+                <div class="result-card">
+                    <div class="label">Вопрос 2</div>
+                    <div class="question-text" id="q2"></div>
+                </div>
+            </div>
+
+            <p class="hint">
+                <a href="exam_3.html">Посмотреть полный список вопросов</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        let questions = [];
+
+        fetch('exam3_questions.json')
+            .then(r => r.json())
+            .then(data => { questions = data; });
+
+        document.getElementById('randomizeBtn').addEventListener('click', () => {
+            if (questions.length < 2) return;
+
+            const i = Math.floor(Math.random() * questions.length);
+            let j;
+            do {
+                j = Math.floor(Math.random() * questions.length);
+            } while (j === i);
+
+            const a = questions[i];
+            const b = questions[j];
+
+            document.getElementById('q1').textContent = `${a.id}. ${a.text}`;
+            document.getElementById('q2').textContent = `${b.id}. ${b.text}`;
+            document.getElementById('result').classList.add('visible');
+        });
+    </script>
+</body>
+</html>

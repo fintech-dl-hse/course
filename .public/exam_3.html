@@ -111,38 +111,9 @@
             transition: opacity 0.2s, transform 0.1s;
         }
 
-        .randomizer-btn:hover { opacity: 0.9; }
+        .randomizer-btn:hover { opacity: 0.9; text-decoration: none; }
         .randomizer-btn:active { transform: scale(0.97); }
 
-        .result {
-            margin-top: 1.5rem;
-            display: none;
-        }
-
-        .result.visible { display: block; }
-
-        .result-card {
-            background: var(--surface);
-            border: 1px solid var(--accent);
-            border-radius: var(--radius);
-            padding: 1.25rem 1.5rem;
-            margin-bottom: 0.75rem;
-            box-shadow: 0 4px 12px var(--accent-glow);
-        }
-
-        .result-card .label {
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--accent);
-            margin-bottom: 0.25rem;
-        }
-
-        .result-card .question-text {
-            font-size: 1.05rem;
-            font-weight: 500;
-        }
     </style>
 </head>
 <body>
@@ -161,57 +132,19 @@
 
         <section>
             <h2>Рандомизатор билета</h2>
-            <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 1rem;">
-                Нажмите кнопку, чтобы получить случайный билет из двух вопросов.
-            </p>
-            <button class="randomizer-btn" id="randomizeBtn">Получить билет</button>
-
-            <div class="result" id="result">
-                <div class="result-card">
-                    <div class="label">Вопрос 1</div>
-                    <div class="question-text" id="q1"></div>
-                </div>
-                <div class="result-card">
-                    <div class="label">Вопрос 2</div>
-                    <div class="question-text" id="q2"></div>
-                </div>
-            </div>
+            <a href="exam_3_randomizer.html" class="randomizer-btn">Открыть рандомизатор</a>
         </section>
     </div>
 
     <script>
-        let questions = [];
-
         fetch('exam3_questions.json')
             .then(r => r.json())
             .then(data => {
-                questions = data;
-                renderList();
+                const list = document.getElementById('questionList');
+                list.innerHTML = data.map(q =>
+                    `<li><span class="num">${q.id}.</span>${q.text}</li>`
+                ).join('');
             });
-
-        function renderList() {
-            const list = document.getElementById('questionList');
-            list.innerHTML = questions.map(q =>
-                `<li><span class="num">${q.id}.</span>${q.text}</li>`
-            ).join('');
-        }
-
-        document.getElementById('randomizeBtn').addEventListener('click', () => {
-            if (questions.length < 2) return;
-
-            const i = Math.floor(Math.random() * questions.length);
-            let j;
-            do {
-                j = Math.floor(Math.random() * questions.length);
-            } while (j === i);
-
-            const a = questions[i];
-            const b = questions[j];
-
-            document.getElementById('q1').textContent = `${a.id}. ${a.text}`;
-            document.getElementById('q2').textContent = `${b.id}. ${b.text}`;
-            document.getElementById('result').classList.add('visible');
-        });
     </script>
 </body>
 </html>
