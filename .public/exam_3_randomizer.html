@@ -16,6 +16,9 @@
             --accent-glow: rgba(79, 106, 245, 0.12);
             --purple: #7c5dd6;
             --purple-bg: rgba(124, 93, 214, 0.12);
+            --green: #22c55e;
+            --green-bg: rgba(34, 197, 94, 0.08);
+            --green-border: rgba(34, 197, 94, 0.3);
             --radius: 12px;
         }
 
@@ -27,13 +30,10 @@
             color: var(--text);
             min-height: 100vh;
             line-height: 1.6;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
 
         .container {
-            max-width: 600px;
+            max-width: 700px;
             width: 100%;
             margin: 0 auto;
             padding: 2rem 1.5rem 4rem;
@@ -93,38 +93,137 @@
         .result {
             margin-top: 2rem;
             display: none;
+            text-align: left;
         }
 
         .result.visible { display: block; }
 
-        .result-card {
+        .question-block {
             background: var(--surface);
-            border: 1px solid var(--accent);
+            border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 1.25rem 1.5rem;
-            margin-bottom: 0.75rem;
-            box-shadow: 0 4px 12px var(--accent-glow);
-            text-align: left;
+            margin-bottom: 1rem;
         }
 
-        .result-card .label {
+        .question-block .q-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 0.75rem;
+        }
+
+        .question-block .q-label {
             font-size: 0.8rem;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             color: var(--accent);
-            margin-bottom: 0.25rem;
         }
 
-        .result-card .question-text {
+        .question-block .q-subtotal {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-dim);
+        }
+
+        .question-block .q-subtotal .score-val {
+            color: var(--accent);
+            font-size: 1.05rem;
+        }
+
+        .question-block .question-text {
             font-size: 1.05rem;
             font-weight: 500;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .criteria-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+        }
+
+        .criteria-row + .criteria-row {
+            border-top: 1px solid var(--surface2);
+        }
+
+        .criteria-name {
+            font-size: 0.9rem;
+            color: var(--text);
+            flex: 1;
+        }
+
+        .criteria-max {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-right: 0.75rem;
+            white-space: nowrap;
+        }
+
+        .score-buttons {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .score-btn {
+            width: 2.25rem;
+            height: 2.25rem;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .score-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .score-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .total-block {
+            background: var(--surface);
+            border: 2px solid var(--accent);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.5rem;
+            margin-top: 1.5rem;
+            box-shadow: 0 4px 16px var(--accent-glow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .total-block .total-label {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .total-block .total-score {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .hint {
             color: var(--text-dim);
             font-size: 0.85rem;
             margin-top: 1.5rem;
+            text-align: center;
         }
 
         .hint a {
@@ -133,6 +232,25 @@
         }
 
         .hint a:hover { text-decoration: underline; }
+
+        .reset-btn {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.5rem 1.5rem;
+            background: var(--surface2);
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .reset-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
     </style>
 </head>
 <body>
@@ -148,13 +266,81 @@
             <button class="randomizer-btn" id="randomizeBtn">Получить билет</button>
 
             <div class="result" id="result">
-                <div class="result-card">
-                    <div class="label">Вопрос 1</div>
+                <div class="question-block" id="block1">
+                    <div class="q-header">
+                        <span class="q-label">Вопрос 1</span>
+                        <span class="q-subtotal"><span class="score-val" id="sub1">0</span> / 5</span>
+                    </div>
                     <div class="question-text" id="q1"></div>
+                    <div class="criteria-row">
+                        <span class="criteria-name">Формулировка проблемы</span>
+                        <span class="criteria-max">макс. 1</span>
+                        <div class="score-buttons" data-question="1" data-criterion="0" data-max="1">
+                            <button class="score-btn" data-value="0">0</button>
+                            <button class="score-btn" data-value="1">1</button>
+                        </div>
+                    </div>
+                    <div class="criteria-row">
+                        <span class="criteria-name">Описание доступных архитектур</span>
+                        <span class="criteria-max">макс. 2</span>
+                        <div class="score-buttons" data-question="1" data-criterion="1" data-max="2">
+                            <button class="score-btn" data-value="0">0</button>
+                            <button class="score-btn" data-value="1">1</button>
+                            <button class="score-btn" data-value="2">2</button>
+                        </div>
+                    </div>
+                    <div class="criteria-row">
+                        <span class="criteria-name">Описание достоинств и недостатков</span>
+                        <span class="criteria-max">макс. 2</span>
+                        <div class="score-buttons" data-question="1" data-criterion="2" data-max="2">
+                            <button class="score-btn" data-value="0">0</button>
+                            <button class="score-btn" data-value="1">1</button>
+                            <button class="score-btn" data-value="2">2</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="result-card">
-                    <div class="label">Вопрос 2</div>
+
+                <div class="question-block" id="block2">
+                    <div class="q-header">
+                        <span class="q-label">Вопрос 2</span>
+                        <span class="q-subtotal"><span class="score-val" id="sub2">0</span> / 5</span>
+                    </div>
                     <div class="question-text" id="q2"></div>
+                    <div class="criteria-row">
+                        <span class="criteria-name">Формулировка проблемы</span>
+                        <span class="criteria-max">макс. 1</span>
+                        <div class="score-buttons" data-question="2" data-criterion="0" data-max="1">
+                            <button class="score-btn" data-value="0">0</button>
+                            <button class="score-btn" data-value="1">1</button>
+                        </div>
+                    </div>
+                    <div class="criteria-row">
+                        <span class="criteria-name">Описание доступных архитектур</span>
+                        <span class="criteria-max">макс. 2</span>
+                        <div class="score-buttons" data-question="2" data-criterion="1" data-max="2">
+                            <button class="score-btn" data-value="0">0</button>
+                            <button class="score-btn" data-value="1">1</button>
+                            <button class="score-btn" data-value="2">2</button>
+                        </div>
+                    </div>
+                    <div class="criteria-row">
+                        <span class="criteria-name">Описание достоинств и недостатков</span>
+                        <span class="criteria-max">макс. 2</span>
+                        <div class="score-buttons" data-question="2" data-criterion="2" data-max="2">
+                            <button class="score-btn" data-value="0">0</button>
+                            <button class="score-btn" data-value="1">1</button>
+                            <button class="score-btn" data-value="2">2</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="total-block">
+                    <span class="total-label">Итого</span>
+                    <span class="total-score" id="totalScore">0 / 10</span>
+                </div>
+
+                <div style="text-align: center;">
+                    <button class="reset-btn" id="resetBtn">Сбросить баллы</button>
                 </div>
             </div>
 
@@ -166,6 +352,7 @@
 
     <script>
         let questions = [];
+        const scores = { 1: [null, null, null], 2: [null, null, null] };
 
         fetch('exam3_questions.json')
             .then(r => r.json())
@@ -186,7 +373,51 @@
             document.getElementById('q1').textContent = `${a.id}. ${a.text}`;
             document.getElementById('q2').textContent = `${b.id}. ${b.text}`;
             document.getElementById('result').classList.add('visible');
+
+            resetScores();
         });
+
+        document.querySelectorAll('.score-buttons').forEach(group => {
+            group.querySelectorAll('.score-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const q = parseInt(group.dataset.question);
+                    const c = parseInt(group.dataset.criterion);
+                    const v = parseInt(btn.dataset.value);
+
+                    if (scores[q][c] === v) {
+                        scores[q][c] = null;
+                        btn.classList.remove('active');
+                    } else {
+                        scores[q][c] = v;
+                        group.querySelectorAll('.score-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                    }
+
+                    updateTotals();
+                });
+            });
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', resetScores);
+
+        function resetScores() {
+            scores[1] = [null, null, null];
+            scores[2] = [null, null, null];
+            document.querySelectorAll('.score-btn').forEach(b => b.classList.remove('active'));
+            updateTotals();
+        }
+
+        function sumQ(q) {
+            return scores[q].reduce((s, v) => s + (v || 0), 0);
+        }
+
+        function updateTotals() {
+            const s1 = sumQ(1);
+            const s2 = sumQ(2);
+            document.getElementById('sub1').textContent = s1;
+            document.getElementById('sub2').textContent = s2;
+            document.getElementById('totalScore').textContent = `${s1 + s2} / 10`;
+        }
     </script>
 </body>
 </html>
