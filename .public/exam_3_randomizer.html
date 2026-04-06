@@ -87,8 +87,14 @@
             transition: opacity 0.2s, transform 0.1s;
         }
 
-        .randomizer-btn:hover { opacity: 0.9; }
-        .randomizer-btn:active { transform: scale(0.97); }
+        .randomizer-btn:hover:not(:disabled) { opacity: 0.9; }
+        .randomizer-btn:active:not(:disabled) { transform: scale(0.97); }
+
+        .randomizer-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            filter: grayscale(0.5);
+        }
 
         .result {
             margin-top: 2rem;
@@ -251,6 +257,29 @@
             border-color: var(--accent);
             color: var(--accent);
         }
+
+        .confirm-btn {
+            display: inline-block;
+            padding: 0.6rem 1.5rem;
+            background: var(--green);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.15s, transform 0.1s;
+        }
+
+        .confirm-btn:hover { opacity: 0.9; }
+        .confirm-btn:active { transform: scale(0.97); }
+
+        .confirm-btn.confirmed {
+            background: var(--surface2);
+            color: var(--green);
+            border: 1.5px solid var(--green-border);
+            cursor: default;
+        }
     </style>
 </head>
 <body>
@@ -337,10 +366,7 @@
                 <div class="total-block">
                     <span class="total-label">Итого</span>
                     <span class="total-score" id="totalScore">0 / 10</span>
-                </div>
-
-                <div style="text-align: center;">
-                    <button class="reset-btn" id="resetBtn">Сбросить баллы</button>
+                    <button class="confirm-btn" id="confirmBtn">Внёс в таблицу</button>
                 </div>
             </div>
 
@@ -352,14 +378,17 @@
 
     <script>
         let questions = [];
+        let locked = false;
         const scores = { 1: [null, null, null], 2: [null, null, null] };
+        const randomizeBtn = document.getElementById('randomizeBtn');
+        const confirmBtn = document.getElementById('confirmBtn');
 
         fetch('exam3_questions.json')
             .then(r => r.json())
             .then(data => { questions = data; });
 
-        document.getElementById('randomizeBtn').addEventListener('click', () => {
-            if (questions.length < 2) return;
+        randomizeBtn.addEventListener('click', () => {
+            if (locked || questions.length < 2) return;
 
             const i = Math.floor(Math.random() * questions.length);
             let j;
@@ -375,6 +404,7 @@
             document.getElementById('result').classList.add('visible');
 
             resetScores();
+            lockRandomizer();
         });
 
         document.querySelectorAll('.score-buttons').forEach(group => {
@@ -398,7 +428,24 @@
             });
         });
 
-        document.getElementById('resetBtn').addEventListener('click', resetScores);
+        confirmBtn.addEventListener('click', () => {
+            if (confirmBtn.classList.contains('confirmed')) return;
+            confirmBtn.classList.add('confirmed');
+            confirmBtn.textContent = 'Результат внесён';
+            unlockRandomizer();
+        });
+
+        function lockRandomizer() {
+            locked = true;
+            randomizeBtn.disabled = true;
+            confirmBtn.classList.remove('confirmed');
+            confirmBtn.textContent = 'Внёс в таблицу';
+        }
+
+        function unlockRandomizer() {
+            locked = false;
+            randomizeBtn.disabled = false;
+        }
 
         function resetScores() {
             scores[1] = [null, null, null];
