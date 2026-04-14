@@ -122,7 +122,7 @@ $ O_{exam3} $ и $ O_{exam4} $ - оценки за экзамен соответ
 | 23.03 | Генеративные модели: AE, VAE, Diffusion.                         | vae,  diffusion                       |
 | 30.03 | _сессия_                                                         |                                  |
 | 06.04 | _экзамен_                                                        |                                  |
-| 13.04 | NLP, Word2vec. Tokenization: BPE, WordPiece, SentencePiece       | tokenization                     |
+| 13.04 | NLP, Word2vec. Tokenization: BPE, WordPiece       | tokenization                     |
 | 20.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE, YaRN. | transformer-attention, rnn-attention |
 | 27.04 | -                                                                |                                  |
 | 04.05 | -                                                                |                                  |
