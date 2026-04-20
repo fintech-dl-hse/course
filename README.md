@@ -123,7 +123,7 @@ $ O_{exam3} $ и $ O_{exam4} $ - оценки за экзамен соответ
 | 30.03 | _сессия_                                                         |                                  |
 | 06.04 | _экзамен_                                                        |                                  |
 | 13.04 | NLP, Word2vec. Tokenization: BPE, WordPiece       | tokenization                     |
-| 20.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE, YaRN. | transformer-attention, rnn-attention |
+| 20.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE. | transformer-attention, rnn-attention |
 | 27.04 | -                                                                |                                  |
 | 04.05 | -                                                                |                                  |
 | 11.05 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models.  |                 |
@@ -183,7 +183,7 @@ Smola.
 
 ## Что еще?
 
-**Гуглите:** эти и многие другие материалы легко находятся, если вы пытаетесь разобраться в какой-то теме.
+**Гуглите и общайтесь с GPT:** эти и многие другие материалы легко находятся, если вы пытаетесь разобраться в какой-то теме.
 
 **Читайте документацию:** в [Pytorch Docs](https://pytorch.org/docs/stable/index.html), [Pytorch Tutorials](https://pytorch.org/tutorials/) можно найти и описание методов, и формулы, и ссылки на статьи.
 
