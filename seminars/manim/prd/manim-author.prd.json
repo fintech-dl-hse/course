@@ -1,0 +1,44 @@
+{
+  "project": "manim-author-loop",
+  "branchName": "feat/manim-author-loop",
+  "description": "Author -> render -> critic loop for new ManimCE scenes, driven by the manim-visualizer subagent (.claude/agents/manim-visualizer.md) and the existing render/critic helpers in seminars/manim/. The subagent writes scenes/<topic>/<ClassName>.py from a short natural-language brief, opting into the KeyframeRecorder mixin from shared/keyframes.py so sample_frames.py emits semantic keyframes instead of falling through to the pHash path. Ralph then runs scripts/render_loop.py against the new scene until the manim-frame-critic verdict is approved or the loop hits its bounds (exit codes 0/1/2/3/4/10 are frozen).",
+  "userStories": [
+    {
+      "id": "AUTH-001",
+      "title": "Brief -> scene file via manim-visualizer",
+      "description": "Given a natural-language brief and a target path scenes/<topic>/<ClassName>.py under seminars/manim/, delegate to the manim-visualizer subagent (Task(subagent_type='manim-visualizer', ...)) to author a single ManimCE Scene subclass. The produced class name equals the file stem, the scene opts into KeyframeRecorder or @record_keyframes, at least two primitives are imported from shared.neural, and no files outside the target are modified.",
+      "acceptanceCriteria": [
+        "test -f seminars/manim/scenes/<topic>/<ClassName>.py",
+        "seminars/manim/.venv/bin/python -c \"import ast; src=open('seminars/manim/scenes/<topic>/<ClassName>.py').read(); tree=ast.parse(src); assert any(isinstance(n,ast.ClassDef) and n.name=='<ClassName>' for n in ast.walk(tree))\"",
+        "grep -qE '(KeyframeRecorder|record_keyframes)' seminars/manim/scenes/<topic>/<ClassName>.py",
+        "seminars/manim/.venv/bin/python -c \"import ast; src=open('seminars/manim/scenes/<topic>/<ClassName>.py').read(); imports={a.name for n in ast.walk(ast.parse(src)) if isinstance(n,ast.ImportFrom) and n.module=='shared.neural' for a in n.names}; assert len(imports)>=2\"",
+        "git diff --name-only | grep -v 'seminars/manim/scenes/<topic>/<ClassName>.py' | grep -v '^$' | test $(wc -l) -eq 0"
+      ],
+      "passes": false
+    },
+    {
+      "id": "AUTH-002",
+      "title": "Render the authored scene + emit keyframe sidecar",
+      "description": "Invoke `make render SCENE=<ClassName>` from seminars/manim/. The render must succeed (exit 0) and produce both the MP4 and the keyframe sidecar written by KeyframeRecorder.tear_down().",
+      "acceptanceCriteria": [
+        "(cd seminars/manim && make render SCENE=<ClassName>)",
+        "test -f seminars/manim/.out/<ClassName>.mp4",
+        "test -f seminars/manim/.out/keyframes/<ClassName>.json",
+        "seminars/manim/.venv/bin/python -c \"import json; ev=json.load(open('seminars/manim/.out/keyframes/<ClassName>.json'))['events']; assert any(float(e['t_seconds'])>0 for e in ev)\""
+      ],
+      "passes": false
+    },
+    {
+      "id": "AUTH-003",
+      "title": "Sample frames via hook + critic approval",
+      "description": "Run scripts/sample_frames.py on the rendered MP4; it must route to the hook path (source='hook' in frames_index.json). Then hand the frames directory and video_hash to the manim-frame-critic subagent and loop per scripts/render_loop.py until the critic verdict is approved=true (exit 0) or the loop hits max_iters=5 / stuck (exit 3/4).",
+      "acceptanceCriteria": [
+        "(cd seminars/manim && .venv/bin/python scripts/sample_frames.py .out/<ClassName>.mp4)",
+        "test -f seminars/manim/.out/frames/<ClassName>/frames_index.json",
+        "seminars/manim/.venv/bin/python -c \"import json; idx=json.load(open('seminars/manim/.out/frames/<ClassName>/frames_index.json')); assert idx.get('source')=='hook'\"",
+        "Ralph leader invokes manim-frame-critic with (frames_dir, video_hash, iteration); final exit code from render_loop.py is 0 (approved)"
+      ],
+      "passes": false
+    }
+  ]
+}

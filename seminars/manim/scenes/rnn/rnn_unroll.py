@@ -13,22 +13,19 @@ from manim import (
     Create,
     DOWN,
     FadeIn,
-    FadeOut,
     LEFT,
     MathTex,
-    ORIGIN,
     RIGHT,
     Scene,
     UP,
-    VGroup,
-    WHITE,
     Write,
 )
 
+from shared.keyframes import KeyframeRecorder
 from shared.neural import Neuron, LabeledBox, arrow_between
 
 
-class RNNUnroll(Scene):
+class RNNUnroll(KeyframeRecorder, Scene):
     """Разворачивает RNN на три шага по времени с подсветкой рекуррентной связи."""
 
     def construct(self) -> None:
