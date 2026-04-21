@@ -8,13 +8,17 @@
     c_t = f_t * c_{t-1} + i_t * g_t          -- cell state
     h_t = o_t * tanh(c_t)                     -- hidden state
 
-Сцена использует Neuron для gate-активаций и LabeledBox для
-весовых/нелинейных блоков. Раскладка горизонтальная по шагам времени,
-аналогично scenes/rnn/rnn_unroll.py.
+Каждый гейт получает один и тот же объединённый вход [h_{t-1}, x_t];
+в диаграмме это отражено явным concat-узлом, который собирает h_{t-1} и x_t
+перед раздачей по четырём воротам. Такая топология устраняет пересечения
+стрелок, которые неизбежны при прямой раздаче x_t во все gate-боксы.
 """
 from __future__ import annotations
 
+from typing import Any
+
 from manim import (
+    Arrow,
     Create,
     DOWN,
     FadeIn,
@@ -24,127 +28,156 @@ from manim import (
     Scene,
     UP,
     VGroup,
+    VMobject,
+    WHITE,
     Write,
 )
 
 from shared.neural import Neuron, LabeledBox, arrow_between
 
 
+def _horizontal_arrow(a: VMobject, b: VMobject, **kwargs: Any) -> Arrow:
+    """Стрелка, которая всегда прилипает к правому/левому краю объектов.
+
+    Используется когда arrow_between выбрал бы вертикальное крепление
+    (dy > dx) и прошёл бы сквозь промежуточный узел.
+    """
+    defaults: dict[str, Any] = {"buff": 0.1, "stroke_width": 3, "color": WHITE}
+    defaults.update(kwargs)
+    if a.get_center()[0] <= b.get_center()[0]:
+        start, end = a.get_right(), b.get_left()
+    else:
+        start, end = a.get_left(), b.get_right()
+    return Arrow(start=start, end=end, **defaults)
+
+
 class LSTMGates(Scene):
     """LSTM cell unrolled across 3 timesteps with gate activations and cell state."""
 
     def construct(self) -> None:
-        # --- Title equations (split across two lines to keep LaTeX simple) ---
-        eq_top = MathTex(
-            r"f_t = \sigma(W_f x_t + U_f h_{t-1})",
-            r"\quad i_t = \sigma(W_i x_t)",
-            r"\quad g_t = \tanh(W_g x_t)",
-        ).scale(0.45)
-        eq_bot = MathTex(
+        # --- Title equations (three lines, scaled for readability at 720p) ---
+        eq_line1 = MathTex(
+            r"f_t = \sigma(W_f [h_{t-1}, x_t])",
+            r"\quad i_t = \sigma(W_i [h_{t-1}, x_t])",
+        ).scale(0.55)
+        eq_line2 = MathTex(
+            r"g_t = \tanh(W_g [h_{t-1}, x_t])",
+            r"\quad o_t = \sigma(W_o [h_{t-1}, x_t])",
+        ).scale(0.55)
+        eq_line3 = MathTex(
             r"c_t = f_t \odot c_{t-1} + i_t \odot g_t",
             r"\quad h_t = o_t \odot \tanh(c_t)",
-        ).scale(0.45)
-        equations = VGroup(eq_top, eq_bot).arrange(DOWN, buff=0.14).to_edge(UP, buff=0.55)
+        ).scale(0.55)
+        equations = VGroup(eq_line1, eq_line2, eq_line3).arrange(DOWN, buff=0.14).to_edge(UP, buff=0.3)
         self.play(Write(equations))
-        self.wait(0.5)
+        self.wait(0.4)
 
-        # --- Initial states. No extra MathTex sublabels — Neuron already
-        # renders h_0 / c_0 inside the circle.
-        h_prev = Neuron(label="h_0").shift(LEFT * 6.0 + DOWN * 0.48)
-        c_prev = Neuron(label="c_0").shift(LEFT * 6.0 + DOWN * 1.56)
-        c_prev.set_z_index(2)
+        # Push the diagram up to eat the empty band between title and h_0.
+        y_offset = 0.9
+
+        # --- Initial states ---
+        h_prev = Neuron(label="h_0").shift(LEFT * 6.0 + DOWN * (0.5 - y_offset))
+        c_prev = Neuron(label="c_0").shift(LEFT * 6.0 + DOWN * (1.7 - y_offset))
+        h_prev.set_z_index(3)
+        c_prev.set_z_index(3)
         self.play(FadeIn(h_prev), FadeIn(c_prev))
 
         timesteps = [1, 2, 3]
-        # Layout per cell (relative to x_pos, where x_pos is the gate-box column):
-        #   gate boxes         -> x_pos + 0.0 (width 0.85)
-        #   gate neurons f/i/g/o -> x_pos + 0.95
-        #   c_t / h_t column   -> x_pos + 2.0 (radius 0.4)
-        # Cell spans roughly [x_pos-0.425, x_pos+2.4] = 2.825 units wide.
-        # x_spacing = 3.6: gap between h_t right edge (x_pos+2.4) and next
-        # sigma_f left edge (x_pos+3.6-0.425 = x_pos+3.175) = 0.775 units.
-        x_spacing = 3.6
-        # Base chosen so h_3 = -6.4 + 3*3.6 + 2.0 = 6.4, right edge 6.8 < 7.11.
-        # h_0 at x=-6.4, left edge -6.8, margin 0.31 from -7.11.
+        # Layout per cell (relative to x_pos = gate-box column x):
+        #   x_t / concat node -> x_pos - 0.95  (radius 0.4 / 0.22)
+        #   gate boxes         -> x_pos + 0.0  (width 0.85)
+        #   gate neurons       -> x_pos + 0.85 (radius 0.24)
+        #   c_t / h_t column   -> x_pos + 1.85 (radius 0.4)
+        # Cell footprint: [x_pos - 1.35, x_pos + 2.25] = 3.6 units wide.
+        x_spacing = 3.7
         x_base = -6.4
         prev_h = h_prev
         prev_c = c_prev
 
-        # Shared arrow tweak: shorter tip_length so arrowheads don't cover glyphs.
-        tip_kw = {"tip_length": 0.17}
+        tip_kw = {"tip_length": 0.16}
 
         for i, t in enumerate(timesteps):
             x_pos = x_base + (i + 1) * x_spacing
 
-            # Input neuron
-            x_t = Neuron(label=f"x_{t}").shift(RIGHT * x_pos + DOWN * 3.2)
+            # Input neuron sits at the bottom-left of the cell, aligned with the
+            # concat node above it so the x_t -> concat arrow is purely vertical.
+            x_t = Neuron(label=f"x_{t}").shift(
+                RIGHT * (x_pos - 0.95) + DOWN * (3.1 - y_offset)
+            )
 
-            # Gate LabeledBoxes with z_index=2 so labels stay above recurrent arrows.
-            f_box = LabeledBox(label=r"\sigma_f", width=0.85, height=0.55).shift(
-                RIGHT * x_pos + DOWN * 0.48
+            # Concat node collects [h_{t-1}, x_t] and fans out to the four gates.
+            # Placed above the c_t lane (between h row and i row) so the long
+            # c_{t-1} -> c_t recurrent arrow passes BELOW the concat rather
+            # than through it. Small radius keeps it visually lightweight.
+            concat = Neuron(label="", radius=0.22).shift(
+                RIGHT * (x_pos - 0.95) + DOWN * (0.95 - y_offset)
             )
-            i_box = LabeledBox(label=r"\sigma_i", width=0.85, height=0.55).shift(
-                RIGHT * x_pos + DOWN * 1.2
+            concat.set_z_index(3)
+
+            # Gate boxes — stacked vertically; z_index=2 keeps labels above arrows.
+            f_box = LabeledBox(label=r"\sigma_f", width=0.85, height=0.52).shift(
+                RIGHT * x_pos + DOWN * (0.5 - y_offset)
             )
-            g_box = LabeledBox(label=r"\tanh_g", width=0.85, height=0.55).shift(
-                RIGHT * x_pos + DOWN * 1.92
+            i_box = LabeledBox(label=r"\sigma_i", width=0.85, height=0.52).shift(
+                RIGHT * x_pos + DOWN * (1.2 - y_offset)
             )
-            o_box = LabeledBox(label=r"\sigma_o", width=0.85, height=0.55).shift(
-                RIGHT * x_pos + DOWN * 2.64
+            g_box = LabeledBox(label=r"\tanh_g", width=0.85, height=0.52).shift(
+                RIGHT * x_pos + DOWN * (1.9 - y_offset)
+            )
+            o_box = LabeledBox(label=r"\sigma_o", width=0.85, height=0.52).shift(
+                RIGHT * x_pos + DOWN * (2.6 - y_offset)
             )
             for box in (f_box, i_box, g_box, o_box):
                 box.set_z_index(2)
 
-            # Gate activation neurons (smaller radius, close to the box).
-            f_t = Neuron(label=f"f_{t}", radius=0.28).shift(
-                RIGHT * (x_pos + 0.95) + DOWN * 0.48
+            # Gate activation neurons — slightly to the right of each gate box.
+            f_t = Neuron(label=f"f_{t}", radius=0.24).shift(
+                RIGHT * (x_pos + 0.85) + DOWN * (0.5 - y_offset)
             )
-            i_t = Neuron(label=f"i_{t}", radius=0.28).shift(
-                RIGHT * (x_pos + 0.95) + DOWN * 1.2
+            i_t = Neuron(label=f"i_{t}", radius=0.24).shift(
+                RIGHT * (x_pos + 0.85) + DOWN * (1.2 - y_offset)
             )
-            g_t = Neuron(label=f"g_{t}", radius=0.28).shift(
-                RIGHT * (x_pos + 0.95) + DOWN * 1.92
+            g_t = Neuron(label=f"g_{t}", radius=0.24).shift(
+                RIGHT * (x_pos + 0.85) + DOWN * (1.9 - y_offset)
             )
-            o_t = Neuron(label=f"o_{t}", radius=0.28).shift(
-                RIGHT * (x_pos + 0.95) + DOWN * 2.64
+            o_t = Neuron(label=f"o_{t}", radius=0.24).shift(
+                RIGHT * (x_pos + 0.85) + DOWN * (2.6 - y_offset)
             )
 
-            # Cell state and hidden state outputs. c_t at a row between i and g
-            # (DOWN*1.56), radius 0.4 matches h_t so c_t doesn't bleed into the
-            # neighbouring cell's gate column. z_index=3 keeps the glyph above
-            # any converging arrow tip that clips the rim.
+            # c_t between i and g rows; h_t aligned with f row so the recurrent
+            # line to the next cell stays horizontal.
             c_t = Neuron(label=f"c_{t}", radius=0.4).shift(
-                RIGHT * (x_pos + 2.0) + DOWN * 1.56
+                RIGHT * (x_pos + 1.85) + DOWN * (1.55 - y_offset)
             )
             c_t.set_z_index(3)
             h_t = Neuron(label=f"h_{t}").shift(
-                RIGHT * (x_pos + 2.0) + DOWN * 0.48
+                RIGHT * (x_pos + 1.85) + DOWN * (0.5 - y_offset)
             )
             h_t.set_z_index(3)
 
-            # --- Step 1: show input x_t and gates ---
-            self.play(FadeIn(x_t), run_time=0.3)
+            # --- Step 1: input x_t and concat node ---
+            self.play(FadeIn(x_t), FadeIn(concat), run_time=0.3)
+            a_x_to_cat = arrow_between(x_t, concat, **tip_kw)
+            a_h_to_cat = _horizontal_arrow(prev_h, concat, **tip_kw)
+            self.play(Create(a_x_to_cat), Create(a_h_to_cat), run_time=0.5)
+
+            # --- Step 2: gate boxes appear and receive the shared [h, x] bus ---
             self.play(
                 FadeIn(f_box), FadeIn(i_box), FadeIn(g_box), FadeIn(o_box),
                 run_time=0.4,
             )
-
-            # Arrows: x_t -> each gate box
-            ax_f = arrow_between(x_t, f_box, **tip_kw)
-            ax_i = arrow_between(x_t, i_box, **tip_kw)
-            ax_g = arrow_between(x_t, g_box, **tip_kw)
-            ax_o = arrow_between(x_t, o_box, **tip_kw)
+            # Force horizontal attachment so arrows to f/o (dy > dx) don't pick
+            # a vertical path through i_box or g_box.
+            a_cat_f = _horizontal_arrow(concat, f_box, **tip_kw)
+            a_cat_i = _horizontal_arrow(concat, i_box, **tip_kw)
+            a_cat_g = _horizontal_arrow(concat, g_box, **tip_kw)
+            a_cat_o = _horizontal_arrow(concat, o_box, **tip_kw)
             self.play(
-                Create(ax_f), Create(ax_i), Create(ax_g), Create(ax_o),
+                Create(a_cat_f), Create(a_cat_i), Create(a_cat_g), Create(a_cat_o),
                 run_time=0.5,
             )
 
-            # Arrows: h_{t-1} -> gate boxes (recurrent connection)
-            ah_f = arrow_between(prev_h, f_box, **tip_kw)
-            ah_i = arrow_between(prev_h, i_box, **tip_kw)
-            self.play(Create(ah_f), Create(ah_i), run_time=0.4)
-
-            # --- Step 2: gate activation neurons ---
+            # --- Step 3: gate activation neurons ---
             af_out = arrow_between(f_box, f_t, **tip_kw)
             ai_out = arrow_between(i_box, i_t, **tip_kw)
             ag_out = arrow_between(g_box, g_t, **tip_kw)
@@ -155,23 +188,21 @@ class LSTMGates(Scene):
                 run_time=0.5,
             )
 
-            # --- Step 3: cell state update c_t ---
-            # Large buff + short tips so arrowheads stop well clear of the c_t
-            # glyph when four arrows fan in at once. Radius 0.55 + buff 0.32
-            # puts tips outside the label region; z_index=3 on c_t keeps the
-            # glyph on top even if a tip drifts over the rim.
-            converge_kw = {"buff": 0.32, "tip_length": 0.13}
-            ac_f = arrow_between(f_t, c_t, **converge_kw)
+            # --- Step 4: cell state update c_t ---
+            # Four arrows fan into c_t (c_{t-1}, f_t, i_t, g_t). Larger buff +
+            # short tips keep arrowheads clear of the c_t glyph.
+            converge_kw = {"buff": 0.28, "tip_length": 0.13}
             ac_prev = arrow_between(prev_c, c_t, **converge_kw)
+            ac_f = arrow_between(f_t, c_t, **converge_kw)
             ac_i = arrow_between(i_t, c_t, **converge_kw)
             ac_g = arrow_between(g_t, c_t, **converge_kw)
             self.play(
                 FadeIn(c_t),
-                Create(ac_f), Create(ac_prev), Create(ac_i), Create(ac_g),
+                Create(ac_prev), Create(ac_f), Create(ac_i), Create(ac_g),
                 run_time=0.6,
             )
 
-            # --- Step 4: hidden state h_t ---
+            # --- Step 5: hidden state h_t ---
             ah_o = arrow_between(o_t, h_t, **tip_kw)
             ah_c = arrow_between(c_t, h_t, **tip_kw)
             self.play(FadeIn(h_t), Create(ah_o), Create(ah_c), run_time=0.4)
@@ -179,4 +210,4 @@ class LSTMGates(Scene):
             prev_h = h_t
             prev_c = c_t
 
-        self.wait(1.5)
+        self.wait(1.4)

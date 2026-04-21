@@ -30,6 +30,7 @@ class Neuron(VGroup):
         radius: Радиус круга.
         color: Цвет окружности.
         fill_opacity: Прозрачность заливки (0..1).
+        label_scale: Масштаб MathTex-метки (по умолчанию 0.7 для совместимости).
         **kwargs: Проброс в VGroup.
     """
 
@@ -39,13 +40,14 @@ class Neuron(VGroup):
         radius: float = 0.4,
         color: str = BLUE,
         fill_opacity: float = 0.15,
+        label_scale: float = 0.7,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.circle = Circle(radius=radius, color=color).set_fill(color, opacity=fill_opacity)
         self.add(self.circle)
         if label:
-            self.label_tex: Optional[MathTex] = MathTex(label).scale(0.7)
+            self.label_tex: Optional[MathTex] = MathTex(label).scale(label_scale)
             self.label_tex.move_to(self.circle.get_center())
             self.add(self.label_tex)
         else:
@@ -62,6 +64,7 @@ class LabeledBox(VGroup):
         corner_radius: Радиус закругления углов.
         color: Цвет обводки.
         fill_opacity: Прозрачность заливки (0..1).
+        label_scale: Масштаб MathTex-метки (по умолчанию 0.6 для совместимости).
         **kwargs: Проброс в VGroup.
     """
 
@@ -73,6 +76,7 @@ class LabeledBox(VGroup):
         corner_radius: float = 0.12,
         color: str = GREY_B,
         fill_opacity: float = 0.1,
+        label_scale: float = 0.6,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -83,7 +87,7 @@ class LabeledBox(VGroup):
             color=color,
         ).set_fill(color, opacity=fill_opacity)
         self.add(self.box)
-        self.label_tex = MathTex(label).scale(0.6)
+        self.label_tex = MathTex(label).scale(label_scale)
         self.label_tex.move_to(self.box.get_center())
         self.add(self.label_tex)
 

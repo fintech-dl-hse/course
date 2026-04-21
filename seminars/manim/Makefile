@@ -118,10 +118,5 @@ sample:
 	fi; \
 	.venv/bin/python scripts/sample_frames.py $(VIDEO)
 
-loop:
-	@set -euo pipefail; \
-	source bin/activate_env.sh 2>/dev/null || true; \
-	.venv/bin/python scripts/render_loop.py --scene $(SCENE)
-
 clean:
 	rm -rf .out/

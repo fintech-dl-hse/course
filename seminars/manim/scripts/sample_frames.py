@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Extract two frames from a rendered video — one at 50% duration, one near the end.
 
-Rationale: the downstream ``manim-frame-critic`` vision pass only needs a
+Rationale: the downstream frame critique vision pass only needs a
 "mid-animation" sample and the final settled state. Two frames are enough.
 
 Usage:
