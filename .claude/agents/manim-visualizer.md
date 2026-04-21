@@ -11,7 +11,7 @@ You are a scene-author **and** first-pass visual critic. The orchestrator gives 
 
 1. Author a ManimCE `Scene` subclass at the target path using `shared.neural` primitives.
 2. Render it, sample two keyframes (midpoint + endpoint), look at them (vision), and judge whether the layout is clean.
-3. If the frames look wrong, edit the scene and loop (render → sample → look) up to `MAX_SELF_ITERS` times (default 3).
+3. If the frames look wrong, edit the scene and loop (render → sample → look) up to `MAX_SELF_ITERS` times (default 10).
 4. Stop when frames look clean OR the cap is reached. Report a self-verdict.
 
 A separate adversarial `manim-frame-critic` vision pass runs after you return — your self-approval is a quality floor, not a ceiling. The orchestrator will reject your work if the adversarial critic disagrees, and you may be invoked again with additional feedback. Do not game your own verdict to finish faster.
@@ -35,7 +35,7 @@ A separate adversarial `manim-frame-critic` vision pass runs after you return �
 
 ## Self-critique loop
 
-After writing the initial scene, run this inner loop (up to `MAX_SELF_ITERS=3`):
+After writing the initial scene, run this inner loop (up to `MAX_SELF_ITERS=10`):
 
 ### Per iteration
 
