@@ -52,46 +52,24 @@ make render SCENE=AttentionDemo
 
 Import at least two helpers from `shared.neural` so the shared library stays exercised across scenes (principle 2 of the plan).
 
-## Semantic keyframe hook (opt-in)
+## Frame sampling
 
-`shared/keyframes.py` provides a `KeyframeRecorder` mixin (and an equivalent `@record_keyframes` class decorator) that wraps `Scene.play()` and `Scene.wait()`, recording the renderer timestamp at the END of each call and writing a sidecar file at `.out/keyframes/<SceneName>.json` on scene teardown.
+`scripts/sample_frames.py` turns a rendered `.mp4` into exactly **two PNGs** for the vision critic:
 
-**Usage — mixin form (recommended):**
+- `frame_0001.png` — frame at 50 % of the video duration (mid-animation check).
+- `frame_0002.png` — frame at `duration − end-offset` (near-final settled state; default offset 0.05 s so ffmpeg fast-seek lands on the last decoded frame).
 
-```python
-from manim import Scene, Write
-from shared.keyframes import KeyframeRecorder
-from shared.neural import Neuron, LabeledBox
+`ffprobe` reports the duration; `ffmpeg -ss <t> -frames:v 1` writes each frame. Any stale `frame_*.png` in the output directory is wiped first. A companion `frames_index.json` records `source: "midpoint_endpoint"`, duration, offset, and per-frame timestamps.
 
-class MyScene(KeyframeRecorder, Scene):   # KeyframeRecorder FIRST in MRO
-    def construct(self) -> None:
-        ...
+```bash
+# From seminars/manim/ with the venv active:
+python scripts/sample_frames.py .out/RNNUnroll.mp4
+# → .out/frames/RNNUnroll/frame_0001.png (midpoint)
+# → .out/frames/RNNUnroll/frame_0002.png (endpoint)
+# → .out/frames/RNNUnroll/frames_index.json
 ```
 
-**Usage — decorator form:**
-
-```python
-from manim import Scene
-from shared.keyframes import record_keyframes
-
-@record_keyframes
-class MyScene(Scene):
-    def construct(self) -> None:
-        ...
-```
-
-Sidecar schema (one object per `play()` / `wait()` call, in chronological order):
-
-```json
-{"scene": "MyScene", "events": [{"t_seconds": 1.5, "kind": "play_end", "animation": "Write"}, ...]}
-```
-
-**Sampler behaviour.** `scripts/sample_frames.py` auto-detects the sidecar:
-
-- **Hook path (primary):** when `.out/keyframes/<stem>.json` exists with at least one event at `t > 0`, extract one PNG per event via ffmpeg fast-seek. Events within `--hook-min-dt` seconds of the previously kept timestamp collapse to a single frame (mid-animation transitions disappear; default 0.75 s). The emitted `frames_index.json` has `"source": "hook"` plus a `keyframes` array.
-- **pHash fallback:** if the sidecar is absent, zero-only, or `--force-phash` is passed, the original 1 fps + imagehash Hamming-dedupe pipeline runs unchanged. `frames_index.json` has `"source": "phash_fallback"`.
-
-Scenes that do NOT opt into the mixin fall back automatically — no migration needed for existing scenes.
+Tune `--end-offset` only if your render drops the last few frames; the default is correct for 30 fps ManimCE output.
 
 ## Authoring new scenes — `manim-visualizer` subagent
 
@@ -99,14 +77,13 @@ Scenes that do NOT opt into the mixin fall back automatically — no migration n
 
 - The target file path looks like `scenes/<topic>/<ClassName>.py`; the produced class name equals the file stem (Makefile `SCENE=<ClassName>` routing).
 - At least two primitives are imported from `shared.neural` (e.g. `Neuron`, `LabeledBox`, `arrow_between`).
-- The scene opts into the keyframe hook (`KeyframeRecorder` mixin or `@record_keyframes`).
 - No edits outside the target file; no new pip deps; no imports from `videos/prefill_decode/**` or `media/videos/manim_optimizers/**`.
 
 Ralph invokes it by delegating via the `Task` tool with `subagent_type="manim-visualizer"`, passing the brief and target path. Example brief: *"Visualize an LSTM cell showing forget/input/output gates and the cell state c_t across 3 timesteps at seminars/manim/scenes/lstm/LSTMGates.py."* The shipped `scenes/lstm/LSTMGates.py` is the reference output.
 
 ## Run the critic loop
 
-The full render → 1 fps sample + pHash-dedupe → vision critic → fix loop is driven by ralph via the PRD at `prd/manim-rnn.prd.json`. From the repo root:
+The full render → midpoint+endpoint sample → vision critic → fix loop is driven by ralph via the PRD at `prd/manim-rnn.prd.json`. From the repo root:
 
 ```bash
 # One-shot render/sample/hash (no critic):
