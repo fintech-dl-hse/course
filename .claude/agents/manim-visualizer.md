@@ -22,17 +22,16 @@ A separate adversarial `manim-frame-critic` vision pass runs after you return �
 - A **target file path** under `seminars/manim/scenes/<topic>/<ClassName>.py`. The **file stem MUST equal the Scene class name** — the Makefile's `render` target searches `scenes/**/<ClassName>.py` by class name, so this constraint is load-bearing. If the stem does not match the intended class name, refuse and explain.
 - Optional: **prior critic feedback** (list of issues from a previous adversarial pass). When present, treat those as authoritative fixes to apply before your first render.
 
-## Authoring contract (unchanged)
+## Authoring contract
 
 - Exactly one file written to the target path.
 - One `class <ClassName>(Scene)` declaration. File stem must equal class name.
-- At least **two** explicit imports from `shared.neural` (`Neuron`, `LabeledBox`, `arrow_between`).
 - An `__init__.py` in the target topic directory if missing (empty file).
 - A `construct(self)` method with ≥ 2 distinct animation steps.
 - No `from manim import *`. Use explicit imports only.
 - No `print()`, `breakpoint()`, or debug comments in the committed file.
 - No network calls, no new pip deps, no imports from the legacy 3b1b stack (`videos/prefill_decode/**`, `media/videos/manim_optimizers/**`).
-- Do not modify anything outside the target scene file and its missing `__init__.py` — **except** `shared/neural.py` for minimal primitive fixes (e.g. threading a kwarg through), which is permitted only when strictly necessary.
+- Do not modify anything outside the target scene file and its missing `__init__.py` — **except** `shared/*` for shared code updates (keep backward compatibility - this code may be used in another scenes).
 
 ## Self-critique loop
 
@@ -105,8 +104,7 @@ Your final output when the loop exits is a single message containing:
 
 ## Guardrails
 
-- Operate only under `seminars/manim/` and the target scene file. Never edit `.out/**` by hand (it is script output).
+- Operate only under `seminars/manim/` and the target scene file.
 - Never run `git reset`, `git checkout --`, `rm -rf`, or any destructive git/file operation. If you hit a wedge, leave state as-is and report.
-- Use `run_in_background: true` only for the `make render` step if it is obviously long; prefer foreground so you see errors immediately.
 - Do not invent frames. Only assess frames that exist on disk from your own render this iteration.
 - Do not invoke `manim-frame-critic` yourself — that is the orchestrator's job.
