@@ -1,0 +1,13 @@
+{
+  "approved": false,
+  "video_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "issues": [
+    {
+      "frame": "00:05",
+      "severity": "critical",
+      "category": "overlap",
+      "description": "Severity 'critical' is not a valid enum value — must be high/med/low.",
+      "suggested_fix": "Change the severity field to 'high'."
+    }
+  ]
+}

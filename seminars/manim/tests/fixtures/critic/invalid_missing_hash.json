@@ -1,0 +1,12 @@
+{
+  "approved": false,
+  "issues": [
+    {
+      "frame": "00:02",
+      "severity": "med",
+      "category": "overlap",
+      "description": "Minor overlap between h_1 and h_2 neurons.",
+      "suggested_fix": "Increase horizontal spacing between hidden-state neurons by 0.3."
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "approved": false,
+  "video_hash": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+  "issues": [
+    {
+      "frame": "00:03",
+      "severity": "high",
+      "category": "overlap",
+      "description": "W_{ih} box occludes the x_1 neuron label by roughly 40% of its glyph width.",
+      "suggested_fix": "Shift the W_{ih} LabeledBox 0.6 units to the right so it no longer overlaps the x_1 Neuron."
+    }
+  ]
+}

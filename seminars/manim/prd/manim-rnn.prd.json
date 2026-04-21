@@ -1,0 +1,59 @@
+{
+  "project": "manim-rnn-pilot",
+  "branchName": "feat/manim-rnn-loop",
+  "description": "ManimCE visualization pipeline pilot for seminar 09 (RNN recurrence). Builds an isolated seminars/manim/ directory with a shared library, a pilot RNNUnroll scene, a render/sample/dedupe/hash toolchain, a strict-JSON vision critic subagent at .claude/agents/manim-frame-critic.md, and a 3-story ralph loop. ADVISORY DENY LIST (mechanically unenforced here; enforced via fix-step executor allow-list and render_loop.py git-diff guard): do NOT modify paths matching videos/prefill_decode/**, custom_config*.yml at the repo root, or media/videos/manim_optimizers/**. These are pre-existing assets on the 3b1b-manim stack and must remain untouched. The pilot's render quality is -qm; the critic's prompt whitelists sub-pixel AA artifacts. Loop terminates deterministically on approved=true, hash-stuck (iter >= 2), or max_iters=5.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Scaffold seminars/manim/ directory and shared library",
+      "description": "Create the isolated ManimCE pilot directory with Makefile, requirements.txt, local .gitignore, README (exactly four H2 sections), shared/__init__.py and shared/neural.py (Neuron, LabeledBox, arrow_between). The repo-root .gitignore must NOT be modified. The Makefile's venv target probes for ffmpeg and latex, falling back to $HOME/homebrew/bin and /usr/local/texlive/2024/bin/universal-darwin respectively.",
+      "acceptanceCriteria": [
+        "test -d seminars/manim/shared && test -d seminars/manim/scenes/rnn && test -d seminars/manim/scripts && test -d seminars/manim/prd && test -d seminars/manim/tests/fixtures/critic && test -d seminars/manim/tests/fixtures/dedupe",
+        "test -f seminars/manim/Makefile && test -f seminars/manim/requirements.txt && test -f seminars/manim/.gitignore && test -f seminars/manim/README.md",
+        "grep -q '^\\.out/$' seminars/manim/.gitignore && grep -q '^\\.venv/$' seminars/manim/.gitignore",
+        "git diff --name-only main -- .gitignore | grep -qv . || { echo 'root .gitignore was modified'; exit 1; }",
+        "test \"$(grep -c '^## ' seminars/manim/README.md)\" -eq 4",
+        "(cd seminars/manim && make venv)",
+        "seminars/manim/.venv/bin/manim --version 2>&1 | grep -qi 'manim community'",
+        "(cd seminars/manim && bash -c 'source bin/activate_env.sh 2>/dev/null; command -v ffmpeg >/dev/null && command -v latex >/dev/null')",
+        "seminars/manim/.venv/bin/python -c 'from shared.neural import Neuron, LabeledBox, arrow_between'"
+      ]
+    },
+    {
+      "id": "US-002",
+      "title": "Scripts, critic subagent, validators, fixtures, tests, PRD",
+      "description": "Create the automation surface for the loop: scripts/ (sample_frames.py, hash_video.py, validate_critic.py, verify_dedupe.py, render_loop.py), the vision critic subagent at .claude/agents/manim-frame-critic.md (model: sonnet, strict JSON contract, AA whitelist, severity rules), critic JSON fixtures (valid_approved, valid_rejected, invalid_missing_hash, invalid_bad_severity), dedupe PNG fixtures with a teaching-delta (pHash Hamming > 3), and the six named pytest cases for render_loop. Render is NOT invoked yet.",
+      "acceptanceCriteria": [
+        "test -f seminars/manim/scripts/sample_frames.py && test -f seminars/manim/scripts/hash_video.py && test -f seminars/manim/scripts/validate_critic.py && test -f seminars/manim/scripts/verify_dedupe.py && test -f seminars/manim/scripts/render_loop.py",
+        "test -f .claude/agents/manim-frame-critic.md",
+        "seminars/manim/.venv/bin/python -c \"import frontmatter; d=frontmatter.load('.claude/agents/manim-frame-critic.md'); assert d.metadata['model']=='sonnet'; assert 'vision' in (d.metadata.get('description','') + d.content).lower()\"",
+        "(cd seminars/manim && .venv/bin/python scripts/validate_critic.py tests/fixtures/critic/valid_approved.json)",
+        "(cd seminars/manim && .venv/bin/python scripts/validate_critic.py tests/fixtures/critic/valid_rejected.json)",
+        "(cd seminars/manim && ! .venv/bin/python scripts/validate_critic.py tests/fixtures/critic/invalid_missing_hash.json)",
+        "(cd seminars/manim && ! .venv/bin/python scripts/validate_critic.py tests/fixtures/critic/invalid_bad_severity.json)",
+        "(cd seminars/manim && .venv/bin/python scripts/verify_dedupe.py tests/fixtures/dedupe/nearly_identical_with_bug_a.png tests/fixtures/dedupe/nearly_identical_with_bug_b.png --phash-threshold 3)",
+        "test \"$(jq '.userStories | length' seminars/manim/prd/manim-rnn.prd.json)\" -eq 3",
+        "test \"$(jq -r '.userStories[].acceptanceCriteria[]' seminars/manim/prd/manim-rnn.prd.json | grep -c -F $'Implem''entation is complete')\" -eq 0",
+        "(cd seminars/manim && .venv/bin/pytest tests/test_render_loop.py -v --collect-only -q) | grep -qE 'test_exit_code_on_approved|test_exit_code_on_hash_stuck_from_iter_2|test_exit_code_on_max_iters|test_exit_code_on_new_hash_continues|test_hash_stuck_suppressed_on_iter_1|test_malformed_critic_yields_empty_issues'",
+        "(cd seminars/manim && .venv/bin/pytest tests/test_render_loop.py -v)"
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "RNN pilot scene and end-to-end critic loop",
+      "description": "Implement scenes/rnn/rnn_unroll.py with class RNNUnroll(Scene) animating h_t = tanh(W_ih x_t + W_hh h_{t-1}) for three timesteps, importing >= 2 of {Neuron, LabeledBox, arrow_between} from shared.neural. Then drive the render/sample/dedupe/critic/fix loop end-to-end. The ralph leader invokes the manim-frame-critic subagent each iteration, feeds its JSON to scripts/render_loop.py, and fixes via an executor restricted to scenes/rnn/rnn_unroll.py and shared/neural.py. Loop terminates on approved=true, hash-stuck (iter >= 2), or max_iters=5; writes .out/critic_final.json or .out/escalation.json respectively.",
+      "acceptanceCriteria": [
+        "test -f seminars/manim/scenes/rnn/__init__.py && test -f seminars/manim/scenes/rnn/rnn_unroll.py",
+        "seminars/manim/.venv/bin/python -c \"import ast; src=open('seminars/manim/scenes/rnn/rnn_unroll.py').read(); imports={a.name for n in ast.walk(ast.parse(src)) if isinstance(n, ast.ImportFrom) and n.module=='shared.neural' for a in n.names}; assert len(imports)>=2, imports\"",
+        "(cd seminars/manim && make render SCENE=RNNUnroll)",
+        "test -f seminars/manim/.out/RNNUnroll.mp4",
+        "ffprobe -v error -show_entries format=duration seminars/manim/.out/RNNUnroll.mp4 | grep -qE '^duration='",
+        "(cd seminars/manim && .venv/bin/python scripts/sample_frames.py .out/RNNUnroll.mp4)",
+        "test -f seminars/manim/.out/frames/RNNUnroll/frames_index.json",
+        "h1=$(seminars/manim/.venv/bin/python seminars/manim/scripts/hash_video.py seminars/manim/.out/RNNUnroll.mp4); h2=$(seminars/manim/.venv/bin/python seminars/manim/scripts/hash_video.py seminars/manim/.out/RNNUnroll.mp4); test \"$h1\" = \"$h2\" && echo \"$h1\" | grep -qE '^[0-9a-f]{64}$'",
+        "test -f seminars/manim/.out/critic_final.json || test -f seminars/manim/.out/escalation.json",
+        "! git diff --name-only main...HEAD | grep -qE '^(videos/prefill_decode/|custom_config.*\\.yml|media/videos/manim_optimizers/)'"
+      ]
+    }
+  ]
+}
