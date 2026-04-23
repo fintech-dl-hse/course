@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: venv render sample loop clean
+.PHONY: venv render sample lint test clean
 
 SCENE ?= RNNUnroll
 VIDEO ?=
@@ -117,6 +117,20 @@ sample:
 		exit 1; \
 	fi; \
 	.venv/bin/python scripts/sample_frames.py $(VIDEO)
+
+lint:
+	@set -euo pipefail; \
+	source bin/activate_env.sh 2>/dev/null || true; \
+	if [ -z "$(SCENE)" ]; then \
+		echo "[lint] ERROR: pass SCENE=<ClassName>"; \
+		exit 1; \
+	fi; \
+	PYTHONPATH="$$PWD:$${PYTHONPATH:-}" .venv/bin/python scripts/lint_scene.py --scene $(SCENE)
+
+test:
+	@set -euo pipefail; \
+	source bin/activate_env.sh 2>/dev/null || true; \
+	PYTHONPATH="$$PWD:$${PYTHONPATH:-}" .venv/bin/python -m pytest tests/ $(PYTEST_ARGS)
 
 clean:
 	rm -rf .out/
