@@ -115,37 +115,39 @@ class LSTMGates(Scene):
             concat.set_z_index(3)
 
             # Gate boxes — stacked vertically; z_index=2 keeps labels above arrows.
-            f_box = LabeledBox(label=r"\sigma_f", width=0.85, height=0.52).shift(
+            # Order top→bottom: o, f, i, g — keeps o_t aligned with h_t so the
+            # o_t → h_t arrow stays horizontal instead of slicing through c_t.
+            o_box = LabeledBox(label=r"\sigma_o", width=0.85, height=0.52).shift(
                 RIGHT * x_pos + DOWN * (0.5 - y_offset)
             )
-            i_box = LabeledBox(label=r"\sigma_i", width=0.85, height=0.52).shift(
+            f_box = LabeledBox(label=r"\sigma_f", width=0.85, height=0.52).shift(
                 RIGHT * x_pos + DOWN * (1.2 - y_offset)
             )
-            g_box = LabeledBox(label=r"\tanh_g", width=0.85, height=0.52).shift(
+            i_box = LabeledBox(label=r"\sigma_i", width=0.85, height=0.52).shift(
                 RIGHT * x_pos + DOWN * (1.9 - y_offset)
             )
-            o_box = LabeledBox(label=r"\sigma_o", width=0.85, height=0.52).shift(
+            g_box = LabeledBox(label=r"\tanh_g", width=0.85, height=0.52).shift(
                 RIGHT * x_pos + DOWN * (2.6 - y_offset)
             )
             for box in (f_box, i_box, g_box, o_box):
                 box.set_z_index(2)
 
             # Gate activation neurons — slightly to the right of each gate box.
-            f_t = Neuron(label=f"f_{t}", radius=0.24).shift(
+            o_t = Neuron(label=f"o_{t}", radius=0.24).shift(
                 RIGHT * (x_pos + 0.85) + DOWN * (0.5 - y_offset)
             )
-            i_t = Neuron(label=f"i_{t}", radius=0.24).shift(
+            f_t = Neuron(label=f"f_{t}", radius=0.24).shift(
                 RIGHT * (x_pos + 0.85) + DOWN * (1.2 - y_offset)
             )
-            g_t = Neuron(label=f"g_{t}", radius=0.24).shift(
+            i_t = Neuron(label=f"i_{t}", radius=0.24).shift(
                 RIGHT * (x_pos + 0.85) + DOWN * (1.9 - y_offset)
             )
-            o_t = Neuron(label=f"o_{t}", radius=0.24).shift(
+            g_t = Neuron(label=f"g_{t}", radius=0.24).shift(
                 RIGHT * (x_pos + 0.85) + DOWN * (2.6 - y_offset)
             )
 
-            # c_t between i and g rows; h_t aligned with f row so the recurrent
-            # line to the next cell stays horizontal.
+            # c_t between f and i rows; h_t aligned with o row so o_t → h_t is
+            # a short horizontal hop rather than a diagonal that clips c_t.
             c_t = Neuron(label=f"c_{t}", radius=0.4).shift(
                 RIGHT * (x_pos + 1.85) + DOWN * (1.55 - y_offset)
             )
