@@ -1,0 +1,3 @@
+based on current chat history summarize the most frequent errors in vializer subagent and update manim-visualized agent file to avoid similar error in future
+may be you can write some tests for manim code for some checks? eg check that some objects are out of scene of some objects are overlapped? if you can do it. make it before generating and reading images. priority for self-improvement loop is for textual modality and tests.
+also add to this role self-reflection stage like in current prompt: errors from current stage should be described at @.claude/agents/manim-visualizer.md and maybe python tests should be writtend for similar errors in future. also make sure all formulas can be easily read.

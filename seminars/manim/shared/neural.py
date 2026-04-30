@@ -1,23 +1,31 @@
 """Reusable ManimCE primitives for neural-network scenes.
 
-Общие примитивы для визуализации нейронных сетей (Neuron / LabeledBox / arrow_between).
-Used across seminar scenes so layout and styling stay consistent.
+Общие примитивы для визуализации нейронных сетей (Neuron / LabeledBox /
+arrow_between / TensorColumn). Used across seminar scenes so layout and styling
+stay consistent.
 """
 from __future__ import annotations
 
 from typing import Any, Optional
+
+import numpy as np
 
 from manim import (
     Arrow,
     Circle,
     MathTex,
     RoundedRectangle,
+    Square,
     VGroup,
     VMobject,
     BLUE,
     GREY_B,
     WHITE,
 )
+
+# Local copy of the RIGHT unit vector. Used by TensorColumn for label
+# placement without forcing scenes to import manim.RIGHT separately.
+_RIGHT_VEC = np.array([1.0, 0.0, 0.0])
 
 
 class Neuron(VGroup):
@@ -90,6 +98,68 @@ class LabeledBox(VGroup):
         self.label_tex = MathTex(label).scale(label_scale)
         self.label_tex.move_to(self.box.get_center())
         self.add(self.label_tex)
+
+
+class TensorColumn(VGroup):
+    """Vertical stack of small colored cells representing an abstract tensor.
+
+    Используется для визуализации tensor-флоу (вход x_t, скрытое состояние h_t,
+    выход y_t) без конкретных численных значений. Каждая ячейка — Square с
+    одинаковой заливкой; опционально один индекс может быть подсвечен (например,
+    argmax выхода softmax).
+
+    Args:
+        dim: Количество ячеек в столбце.
+        cell_size: Сторона одного квадрата (в Manim-юнитах).
+        color: Базовый цвет обводки и заливки.
+        fill_opacity: Прозрачность заливки невыделенных ячеек (0..1).
+        highlight_index: Индекс ячейки, которую надо подсветить (None — никакая).
+        highlight_color: Цвет подсветки.
+        highlight_opacity: Прозрачность заливки подсвеченной ячейки.
+        label: Опциональная MathTex-метка (например, ``"x_1"``), размещается
+            справа от столбца.
+        label_scale: Масштаб метки.
+        label_buff: Зазор между столбцом и меткой.
+        **kwargs: Проброс в VGroup.
+    """
+
+    def __init__(
+        self,
+        dim: int = 4,
+        cell_size: float = 0.27,
+        color: str = BLUE,
+        fill_opacity: float = 0.25,
+        highlight_index: Optional[int] = None,
+        highlight_color: str = "#F5C518",
+        highlight_opacity: float = 0.85,
+        label: str = "",
+        label_scale: float = 0.55,
+        label_buff: float = 0.12,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.cells: list[Square] = []
+        # Build top→bottom so cell 0 is the topmost element of the column.
+        for k in range(dim):
+            cell = Square(side_length=cell_size, color=color, stroke_width=2)
+            if highlight_index is not None and k == highlight_index:
+                cell.set_fill(highlight_color, opacity=highlight_opacity)
+            else:
+                cell.set_fill(color, opacity=fill_opacity)
+            # Position cells vertically with no gap so the column reads as a tensor.
+            cell.shift([0.0, -k * cell_size, 0.0])
+            self.cells.append(cell)
+            self.add(cell)
+        # Recenter the column on the origin so callers can use .move_to / .shift
+        # without offset surprises from the cumulative shifts above.
+        self.move_to([0.0, 0.0, 0.0])
+
+        if label:
+            self.label_tex: Optional[MathTex] = MathTex(label).scale(label_scale)
+            self.label_tex.next_to(self, direction=_RIGHT_VEC, buff=label_buff)
+            self.add(self.label_tex)
+        else:
+            self.label_tex = None
 
 
 def arrow_between(a: VMobject, b: VMobject, **kwargs: Any) -> Arrow:
