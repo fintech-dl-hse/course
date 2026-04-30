@@ -304,12 +304,19 @@ def check_labeled_group_centering(
         offset = float(np.linalg.norm(cells_center[:2] - group_center[:2]))
         if offset > tolerance:
             nm = _name_of(m)
+            has_fix = hasattr(m, "move_cells_to")
+            fix_hint = (
+                " Fix: use .move_cells_to([x, y, 0]) instead of .move_to()"
+                if has_fix
+                else " Fix: position based on cells center, not group center"
+            )
             issues.append(
                 Issue(
                     "high",
                     "label-centering-jitter",
                     f"{nm} cells center offset {offset:.3f} > {tolerance:.3f} "
-                    f"from group center — will cause jitter in animations",
+                    f"from group center — will cause jitter when swapping "
+                    f"with label-less ghost.{fix_hint}",
                     (nm,),
                 )
             )
