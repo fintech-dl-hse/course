@@ -278,6 +278,44 @@ def _is_tex_only(m: Mobject) -> bool:
     return False
 
 
+def check_labeled_group_centering(
+    mobjects: Iterable[Mobject],
+    tolerance: float = 0.08,
+) -> list[Issue]:
+    """Flag VGroups where a label causes the cells/core to be off-center.
+
+    Catches the common jitter bug: a TensorColumn (or similar) with a label
+    has its bounding-box center shifted away from the geometric center of
+    the core shapes.  When such an object replaces a label-less ghost in an
+    animation, the core shapes visibly jump.
+
+    Works on any VGroup that has a ``cells`` attribute (list of submobjects)
+    and a ``label_tex`` attribute.
+    """
+    issues: list[Issue] = []
+    for m in _walk(list(mobjects)):
+        cells = getattr(m, "cells", None)
+        label_tex = getattr(m, "label_tex", None)
+        if cells is None or label_tex is None or not cells:
+            continue
+        # Compute cells-only center vs VGroup center
+        cells_center = np.mean([c.get_center() for c in cells], axis=0)
+        group_center = np.asarray(m.get_center(), dtype=float)
+        offset = float(np.linalg.norm(cells_center[:2] - group_center[:2]))
+        if offset > tolerance:
+            nm = _name_of(m)
+            issues.append(
+                Issue(
+                    "high",
+                    "label-centering-jitter",
+                    f"{nm} cells center offset {offset:.3f} > {tolerance:.3f} "
+                    f"from group center — will cause jitter in animations",
+                    (nm,),
+                )
+            )
+    return issues
+
+
 def run_all(
     mobjects: Sequence[Mobject],
     *,
@@ -292,6 +330,7 @@ def run_all(
         issues.extend(check_in_frame(m, margin=frame_margin))
 
     issues.extend(check_min_label_scale(mobjects, min_height=min_label_height))
+    issues.extend(check_labeled_group_centering(mobjects))
 
     if check_arrows:
         arrows, obstacles = _collect_arrows_and_obstacles(mobjects)

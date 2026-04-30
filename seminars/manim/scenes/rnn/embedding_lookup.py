@@ -1,37 +1,34 @@
-"""Embedding-lookup scene for seminar 09 (V01 of the curriculum catalog).
+"""Embedding-lookup scene for seminar 09 (V04).
 
-Анимирует, как дискретный токен превращается в непрерывный векторный
-embedding через look-up по строке матрицы ``E ∈ R^{V×d}``:
+Shows the full pipeline:  word -> vocabulary index -> row in E -> x_t
 
-1. Сверху — формула ``x_t = E[\\text{token}_t]`` и формальное определение
-   через one-hot-вектор.
-2. Слева — embedding-матрица ``E`` как сетка ``V × d`` со строковыми
-   подписями токенов словаря.
-3. Справа сверху — лента входных токенов ``"the" / "cat" / "sat"``.
-4. Для каждого шага ``t = 1..3`` подсвечивается текущий токен в ленте,
-   подсвечивается соответствующая строка ``E`` и анимируется «вытягивание»
-   этой строки в столбец-тензор ``x_t`` (TensorColumn) справа. Каждый
-   ``x_t`` рисуется на своей вертикальной полосе справа, чтобы стрелки
-   look-up'а не пересекали соседние столбцы. К концу видны все три
-   ``x_t`` сразу — становится ясно, что ``E`` одна и та же на всех шагах
-   (shared lookup table).
+Layout (horizontal):
+- Embedding matrix E is at the top-center.
+- Below it, the three timesteps are arranged LEFT to RIGHT:
+  each column shows  word  ->  id  ->  x_t  vertically,
+  and all three columns sit side by side horizontally.
 
-Сцена использует общие примитивы ``shared.neural`` (TensorColumn,
-arrow_between) и стилистически совместима с ``RNNForward``: те же ячейки
-TensorColumn (``cell_size=0.27``), тот же подход «токены сверху →
-тензорный поток ниже».
+Arrow colors:
+- RED:  "forward" arrows  (id -> E row highlight, word -> id)
+- BLUE: "return" arrows   (E row -> x_t vector)
+
+For the center column (t=2) the arrows curve to avoid crossing text.
 """
 from __future__ import annotations
+
+from typing import Any
 
 from manim import (
     BLUE,
     Create,
+    CurvedArrow,
     DOWN,
     FadeIn,
     FadeOut,
     LEFT,
     MathTex,
     Rectangle,
+    RED,
     RIGHT,
     Scene,
     Square,
@@ -40,75 +37,77 @@ from manim import (
     UP,
     VGroup,
     Write,
+    Arrow,
 )
 
 from shared.neural import TensorColumn, arrow_between
 
+# Semantic arrow colors
+COLOR_FORWARD = RED       # word -> id, id -> E row
+COLOR_RETURN = "#4488FF"  # E row -> x_t (blue)
+
 
 class EmbeddingLookup(Scene):
-    """V01: токен → строка в ``E`` → embedding-столбец ``x_t``."""
+    """word -> vocab index -> E row -> embedding vector x_t."""
 
-    # ---- Layout constants — tuned for 720p (-qm) frame ±(7.11, 4.0) ----
-    VOCAB = ["the", "cat", "sat", "dog", "ran", "."]
-    EMB_DIM = 4  # d — number of columns in E
-    CELL = 0.32  # one cell of the matrix (square)
-    PULLED_CELL = 0.27  # TensorColumn cell size on the right side
+    # ---- Vocabulary (shuffled so lookup indices are non-sequential) ----
+    VOCAB = ["dog", ".", "cat", "the", "ran", "sat"]
+    EMB_DIM = 4  # d columns in E
+    CELL = 0.30  # matrix cell size
+    PULLED_CELL = 0.27  # TensorColumn cell size
 
-    # Embedding matrix anchor (left half of frame).
-    MATRIX_CENTER_X = -4.55
-    MATRIX_CENTER_Y = -0.40
-
-    # Title row.
-    Y_TITLE = 3.45
-
-    # Token strip row: a single line of input tokens at the top-right area.
-    Y_TOKEN_STRIP = 2.45
-    TOKEN_STRIP_CENTER_X = 3.40
-    TOKEN_STRIP_DX = 1.50  # horizontal spacing between strip tokens
-
-    # Each pulled column x_t gets its own vertical row on the right side
-    # so the lookup-arrow from E never crosses a sibling x_t column.
-    # Y-rows for x_1, x_2, x_3 (top → bottom).
-    PULLED_X = 4.40
-    Y_PULLED = [1.10, -0.20, -1.50]
-
-    # Indices into VOCAB for the 3 timesteps shown ("the", "cat", "sat").
-    TOKEN_IDX = [0, 1, 2]
-
-    # Highlight colour for active row / token / pulled column ghost.
+    # ---- Colors ----
     HIGHLIGHT = "#F5C518"
+    INDEX_COLOR = RED
+
+    # ---- Layout ----
+    Y_TITLE = 3.55
+
+    # Embedding matrix E (top center)
+    MATRIX_X = 0.0
+    MATRIX_Y = 1.80
+
+    # Horizontal positions for the 3 timesteps (left, center, right)
+    STEP_X = [-4.20, 0.0, 4.20]
+
+    # Vertical positions within each step column
+    Y_WORD = -0.70    # input word
+    Y_INDEX = -1.45   # vocabulary index
+    Y_EMB = -2.80     # embedding vector x_t
+
+    # Indices into VOCAB for the 3 timesteps: "the"=3, "cat"=2, "sat"=5
+    TOKEN_IDX = [3, 2, 5]
 
     def construct(self) -> None:
-        # ---------------- Title ----------------
+        # ================ Title ================
         eq_top = MathTex(
             r"x_t = E[\text{token}_t]",
             r"\quad",
             r"E \in \mathbb{R}^{V \times d}",
-        ).scale(0.62)
+        ).scale(0.58)
         eq_bot = MathTex(
-            r"x_t = E^{\top}\, \mathbb{1}_{\mathrm{id}(t)}",
-            r"\quad",
-            r"V = 6,\; d = 4",
-        ).scale(0.55)
+            r"\text{token}_t \;\xrightarrow{\text{vocab}}\; \text{id}_t"
+            r"\;\xrightarrow{E[\text{id}_t]}\; x_t \in \mathbb{R}^d",
+        ).scale(0.50)
         title = (
             VGroup(eq_top, eq_bot)
-            .arrange(DOWN, buff=0.14)
+            .arrange(DOWN, buff=0.12)
             .move_to([0.0, self.Y_TITLE, 0.0])
         )
         self.play(Write(title))
-        self.wait(0.2)
+        self.wait(0.4)
 
-        # ---------------- Embedding matrix E (left) ----------------
+        # ================ Embedding matrix E (top center) ================
         V = len(self.VOCAB)
         d = self.EMB_DIM
         cell = self.CELL
 
         grid_w = d * cell
         grid_h = V * cell
-        gx0 = self.MATRIX_CENTER_X - grid_w / 2.0
-        gy0 = self.MATRIX_CENTER_Y + grid_h / 2.0
+        gx0 = self.MATRIX_X - grid_w / 2.0
+        gy0 = self.MATRIX_Y + grid_h / 2.0
 
-        # Build cells row-by-row (top → bottom).
+        # Build grid cells row by row
         cells: list[list[Square]] = []
         cells_flat: list[Square] = []
         for r in range(V):
@@ -125,136 +124,148 @@ class EmbeddingLookup(Scene):
             cells.append(row_cells)
         grid = VGroup(*cells_flat)
 
-        # Column index header (1..d) immediately above the grid.
+        # Row labels: index + vocab word to the left of each row
+        row_labels: list[VGroup] = []
+        for r, tok in enumerate(self.VOCAB):
+            row_y = gy0 - r * cell - cell / 2.0
+            idx_lbl = (
+                MathTex(f"{r}:")
+                .scale(0.40)
+                .set_color(self.INDEX_COLOR)
+                .move_to([gx0 - 1.00, row_y, 0.0])
+            )
+            tok_lbl = (
+                Tex(rf"\textit{{{tok}}}")
+                .scale(0.45)
+                .move_to([gx0 - 0.50, row_y, 0.0])
+            )
+            pair = VGroup(idx_lbl, tok_lbl)
+            row_labels.append(pair)
+        row_labels_group = VGroup(*row_labels)
+
+        # Column headers (1..d)
         col_headers: list[MathTex] = []
         for c in range(d):
-            hd = MathTex(str(c + 1)).scale(0.5)
-            hd.move_to([gx0 + c * cell + cell / 2.0, gy0 + 0.22, 0.0])
+            hd = MathTex(str(c + 1)).scale(0.40)
+            hd.move_to([gx0 + c * cell + cell / 2.0, gy0 + 0.20, 0.0])
             col_headers.append(hd)
         col_headers_group = VGroup(*col_headers)
 
-        # Caption "E" above the column-headers, off to the side so the big
-        # italic E doesn't visually collide with the digit row.
+        # "E" caption to the left
         e_caption = (
             MathTex("E")
-            .scale(0.85)
-            .move_to([gx0 - 0.55, gy0 + 0.30, 0.0])
+            .scale(0.80)
+            .move_to([gx0 - 1.45, self.MATRIX_Y, 0.0])
         )
 
-        # Row labels — vocab tokens to the left of each row. Scale 0.55 to
-        # clear the 0.18 height floor for the lowercase italic text.
-        row_labels: list[Tex] = []
-        for r, tok in enumerate(self.VOCAB):
-            lbl = (
-                Tex(rf"\textit{{``{tok}''}}")
-                .scale(0.55)
-                .move_to([gx0 - 0.55, gy0 - r * cell - cell / 2.0, 0.0])
-            )
-            row_labels.append(lbl)
-        row_labels_group = VGroup(*row_labels)
+        # Dimensions under the matrix
+        dims_label = (
+            MathTex(r"V{=}6,\; d{=}4")
+            .scale(0.40)
+            .move_to([self.MATRIX_X, gy0 - V * cell - 0.22, 0.0])
+        )
 
         self.play(
             FadeIn(e_caption),
             FadeIn(grid),
             FadeIn(row_labels_group),
             FadeIn(col_headers_group),
-            run_time=0.9,
+            FadeIn(dims_label),
+            run_time=1.0,
         )
-        self.wait(0.3)
+        self.wait(0.4)
 
-        # ---------------- Token strip (top-right) ----------------
-        strip_tokens = [self.VOCAB[i] for i in self.TOKEN_IDX]
-        strip_x = [
-            self.TOKEN_STRIP_CENTER_X - self.TOKEN_STRIP_DX,
-            self.TOKEN_STRIP_CENTER_X,
-            self.TOKEN_STRIP_CENTER_X + self.TOKEN_STRIP_DX,
-        ]
-        strip_mobs: list[Tex] = []
-        for k, tok in enumerate(strip_tokens):
-            t = (
-                Tex(rf"\textit{{``{tok}''}}")
-                .scale(0.65)
-                .move_to([strip_x[k], self.Y_TOKEN_STRIP, 0.0])
+        # ================ Step labels (t=1, t=2, t=3) ================
+        for step in range(3):
+            t_lbl = (
+                MathTex(f"t={step + 1}")
+                .scale(0.50)
+                .move_to([self.STEP_X[step], self.Y_WORD + 0.55, 0.0])
             )
-            strip_mobs.append(t)
-        strip_group = VGroup(*strip_mobs)
+            self.play(FadeIn(t_lbl), run_time=0.25)
 
-        # A small caption identifying the strip as the input sequence.
-        strip_caption = (
-            MathTex(r"\text{input tokens}")
-            .scale(0.55)
-            .next_to(strip_group, LEFT, buff=0.30)
-        )
-
-        self.play(FadeIn(strip_caption), FadeIn(strip_group), run_time=0.6)
-        self.wait(0.2)
-
-        # ---------------- Per-step lookup animation ----------------
-        # Each step t draws its x_t at PULLED_X / Y_PULLED[t-1]. Earlier
-        # x_t columns persist so by step 3 the viewer sees x_1, x_2, x_3
-        # stacked vertically on the right.
-        prev_token_box: Rectangle | None = None
+        # ================ Per-step lookup animation ================
         prev_row_highlight: Rectangle | None = None
-        prev_arrow = None
+        prev_return_arrow = None
 
         for step, vocab_idx in enumerate(self.TOKEN_IDX):
             t = step + 1
-            x_pos_x = self.PULLED_X
-            x_pos_y = self.Y_PULLED[step]
+            token = self.VOCAB[vocab_idx]
+            sx = self.STEP_X[step]
+            is_center = (step == 1)  # center column needs curved arrows
 
-            # --- 1. Highlight current token in the strip ---
-            tok_mob = strip_mobs[step]
-            tok_box = Rectangle(
-                width=tok_mob.width + 0.22,
-                height=tok_mob.height + 0.20,
-                color=self.HIGHLIGHT,
-                stroke_width=3,
-            ).move_to(tok_mob.get_center())
+            # --- 1. Show the input word ---
+            word_tex = (
+                Tex(rf"\textit{{``{token}''}}")
+                .scale(0.70)
+                .move_to([sx, self.Y_WORD, 0.0])
+            )
+            self.play(FadeIn(word_tex), run_time=0.4)
 
-            # --- 2. Highlight the corresponding row in E ---
+            # --- 2. Show the vocabulary index with arrow word -> index ---
+            idx_tex = (
+                MathTex(rf"\text{{id}}={vocab_idx}")
+                .scale(0.55)
+                .set_color(self.INDEX_COLOR)
+                .move_to([sx, self.Y_INDEX, 0.0])
+            )
+            word_to_idx = Arrow(
+                start=word_tex.get_bottom(),
+                end=idx_tex.get_top(),
+                buff=0.10,
+                stroke_width=2.5,
+                color=COLOR_FORWARD,
+                tip_length=0.12,
+            )
+            self.play(Create(word_to_idx), FadeIn(idx_tex), run_time=0.5)
+            self.wait(0.2)
+
+            # --- 3. Highlight the corresponding row in E ---
             row_y = gy0 - vocab_idx * cell - cell / 2.0
             row_box = Rectangle(
                 width=grid_w + 0.08,
                 height=cell + 0.06,
                 color=self.HIGHLIGHT,
                 stroke_width=3,
-            ).move_to([self.MATRIX_CENTER_X, row_y, 0.0])
+            ).move_to([self.MATRIX_X, row_y, 0.0])
 
-            anims = [Create(tok_box), Create(row_box)]
-            # Drop the previous step's highlights (and its row→x arrow) so
-            # only the active step glows. Use self.remove for the stale
-            # arrow so the lint also sees it gone.
-            if prev_token_box is not None:
-                anims.append(FadeOut(prev_token_box))
+            # Fade out previous row highlight and return arrow
+            anims = [Create(row_box)]
             if prev_row_highlight is not None:
                 anims.append(FadeOut(prev_row_highlight))
-            if prev_arrow is not None:
-                anims.append(FadeOut(prev_arrow))
-            self.play(*anims, run_time=0.6)
-            # Belt-and-suspenders: explicitly remove from the scene so the
-            # static linter (which patches play() and won't run FadeOut)
-            # also sees them gone.
-            if prev_token_box is not None:
-                self.remove(prev_token_box)
+            if prev_return_arrow is not None:
+                anims.append(FadeOut(prev_return_arrow))
+            self.play(*anims, run_time=0.5)
             if prev_row_highlight is not None:
                 self.remove(prev_row_highlight)
-            if prev_arrow is not None:
-                self.remove(prev_arrow)
+            if prev_return_arrow is not None:
+                self.remove(prev_return_arrow)
 
-            # --- 3. Build the pulled column tensor x_t at the right side ---
-            x_t = TensorColumn(
-                dim=d,
-                cell_size=self.PULLED_CELL,
-                color=BLUE,
-                fill_opacity=0.35,
-                label=f"x_{t}",
-                label_scale=0.6,
-            ).move_to([x_pos_x, x_pos_y, 0.0])
+            # --- 4. Arrow from index up to E row (forward: red) ---
+            if is_center:
+                # Center column: curve LEFT to avoid crossing the matrix labels
+                idx_to_row = CurvedArrow(
+                    start_point=idx_tex.get_left() + [0, 0.1, 0],
+                    end_point=row_box.get_left() + [-0.05, 0, 0],
+                    angle=-1.2,
+                    stroke_width=2.5,
+                    color=COLOR_FORWARD,
+                    tip_length=0.12,
+                )
+            else:
+                idx_to_row = Arrow(
+                    start=idx_tex.get_top(),
+                    end=row_box.get_bottom(),
+                    buff=0.08,
+                    stroke_width=2.5,
+                    color=COLOR_FORWARD,
+                    tip_length=0.12,
+                )
+            self.play(Create(idx_to_row), run_time=0.4)
 
-            # Ghost row overlaying the highlighted row in E — visualizes the
-            # "row pulled out and rotated 90° into a column" intuition via
-            # TransformFromCopy.
-            row_copy_cells: list[Square] = []
+            # --- 5. Pull out the row into x_t vector ---
+            # Ghost cells over the highlighted row
+            row_ghost_cells: list[Square] = []
             for c in range(d):
                 src = cells[vocab_idx][c]
                 ghost = Square(
@@ -263,12 +274,21 @@ class EmbeddingLookup(Scene):
                     stroke_width=2,
                 ).set_fill(self.HIGHLIGHT, opacity=0.55)
                 ghost.move_to(src.get_center())
-                row_copy_cells.append(ghost)
-            row_ghost = VGroup(*row_copy_cells)
+                row_ghost_cells.append(ghost)
+            row_ghost = VGroup(*row_ghost_cells)
 
-            # Build a target-shaped VGroup of cells positioned where x_t's
-            # cells will sit (column orientation), used as the destination
-            # for TransformFromCopy.
+            # Target: TensorColumn x_t below the index
+            # Use move_cells_to to avoid label-induced jitter
+            x_t = TensorColumn(
+                dim=d,
+                cell_size=self.PULLED_CELL,
+                color=BLUE,
+                fill_opacity=0.35,
+                label=f"x_{t}",
+                label_scale=0.55,
+            ).move_cells_to([sx, self.Y_EMB, 0.0])
+
+            # Build target ghost cells matching x_t's CELLS positions exactly
             target_cells: list[Square] = []
             for c in range(d):
                 tc = Square(
@@ -276,62 +296,72 @@ class EmbeddingLookup(Scene):
                     color=BLUE,
                     stroke_width=2,
                 ).set_fill(BLUE, opacity=0.35)
-                top_y = x_pos_y + (d - 1) / 2.0 * self.PULLED_CELL
-                tc.move_to([x_pos_x, top_y - c * self.PULLED_CELL, 0.0])
+                tc.move_to(x_t.cells[c].get_center())
                 target_cells.append(tc)
             target_group = VGroup(*target_cells)
 
-            # Connecting arrow: from the right edge of the highlighted row
-            # to the left edge of the pulled tensor column. Because each
-            # x_t lives at its own y, the arrow stays within an empty
-            # horizontal corridor — no clip through other columns.
-            row_to_x = arrow_between(
-                row_box, x_t, buff=0.18, tip_length=0.16, color=self.HIGHLIGHT
-            )
+            # Arrow from E row to x_t (return: blue)
+            if is_center:
+                # Center column: curve RIGHT to avoid crossing the matrix labels
+                row_to_x = CurvedArrow(
+                    start_point=row_box.get_right() + [0.05, 0, 0],
+                    end_point=[sx + 0.3, self.Y_EMB + 0.45, 0],
+                    angle=-1.2,
+                    stroke_width=2.5,
+                    color=COLOR_RETURN,
+                    tip_length=0.13,
+                )
+            else:
+                row_to_x = Arrow(
+                    start=row_box.get_bottom(),
+                    end=x_t.get_top(),
+                    buff=0.12,
+                    stroke_width=2.5,
+                    color=COLOR_RETURN,
+                    tip_length=0.13,
+                )
 
-            self.play(FadeIn(row_ghost), Create(row_to_x), run_time=0.4)
+            self.play(FadeIn(row_ghost), run_time=0.3)
             self.play(
                 TransformFromCopy(row_ghost, target_group),
+                Create(row_to_x),
                 run_time=0.7,
             )
-            # Replace the temporary target_group with the proper TensorColumn
-            # (which carries the label x_t).
             self.play(
                 FadeOut(target_group),
                 FadeIn(x_t),
                 FadeOut(row_ghost),
+                FadeOut(idx_to_row),
                 run_time=0.4,
             )
-            self.remove(target_group, row_ghost)
+            self.remove(target_group, row_ghost, idx_to_row)
 
-            prev_token_box = tok_box
             prev_row_highlight = row_box
-            prev_arrow = row_to_x
+            prev_return_arrow = row_to_x
 
-        # Fade out the last lingering highlights so the final frame is clean.
-        tail_anims = []
-        if prev_token_box is not None:
-            tail_anims.append(FadeOut(prev_token_box))
+            self.wait(0.3)
+
+        # ---- Clean up last highlight ----
+        tail = []
         if prev_row_highlight is not None:
-            tail_anims.append(FadeOut(prev_row_highlight))
-        if prev_arrow is not None:
-            tail_anims.append(FadeOut(prev_arrow))
-        if tail_anims:
-            self.play(*tail_anims, run_time=0.4)
-        if prev_token_box is not None:
-            self.remove(prev_token_box)
+            tail.append(FadeOut(prev_row_highlight))
+        if prev_return_arrow is not None:
+            tail.append(FadeOut(prev_return_arrow))
+        if tail:
+            self.play(*tail, run_time=0.4)
         if prev_row_highlight is not None:
             self.remove(prev_row_highlight)
-        if prev_arrow is not None:
-            self.remove(prev_arrow)
+        if prev_return_arrow is not None:
+            self.remove(prev_return_arrow)
 
-        # ---------------- Final caption ----------------
+        # ================ Final caption ================
         caption = (
             MathTex(
-                r"\text{shared lookup: } E \text{ is unchanged across all } t"
+                r"\text{Shared lookup table } E"
+                r"\text{ maps every token to a dense vector}"
             )
-            .scale(0.55)
-            .to_edge(DOWN, buff=0.25)
+            .scale(0.48)
+            .to_edge(DOWN, buff=0.15)
         )
         self.play(FadeIn(caption))
-        self.wait(1.0)
+        self.wait(1.2)

@@ -161,6 +161,21 @@ class TensorColumn(VGroup):
         else:
             self.label_tex = None
 
+    def _cells_center(self) -> np.ndarray:
+        """Return the geometric center of just the cells (excluding label)."""
+        return np.mean([c.get_center() for c in self.cells], axis=0)
+
+    def move_cells_to(self, point: list[float] | np.ndarray) -> "TensorColumn":
+        """Position so that the *cells* (not cells+label) are centered at ``point``.
+
+        Use this instead of ``.move_to()`` to avoid label-induced jitter:
+        ``.move_to()`` centers the full bounding box (cells + label), which
+        shifts cells left by half the label width.
+        """
+        target = np.array([point[0], point[1], 0.0])
+        self.shift(target - self._cells_center())
+        return self
+
 
 def arrow_between(a: VMobject, b: VMobject, **kwargs: Any) -> Arrow:
     """Построить стрелку от края ``a`` к краю ``b``.
