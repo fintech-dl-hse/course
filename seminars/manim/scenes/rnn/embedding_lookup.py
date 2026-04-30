@@ -16,8 +16,6 @@ For the center column (t=2) the arrows curve to avoid crossing text.
 """
 from __future__ import annotations
 
-from typing import Any
-
 from manim import (
     BLUE,
     Create,
@@ -25,22 +23,19 @@ from manim import (
     DOWN,
     FadeIn,
     FadeOut,
-    LEFT,
     MathTex,
     Rectangle,
     RED,
-    RIGHT,
     Scene,
     Square,
     Tex,
     TransformFromCopy,
-    UP,
     VGroup,
     Write,
     Arrow,
 )
 
-from shared.neural import TensorColumn, arrow_between
+from shared.neural import TensorColumn
 
 # Semantic arrow colors
 COLOR_FORWARD = RED       # word -> id, id -> E row
