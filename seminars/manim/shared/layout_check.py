@@ -389,6 +389,55 @@ def check_label_arrow_overlap(
     return issues
 
 
+def check_label_label_overlap(
+    mobjects: Iterable[Mobject],
+    padding: float = 0.02,
+) -> list[Issue]:
+    """Flag pairs of Tex/MathTex labels whose bounding boxes overlap.
+
+    Common case: a label placed next to a matrix row overlaps with another
+    label (e.g. matrix title "A" overlaps with row label "bites").
+    """
+    issues: list[Issue] = []
+    all_mobs = _walk(list(mobjects))
+    labels = [m for m in all_mobs if isinstance(m, (Tex, MathTex)) and _has_geometry(m)]
+
+    seen: set[tuple[int, int]] = set()
+    for i, lab_a in enumerate(labels):
+        ax0, ax1, ay0, ay1 = _aabb(lab_a)
+        ax0 -= padding; ax1 += padding; ay0 -= padding; ay1 += padding
+        aabb_a = (ax0, ax1, ay0, ay1)
+        text_a = getattr(lab_a, "tex_string", "") or ""
+        nm_a = f"{type(lab_a).__name__}({text_a[:30]})" if text_a else type(lab_a).__name__
+
+        for j, lab_b in enumerate(labels):
+            if j <= i:
+                continue
+            pair = (id(lab_a), id(lab_b))
+            if pair in seen:
+                continue
+            seen.add(pair)
+
+            bx0, bx1, by0, by1 = _aabb(lab_b)
+            bx0 -= padding; bx1 += padding; by0 -= padding; by1 += padding
+            aabb_b = (bx0, bx1, by0, by1)
+
+            if _aabbs_overlap(aabb_a, aabb_b):
+                text_b = getattr(lab_b, "tex_string", "") or ""
+                nm_b = f"{type(lab_b).__name__}({text_b[:30]})" if text_b else type(lab_b).__name__
+                issues.append(
+                    Issue(
+                        "high",
+                        "label-label-overlap",
+                        f"{nm_a} overlaps with {nm_b}. "
+                        f"Fix: increase spacing or reposition labels",
+                        (nm_a, nm_b),
+                    )
+                )
+
+    return issues
+
+
 def run_all(
     mobjects: Sequence[Mobject],
     *,
@@ -405,6 +454,7 @@ def run_all(
     issues.extend(check_min_label_scale(mobjects, min_height=min_label_height))
     issues.extend(check_labeled_group_centering(mobjects))
     issues.extend(check_label_arrow_overlap(mobjects))
+    issues.extend(check_label_label_overlap(mobjects))
 
     if check_arrows:
         arrows, obstacles = _collect_arrows_and_obstacles(mobjects)
