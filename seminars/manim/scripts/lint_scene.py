@@ -1,21 +1,22 @@
-"""Run the static layout linter against a ManimCE scene without rendering video.
+"""Run the layout linter against a ManimCE scene using real animation logic.
 
 Usage:
     python scripts/lint_scene.py --scene LSTMGates
     python scripts/lint_scene.py scenes/lstm/LSTMGates.py
 
-The script imports the scene module, monkey-patches `Scene.play`/`wait`
-so construct() populates the mobject tree without animating, then runs
-`shared.layout_check.run_all` **at every keyframe** (after each `play()`
-and `wait()` call) and deduplicates issues. Exit code:
+The script wraps ``Scene.play`` and ``Scene.wait`` — calling the original
+manim implementation (so FadeOut removes objects, Transform applies final
+state, .animate moves objects, etc.) and then running layout checks on
+``self.mobjects`` (the **actual** on-screen state).
 
-* 0 — no issues
-* 1 — one or more `high` issues
+Rendering uses low quality with ``write_to_movie=False`` so no video is
+produced, but all animation side-effects are applied correctly.
+
+Exit codes:
+* 0 — no issues (or only med/low)
+* 1 — one or more ``high`` issues
 * 2 — render-time error (e.g. LaTeX failure)
 * 3 — usage/discovery error
-
-The expected caller is the manim-visualizer agent's inner loop: run lint
-first, only spend a full `make render` once lint is clean.
 """
 from __future__ import annotations
 
@@ -23,9 +24,10 @@ import argparse
 import importlib.util
 import re
 import sys
+import tempfile
 import traceback
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent  # seminars/manim
@@ -71,7 +73,7 @@ class _LintCollector:
         self._seen: set[tuple[str, tuple[str, ...]]] = set()
 
     def check(self, mobjects: list[Any]) -> None:
-        """Run all lint checks on current mobjects, collect new issues."""
+        """Run all lint checks on current on-screen mobjects."""
         self.step += 1
         issues = run_all(mobjects)
         for issue in issues:
@@ -94,60 +96,67 @@ class _LintCollector:
         return result
 
 
-def _patch_scene_animations(collector: _LintCollector) -> None:
-    """Make `Scene.play`/`wait` no-ops that register mobjects and lint.
+def _setup_config() -> None:
+    """Configure manim for fast lint-only runs (no video output)."""
+    from manim import config
+    config.quality = "low_quality"
+    config.disable_caching = True
+    config.write_to_movie = False
+    config.preview = False
+    config.media_dir = tempfile.mkdtemp(prefix="manim_lint_")
 
-    After each `play()` call, mobjects from animations are added to the scene
-    and then ``run_all`` checks the current visible state. ``wait()`` also
-    triggers a lint pass. This catches issues at every keyframe — not just
-    the final frame.
+
+def _wrap_scene_methods(collector: _LintCollector) -> tuple[Any, Any]:
+    """Wrap Scene.play and Scene.wait to add lint checks after each call.
+
+    Calls the **original** manim implementation (super), so all animation
+    side-effects apply: FadeOut removes mobjects, Transform applies final
+    state, .animate.move_to() updates positions, etc.
+
+    Returns the original methods so they can be restored.
     """
-    from manim import Scene  # imported lazily so manim only loads when lint is run
+    from manim import Scene
 
-    def _collect(args: Iterable[Any]) -> list[Any]:
-        out: list[Any] = []
-        for a in args:
-            m = getattr(a, "mobject", None)
-            if m is not None:
-                out.append(m)
-                continue
-            ms = getattr(a, "mobjects", None)
-            if ms:
-                out.extend(ms)
-                continue
-            # Fallback: the user passed a bare Mobject (rare but legal).
-            if hasattr(a, "get_center"):
-                out.append(a)
-        return out
+    _orig_play = Scene.play
+    _orig_wait = Scene.wait
 
-    def _play(self: Scene, *animations: Any, **_: Any) -> None:
-        for m in _collect(animations):
-            if m not in self.mobjects:
-                self.add(m)
+    def _lint_play(self: Any, *args: Any, **kwargs: Any) -> None:
+        _orig_play(self, *args, **kwargs)
         collector.check(list(self.mobjects))
 
-    def _wait(self: Scene, *_: Any, **__: Any) -> None:
+    def _lint_wait(self: Any, *args: Any, **kwargs: Any) -> None:
+        _orig_wait(self, *args, **kwargs)
         collector.check(list(self.mobjects))
 
-    Scene.play = _play  # type: ignore[method-assign]
-    Scene.wait = _wait  # type: ignore[method-assign]
-    # Keep `add` / `remove` / `clear` working — they already mutate `mobjects`.
+    Scene.play = _lint_play   # type: ignore[method-assign]
+    Scene.wait = _lint_wait   # type: ignore[method-assign]
+
+    return _orig_play, _orig_wait
+
+
+def _restore_scene_methods(orig_play: Any, orig_wait: Any) -> None:
+    from manim import Scene
+    Scene.play = orig_play    # type: ignore[method-assign]
+    Scene.wait = orig_wait    # type: ignore[method-assign]
 
 
 def lint_scene(scene: str, scene_file: Path) -> list[Issue]:
-    """Import the scene, run construct() with per-keyframe linting."""
+    """Import the scene, render with lint checks at every play()/wait()."""
+    _setup_config()
+
     collector = _LintCollector()
-    _patch_scene_animations(collector)
-    mod = _import_scene_module(scene_file)
-    cls = getattr(mod, scene, None)
-    if cls is None:
-        raise AttributeError(f"class {scene} not found in {scene_file}")
+    orig_play, orig_wait = _wrap_scene_methods(collector)
 
-    instance = cls()
-    instance.construct()
+    try:
+        mod = _import_scene_module(scene_file)
+        cls = getattr(mod, scene, None)
+        if cls is None:
+            raise AttributeError(f"class {scene} not found in {scene_file}")
 
-    # Also lint the final state (in case construct ends without play/wait)
-    collector.check(list(instance.mobjects))
+        instance = cls()
+        instance.render()  # calls construct() with real renderer
+    finally:
+        _restore_scene_methods(orig_play, orig_wait)
 
     return collector.get_issues()
 
