@@ -1,32 +1,14 @@
-"""Seq2seq bottleneck scene for seminar 09 (V04 of the curriculum catalog).
+"""RNN bottleneck scene — motivation for attention (NIAH example).
 
-Мотивирует attention: показывает, почему один фиксированный вектор
-``h_T`` энкодера не способен переносить достаточно информации о всём
-исходном предложении в декодер.
+Shows ONE RNN cell processing tokens sequentially. The hidden state h_t
+accumulates all context but has fixed dimensionality.
 
-1. Сверху — формула ``\\text{seq2seq: encoder} \\to h_T \\to \\text{decoder}``
-   и подзаголовок-проблема.
-2. На верхней половине кадра — лента из 5 source-токенов
-   (``the / quick / brown / fox / jumps``).
-3. Энкодер: для каждого токена строится скрытое состояние ``h_t``
-   (TensorColumn, dim=4) через recurrence ``h_{t-1} \\to h_t`` с
-   зелёной ``W_{hh}``-коробкой.
-4. Визуальный пуант: после прохода всех 5 шагов состояния
-   ``h_1..h_4`` затухают (низкая прозрачность), яркой остаётся только
-   ``h_5`` — единственное, что передаётся в декодер.
-5. Узкая (тонкая) стрелка от ``h_5`` к контекст-вектору в центре
-   кадра, противопоставленная толстым стрелкам recurrence — визуальная
-   метафора bottleneck'а.
-6. Декодер: 4 target-шага справа, каждый рисует свой выход и тянет
-   пунктирную линию обратно к одному и тому же ``h_5`` — отсюда видно,
-   что весь target опирается на одну компрессию.
-7. Снизу — итоговая подпись: ``bottleneck: |h_T| фиксирован, длинные
-   последовательности теряют информацию``.
+Left side: RNN cell with token input and h_t output.
+Right side: growing context bar — shows all processed tokens accumulating.
+Visual contrast: context grows unboundedly, but h_t stays fixed size.
 
-Сцена использует общие примитивы ``shared.neural`` (TensorColumn,
-LabeledBox, arrow_between) и стилистически совместима с ``RNNForward``
-и ``EmbeddingLookup``: те же ячейки TensorColumn (``cell_size=0.27``),
-тот же подход «токены сверху → тензорный поток ниже».
+Uses NIAH example: "The password is 7392" at start, ~1000 filler, then
+"What was the password?" at the end.
 """
 from __future__ import annotations
 
@@ -36,375 +18,394 @@ from manim import (
     Arrow,
     BLUE,
     Create,
-    DashedLine,
     DOWN,
+    DashedLine,
     FadeIn,
+    FadeOut,
     GREEN,
+    GREY,
     LEFT,
+    Line,
     MathTex,
+    ORANGE,
+    RED,
     RIGHT,
+    Rectangle,
+    RoundedRectangle,
     Scene,
     Tex,
     UP,
     VGroup,
-    VMobject,
     WHITE,
     YELLOW,
     Write,
+    ReplacementTransform,
+    Brace,
 )
 
-from shared.neural import LabeledBox, TensorColumn, arrow_between
+from shared.neural import TensorColumn
 
 
-def _horizontal_arrow(a: VMobject, b: VMobject, **kwargs: Any) -> Arrow:
-    """Стрелка, всегда прилипающая к правому/левому краю объектов."""
-    defaults: dict[str, Any] = {"buff": 0.08, "stroke_width": 3, "color": WHITE}
-    defaults.update(kwargs)
-    if a.get_center()[0] <= b.get_center()[0]:
-        start, end = a.get_right(), b.get_left()
-    else:
-        start, end = a.get_left(), b.get_right()
-    return Arrow(start=start, end=end, **defaults)
+COLOR_CELL = BLUE
+COLOR_HIDDEN = GREEN
+COLOR_INPUT = ORANGE
 
 
 class Seq2SeqBottleneck(Scene):
-    """V04: source → encoder RNN → h_T → decoder; визуализация bottleneck'а."""
+    """RNN bottleneck via NIAH: one cell, tokens cycle through, info gets lost."""
 
-    # ---- Layout constants — tuned for 720p (-qm) frame ±(7.11, 4.0) ----
-    CELL_SIZE = 0.27
-    TENSOR_DIM = 4
+    CELL_SIZE = 0.22
+    DIM = 5
 
-    # Vertical anchors.
-    Y_TITLE = 3.55
-    Y_SRC_TOKEN = 2.40       # source token strip
-    Y_ENC = 1.05             # encoder hidden row h_1..h_5
-    Y_CONTEXT = -0.45        # context vector (the bottleneck output)
-    Y_DEC = -1.85            # decoder hidden row s_1..s_4
-    Y_TGT_TOKEN = -3.10      # decoder predicted-token strip
-    Y_CAPTION = -3.75
+    # Layout (bottom-to-top) — RNN on the left
+    Y_TOKEN = -2.60
+    Y_CELL = -0.80
+    Y_H = 1.40
+    Y_TITLE = 3.40
+    Y_STEP_LABEL = -3.40
 
-    # Encoder horizontal layout: 5 timesteps on the left ~60% of frame.
-    # X_ENC_BASE is the x of h_1; h_0 sits one X_ENC_SPACING to the left of
-    # it, so X_ENC_BASE must be at least X_ENC_SPACING + cell_size/2 +
-    # margin away from the left frame edge (-7.11).
-    X_ENC_BASE = -5.30
-    X_ENC_SPACING = 1.30
+    X_MAIN = -2.50           # RNN cell shifted left
+    CELL_W = 1.60
+    CELL_H = 0.90
 
-    # Decoder horizontal layout: 4 timesteps on the right.
-    X_DEC_BASE = 2.20
-    X_DEC_SPACING = 1.40
+    # Context panel on the right
+    X_CTX = 3.50             # center of context panel
+    CTX_W = 2.80             # width of context area
+    Y_CTX_TOP = 2.80
+    Y_CTX_BOT = -3.00
+    CTX_ROW_H = 0.30         # height per token row in context
 
-    # W_hh / W_ss recurrence boxes.
-    BOX_W = 0.55
-    BOX_H = 0.34
-
-    # Faded opacity for the discarded h_1..h_{T-1} columns.
-    FADED_OPACITY = 0.18
-
-    # Source / target tokens.
-    SRC_TOKENS = ["the", "quick", "brown", "fox", "jumps"]
-    # 4 target tokens (a hypothetical translation/paraphrase).
-    TGT_TOKENS = ["der", "schnelle", "fuchs", "springt"]
+    NEEDLE_TOKENS = ["The", "password", "is", "7392"]
+    FILLER_TEXT = r"\ldots \text{1000 tokens} \ldots"
+    QUESTION_TOKENS = ["What", "was", "the", "password", "?"]
 
     def construct(self) -> None:
-        # ---------------- Title ----------------
-        eq_top = MathTex(
-            r"\text{seq2seq: encoder}",
-            r"\to",
-            r"h_T",
-            r"\to",
-            r"\text{decoder}",
-        ).scale(0.62)
-        eq_top[2].set_color(YELLOW)
-        eq_bot = MathTex(
-            r"\text{problem: only } h_T \text{ carries source info}",
-        ).scale(0.55)
+        # ================ Title ================
         title = (
-            VGroup(eq_top, eq_bot)
-            .arrange(DOWN, buff=0.14)
-            .move_to([0.0, self.Y_TITLE, 0.0])
+            Tex(r"\textbf{RNN Bottleneck}")
+            .scale(0.65)
+            .move_to([0, self.Y_TITLE, 0])
         )
-        self.play(Write(title))
+        self.play(Write(title), run_time=0.4)
         self.wait(0.2)
 
-        # ---------------- Source token strip ----------------
-        src_strip: list[Tex] = []
-        for i, tok in enumerate(self.SRC_TOKENS):
-            x_pos = self.X_ENC_BASE + i * self.X_ENC_SPACING
-            t = (
-                Tex(rf"\textit{{``{tok}''}}")
-                .scale(0.55)
-                .move_to([x_pos, self.Y_SRC_TOKEN, 0.0])
-            )
-            src_strip.append(t)
-        src_group = VGroup(*src_strip)
-        self.play(FadeIn(src_group), run_time=0.5)
-        self.wait(0.2)
-
-        # ---------------- Initial encoder hidden state h_0 ----------------
-        # Sits to the left of h_1 with a small W_hh slot between them so the
-        # recurrence chain reads the same way as in RNNForward.
-        h0_x = self.X_ENC_BASE - self.X_ENC_SPACING
-        h_prev = TensorColumn(
-            dim=self.TENSOR_DIM,
-            cell_size=self.CELL_SIZE,
-            label_scale=0.45,
-        ).move_to([h0_x, self.Y_ENC, 0.0])
-        h_prev_lbl = (
-            MathTex(r"h_0")
-            .scale(0.5)
-            .next_to(h_prev, DOWN, buff=0.12)
-        )
-        self.play(FadeIn(h_prev), FadeIn(h_prev_lbl), run_time=0.4)
-
-        # ---------------- Encoder rollout: 5 timesteps ----------------
-        h_columns: list[TensorColumn] = []
-        h_labels: list[MathTex] = []
-        w_hh_boxes: list[LabeledBox] = []
-        rec_arrows_in: list[Arrow] = []   # h_{t-1} -> w_hh
-        rec_arrows_out: list[Arrow] = []  # w_hh -> h_t
-        src_arrows: list[Arrow] = []      # token -> h_t
-
-        for i, tok in enumerate(self.SRC_TOKENS):
-            t = i + 1
-            x_pos = self.X_ENC_BASE + i * self.X_ENC_SPACING
-
-            # h_t TensorColumn.
-            h_t = TensorColumn(
-                dim=self.TENSOR_DIM,
-                cell_size=self.CELL_SIZE,
-            ).move_to([x_pos, self.Y_ENC, 0.0])
-            h_lbl = (
-                MathTex(rf"h_{t}")
-                .scale(0.5)
-                .next_to(h_t, DOWN, buff=0.10)
-            )
-
-            # Recurrence box W_hh between prev_h (right edge) and h_t (left).
-            w_hh_x = (h_prev.get_right()[0] + h_t.get_left()[0]) / 2.0
-            w_hh = LabeledBox(
-                label="W_{hh}",
-                width=self.BOX_W,
-                height=self.BOX_H,
-                label_scale=0.40,
-                color=GREEN,
-            ).move_to([w_hh_x, self.Y_ENC, 0.0])
-
-            # Two horizontal arrows: prev -> w_hh -> h_t (FAT stroke to
-            # contrast with the thin bottleneck arrow later).
-            a_in = _horizontal_arrow(
-                h_prev, w_hh, buff=0.06, tip_length=0.12, stroke_width=4
-            )
-            a_out = _horizontal_arrow(
-                w_hh, h_t, buff=0.06, tip_length=0.12, stroke_width=4
-            )
-
-            # Source token -> h_t (vertical, into the column from above).
-            src_to_h = arrow_between(
-                src_strip[i], h_t, buff=0.10, tip_length=0.10, stroke_width=3
-            )
-
-            self.play(
-                FadeIn(w_hh),
-                Create(a_in),
-                Create(a_out),
-                FadeIn(h_t),
-                FadeIn(h_lbl),
-                Create(src_to_h),
-                run_time=0.55,
-            )
-
-            h_columns.append(h_t)
-            h_labels.append(h_lbl)
-            w_hh_boxes.append(w_hh)
-            rec_arrows_in.append(a_in)
-            rec_arrows_out.append(a_out)
-            src_arrows.append(src_to_h)
-            h_prev = h_t
-
-        self.wait(0.4)
-
-        # ---------------- Visual punchline: fade h_1..h_4 ----------------
-        # Highlight h_5 in YELLOW so the eye lands on the only state that
-        # makes it to the decoder.
-        fade_anims: list[Any] = []
-        last_idx = len(h_columns) - 1
-        for i, col in enumerate(h_columns):
-            if i == last_idx:
-                continue
-            for cell in col.cells:
-                fade_anims.append(cell.animate.set_fill(BLUE, opacity=0.06))
-                fade_anims.append(cell.animate.set_stroke(opacity=0.25))
-            fade_anims.append(h_labels[i].animate.set_opacity(0.30))
-            fade_anims.append(rec_arrows_in[i].animate.set_opacity(0.25))
-            fade_anims.append(rec_arrows_out[i].animate.set_opacity(0.25))
-            fade_anims.append(w_hh_boxes[i].animate.set_opacity(0.25))
-            fade_anims.append(src_arrows[i].animate.set_opacity(0.25))
-            fade_anims.append(src_strip[i].animate.set_opacity(0.35))
-
-        # Highlight h_5 (yellow stroke + brighter fill).
-        h_T = h_columns[last_idx]
-        for cell in h_T.cells:
-            fade_anims.append(cell.animate.set_stroke(YELLOW, width=3))
-            fade_anims.append(cell.animate.set_fill(YELLOW, opacity=0.45))
-        fade_anims.append(h_labels[last_idx].animate.set_color(YELLOW))
-
-        self.play(*fade_anims, run_time=0.9)
-        self.wait(0.5)
-
-        # ---------------- Bottleneck: thin arrow h_5 -> context vector ----------------
-        context_vec = TensorColumn(
-            dim=self.TENSOR_DIM,
-            cell_size=self.CELL_SIZE,
-            color=YELLOW,
-            fill_opacity=0.45,
-        ).move_to([self.X_DEC_BASE - 0.55, self.Y_CONTEXT, 0.0])
-        context_lbl = (
-            MathTex(r"c = h_T")
+        # ================ Context panel header (right side) ================
+        ctx_header = (
+            Tex(r"\textbf{Context seen so far}")
             .scale(0.45)
-            .next_to(context_vec, DOWN, buff=0.10)
+            .move_to([self.X_CTX, self.Y_CTX_TOP + 0.30, 0])
         )
+        # Vertical line separating RNN from context
+        sep_line = DashedLine(
+            start=[1.0, self.Y_CTX_TOP + 0.50, 0],
+            end=[1.0, self.Y_CTX_BOT - 0.50, 0],
+            stroke_width=1, color=GREY, dash_length=0.12,
+        ).set_opacity(0.4)
+        self.play(FadeIn(ctx_header), FadeIn(sep_line), run_time=0.3)
 
-        # Use a deliberately THIN stroke for the bottleneck arrow to
-        # visually contrast with the fat recurrence arrows (stroke 4).
-        bottleneck = Arrow(
-            start=h_T.get_bottom() + 0.02 * DOWN,
-            end=context_vec.get_top() + 0.02 * UP,
-            buff=0.10,
-            tip_length=0.14,
-            stroke_width=1.6,
-            color=YELLOW,
+        # ================ RNN Cell (permanent) ================
+        cell_box = RoundedRectangle(
+            corner_radius=0.12,
+            width=self.CELL_W,
+            height=self.CELL_H,
+            color=COLOR_CELL,
+            stroke_width=3,
+        ).set_fill(COLOR_CELL, opacity=0.12).move_to([self.X_MAIN, self.Y_CELL, 0])
+        cell_label = (
+            Tex(r"\textbf{RNN Cell}")
+            .scale(0.45)
+            .move_to(cell_box.get_center())
         )
-        bottleneck_lbl = (
-            MathTex(r"\text{bottleneck}")
+        cell_group = VGroup(cell_box, cell_label)
+        self.play(FadeIn(cell_group), run_time=0.4)
+
+        # ================ Permanent arrows ================
+        arr_in = Arrow(
+            start=[self.X_MAIN, self.Y_TOKEN + 0.25, 0],
+            end=cell_box.get_bottom(),
+            buff=0.08, stroke_width=2.5, color=COLOR_INPUT, tip_length=0.11,
+        )
+        input_label = (
+            MathTex(r"x_t")
+            .scale(0.50)
+            .set_color(COLOR_INPUT)
+            .next_to(arr_in, LEFT, buff=0.08)
+        )
+        arr_out = Arrow(
+            start=cell_box.get_top(),
+            end=[self.X_MAIN, self.Y_H - 0.50, 0],
+            buff=0.08, stroke_width=2.5, color=COLOR_HIDDEN, tip_length=0.11,
+        )
+        output_label = (
+            MathTex(r"h_t")
+            .scale(0.45)
+            .set_color(COLOR_HIDDEN)
+            .next_to(arr_out, LEFT, buff=0.08)
+        )
+        recur_label = (
+            MathTex(r"h_{t-1}")
             .scale(0.42)
-            .next_to(bottleneck, RIGHT, buff=0.10)
+            .set_color(COLOR_HIDDEN)
+            .move_to([self.X_MAIN + self.CELL_W / 2 + 0.50, self.Y_CELL, 0])
         )
 
         self.play(
-            Create(bottleneck),
-            FadeIn(bottleneck_lbl),
-            run_time=0.5,
-        )
-        self.play(
-            FadeIn(context_vec),
-            FadeIn(context_lbl),
+            Create(arr_in), FadeIn(input_label),
+            Create(arr_out), FadeIn(output_label),
+            FadeIn(recur_label),
             run_time=0.4,
         )
-        self.wait(0.3)
 
-        # ---------------- Decoder: 4 timesteps reading from c = h_T ----------------
-        # Decoder hidden row at y=Y_DEC; predicted token strip at y=Y_TGT_TOKEN.
-        # Each decoder step gets a faint dotted line back to the context vec
-        # — driving home that all 4 outputs draw their only source-side info
-        # from the same compressed h_T.
-        s_columns: list[TensorColumn] = []
-        s_labels: list[MathTex] = []
-        s_rec_in: list[Arrow] = []
-        s_rec_out: list[Arrow] = []
-        w_ss_boxes: list[LabeledBox] = []
-        tgt_tokens: list[Tex] = []
-        tgt_arrows: list[Arrow] = []
-        ctx_dotted: list[DashedLine] = []
-
-        # Decoder s_0 to the left of s_1, mirroring encoder h_0.
-        s0_x = self.X_DEC_BASE - self.X_DEC_SPACING * 0.85
-        s_prev = TensorColumn(
-            dim=self.TENSOR_DIM,
-            cell_size=self.CELL_SIZE,
-            color=BLUE,
-            fill_opacity=0.25,
-        ).move_to([s0_x, self.Y_DEC, 0.0])
-        s_prev_lbl = (
-            MathTex(r"s_0")
-            .scale(0.45)
-            .next_to(s_prev, DOWN, buff=0.10)
+        # ================ h_t display ================
+        h_vec = TensorColumn(
+            dim=self.DIM, cell_size=self.CELL_SIZE,
+            color=COLOR_HIDDEN, fill_opacity=0.30,
+        ).move_cells_to([self.X_MAIN, self.Y_H, 0])
+        dim_label = (
+            MathTex(r"\dim = 256")
+            .scale(0.40)
+            .set_color(COLOR_HIDDEN)
+            .next_to(h_vec, UP, buff=0.10)
         )
-        self.play(FadeIn(s_prev), FadeIn(s_prev_lbl), run_time=0.35)
+        self.play(FadeIn(h_vec), FadeIn(dim_label), run_time=0.3)
 
-        for i, tok in enumerate(self.TGT_TOKENS):
+        # Step counter
+        step_counter = (
+            MathTex(r"t = 0")
+            .scale(0.42)
+            .move_to([self.X_MAIN, self.Y_STEP_LABEL, 0])
+        )
+        self.play(FadeIn(step_counter), run_time=0.2)
+
+        # ================ Context tracking ================
+        ctx_items: list[VGroup] = []  # accumulated context display items
+        ctx_y_cursor = self.Y_CTX_TOP  # next Y position for context item
+
+        def _add_ctx_item(text: str, color=WHITE, is_block: bool = False,
+                          block_h: float = 0.0) -> VGroup:
+            nonlocal ctx_y_cursor
+            if is_block:
+                h = block_h
+                rect = Rectangle(
+                    width=self.CTX_W - 0.40, height=h,
+                    color=GREY, stroke_width=1,
+                ).set_fill(GREY, opacity=0.10)
+                label = MathTex(text).scale(0.38).set_color(color)
+                item = VGroup(rect, label)
+                ctx_y_cursor -= h / 2
+                item.move_to([self.X_CTX, ctx_y_cursor, 0])
+                ctx_y_cursor -= h / 2 + 0.05
+            else:
+                label = (
+                    Tex(rf"\textit{{{text}}}")
+                    .scale(0.63)
+                    .set_color(color)
+                )
+                ctx_y_cursor -= self.CTX_ROW_H / 2
+                label.move_to([self.X_CTX, ctx_y_cursor, 0])
+                ctx_y_cursor -= self.CTX_ROW_H / 2 + 0.02
+                item = VGroup(label)
+            ctx_items.append(item)
+            return item
+
+        # ================ Process needle tokens ================
+        current_tok_mob = None
+        needle_highlight = None
+        needle_in_h = None
+
+        for i, tok in enumerate(self.NEEDLE_TOKENS):
             t = i + 1
-            x_pos = self.X_DEC_BASE + i * self.X_DEC_SPACING
+            is_needle = (tok == "7392")
+            tok_color = RED if is_needle else WHITE
 
-            s_t = TensorColumn(
-                dim=self.TENSOR_DIM,
-                cell_size=self.CELL_SIZE,
-                color=BLUE,
-                fill_opacity=0.30,
-            ).move_to([x_pos, self.Y_DEC, 0.0])
-            s_lbl = (
-                MathTex(rf"s_{t}")
-                .scale(0.45)
-                .next_to(s_t, DOWN, buff=0.10)
+            tok_mob = (
+                Tex(rf"\textit{{{tok}}}")
+                .scale(0.65)
+                .set_color(tok_color)
+                .move_to([self.X_MAIN, self.Y_TOKEN, 0])
+            )
+            new_counter = (
+                MathTex(rf"t = {t}")
+                .scale(0.42)
+                .move_to([self.X_MAIN, self.Y_STEP_LABEL, 0])
             )
 
-            w_ss_x = (s_prev.get_right()[0] + s_t.get_left()[0]) / 2.0
-            w_ss = LabeledBox(
-                label="W_{ss}",
-                width=self.BOX_W,
-                height=self.BOX_H,
-                label_scale=0.40,
-                color=GREEN,
-            ).move_to([w_ss_x, self.Y_DEC, 0.0])
+            # Add to context panel
+            ctx_item = _add_ctx_item(tok, color=tok_color)
 
-            a_in = _horizontal_arrow(
-                s_prev, w_ss, buff=0.06, tip_length=0.12, stroke_width=3
+            anims = [
+                FadeIn(tok_mob),
+                ReplacementTransform(step_counter, new_counter),
+                FadeIn(ctx_item),
+            ]
+            if current_tok_mob is not None:
+                anims.append(FadeOut(current_tok_mob))
+            self.play(*anims, run_time=0.4)
+
+            step_counter = new_counter
+            current_tok_mob = tok_mob
+
+            # Flash h_t
+            flash_anims = []
+            for cell in h_vec.cells:
+                flash_anims.append(cell.animate.set_fill(
+                    RED if is_needle else COLOR_HIDDEN,
+                    opacity=0.6 if is_needle else 0.40,
+                ))
+            self.play(*flash_anims, run_time=0.25)
+
+            if is_needle:
+                needle_highlight = (
+                    Tex(r"$\leftarrow$ needle!")
+                    .scale(0.45)
+                    .set_color(RED)
+                    .next_to(tok_mob, RIGHT, buff=0.20)
+                )
+                needle_in_h = (
+                    Tex(r"7392 in $h_4$")
+                    .scale(0.40)
+                    .set_color(RED)
+                    .next_to(h_vec, LEFT, buff=0.20)
+                )
+                self.play(FadeIn(needle_highlight), FadeIn(needle_in_h), run_time=0.3)
+                self.wait(0.3)
+
+        self.wait(0.2)
+
+        # ================ Filler: ~1000 tokens ================
+        fade_list = [FadeOut(current_tok_mob)]
+        if needle_highlight is not None:
+            fade_list.append(FadeOut(needle_highlight))
+        if needle_in_h is not None:
+            fade_list.append(FadeOut(needle_in_h))
+        self.play(*fade_list, run_time=0.3)
+
+        filler_mob = (
+            MathTex(self.FILLER_TEXT)
+            .scale(0.50)
+            .set_color(GREY)
+            .move_to([self.X_MAIN, self.Y_TOKEN, 0])
+        )
+        new_counter = (
+            MathTex(r"t = 5 \ldots 1004")
+            .scale(0.42)
+            .move_to([self.X_MAIN, self.Y_STEP_LABEL, 0])
+        )
+        # Context panel: big filler block
+        filler_ctx = _add_ctx_item(
+            r"\vdots \quad \text{1000 tokens} \quad \vdots",
+            color=GREY, is_block=True, block_h=1.80,
+        )
+
+        self.play(
+            FadeIn(filler_mob),
+            ReplacementTransform(step_counter, new_counter),
+            FadeIn(filler_ctx),
+            run_time=0.4,
+        )
+        step_counter = new_counter
+
+        # h_t churning
+        for _ in range(3):
+            churn = [c.animate.set_fill(GREY, opacity=0.25) for c in h_vec.cells]
+            self.play(*churn, run_time=0.20)
+            churn2 = [c.animate.set_fill(COLOR_HIDDEN, opacity=0.30) for c in h_vec.cells]
+            self.play(*churn2, run_time=0.20)
+
+        self.wait(0.2)
+
+        # ================ Question tokens ================
+        self.play(FadeOut(filler_mob), run_time=0.2)
+
+        for i, tok in enumerate(self.QUESTION_TOKENS):
+            t = 1005 + i
+            tok_mob = (
+                Tex(rf"\textit{{{tok}}}")
+                .scale(0.65)
+                .set_color(YELLOW)
+                .move_to([self.X_MAIN, self.Y_TOKEN, 0])
             )
-            a_out = _horizontal_arrow(
-                w_ss, s_t, buff=0.06, tip_length=0.12, stroke_width=3
+            new_counter = (
+                MathTex(rf"t = {t}")
+                .scale(0.42)
+                .move_to([self.X_MAIN, self.Y_STEP_LABEL, 0])
             )
+            ctx_item = _add_ctx_item(tok, color=YELLOW)
 
-            # Predicted target token below s_t.
-            tgt = (
-                Tex(rf"\textit{{``{tok}''}}")
-                .scale(0.58)
-                .move_to([x_pos, self.Y_TGT_TOKEN, 0.0])
-            )
-            s_to_tgt = arrow_between(
-                s_t, tgt, buff=0.10, tip_length=0.10, stroke_width=3
-            )
+            anims = [
+                FadeIn(tok_mob),
+                ReplacementTransform(step_counter, new_counter),
+                FadeIn(ctx_item),
+            ]
+            if i > 0:
+                anims.append(FadeOut(current_tok_mob))
+            self.play(*anims, run_time=0.30)
+            step_counter = new_counter
+            current_tok_mob = tok_mob
 
-            # Faint dotted line from context_vec to s_t — "all of you
-            # depend on me alone".
-            dot = DashedLine(
-                start=context_vec.get_right() + 0.02 * RIGHT,
-                end=s_t.get_top() + 0.02 * UP,
-                stroke_width=1.5,
-                color=YELLOW,
-                dash_length=0.10,
-            ).set_opacity(0.55)
+        self.wait(0.2)
 
-            self.play(
-                FadeIn(w_ss),
-                Create(a_in),
-                Create(a_out),
-                FadeIn(s_t),
-                FadeIn(s_lbl),
-                Create(dot),
-                Create(s_to_tgt),
-                FadeIn(tgt),
-                run_time=0.55,
-            )
+        # ================ Punchline: contrast context size vs h_t ================
+        self.play(FadeOut(current_tok_mob), run_time=0.2)
 
-            s_columns.append(s_t)
-            s_labels.append(s_lbl)
-            s_rec_in.append(a_in)
-            s_rec_out.append(a_out)
-            w_ss_boxes.append(w_ss)
-            tgt_tokens.append(tgt)
-            tgt_arrows.append(s_to_tgt)
-            ctx_dotted.append(dot)
-            s_prev = s_t
+        question_full = (
+            Tex(r'\textit{``What was the password?"}')
+            .scale(0.50)
+            .set_color(YELLOW)
+            .move_to([self.X_MAIN, self.Y_TOKEN, 0])
+        )
+        self.play(FadeIn(question_full), run_time=0.3)
 
+        # Brace on context panel — "1009 tokens"
+        ctx_brace = Brace(
+            VGroup(*ctx_items), direction=RIGHT, buff=0.08,
+        ).set_color(WHITE).scale(0.9)
+        ctx_brace_label = (
+            MathTex(r"\text{1009 tokens}")
+            .scale(0.40)
+            .next_to(ctx_brace, RIGHT, buff=0.08)
+        )
+        self.play(FadeIn(ctx_brace), FadeIn(ctx_brace_label), run_time=0.4)
+
+        # Highlight h_t and show "ALL of this → one vector"
+        punchline_anims = []
+        for cell in h_vec.cells:
+            punchline_anims.append(cell.animate.set_stroke(YELLOW, width=3))
+            punchline_anims.append(cell.animate.set_fill(YELLOW, opacity=0.45))
+        self.play(*punchline_anims, run_time=0.5)
+
+        # Arrow from context to h_t with "compressed into"
+        compress_arrow = Arrow(
+            start=[self.X_CTX - self.CTX_W / 2 - 0.10, self.Y_H, 0],
+            end=[self.X_MAIN + 0.60, self.Y_H, 0],
+            buff=0.08, stroke_width=3, color=RED, tip_length=0.14,
+        )
+        compress_label = (
+            MathTex(r"\text{all } \to h_t")
+            .scale(0.42)
+            .set_color(RED)
+            .next_to(compress_arrow, UP, buff=0.08)
+        )
+        self.play(Create(compress_arrow), FadeIn(compress_label), run_time=0.4)
+
+        # Question
+        doubt = (
+            MathTex(r"\text{is 7392 still in } h_{1009} \text{?}")
+            .scale(0.45)
+            .set_color(RED)
+            .next_to(h_vec, LEFT, buff=0.25)
+        )
+        self.play(FadeIn(doubt), run_time=0.4)
         self.wait(0.5)
 
-        # ---------------- Final caption ----------------
-        caption = (
+        # ================ Conclusion ================
+        conclusion = (
             MathTex(
-                r"\text{bottleneck: } |h_T| \text{ fixed; long sequences lose info}"
+                r"\Rightarrow \text{ need access to all } h_1 \ldots h_T"
+                r"\text{ — attention!}"
             )
             .scale(0.50)
-            .move_to([0.0, self.Y_CAPTION, 0.0])
+            .move_to([0, -3.65, 0])
         )
-        self.play(FadeIn(caption))
-        self.wait(0.8)
+        self.play(FadeIn(conclusion), run_time=0.4)
+        self.wait(1.5)
