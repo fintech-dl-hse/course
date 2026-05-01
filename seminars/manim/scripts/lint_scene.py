@@ -4,9 +4,10 @@ Usage:
     python scripts/lint_scene.py --scene LSTMGates
     python scripts/lint_scene.py scenes/lstm/LSTMGates.py
 
-The script imports the scene module, monkey-patches `Scene.play`/`wait`/
-`remove` so construct() populates the mobject tree without animating, then
-runs `shared.layout_check.run_all`. Exit code:
+The script imports the scene module, monkey-patches `Scene.play`/`wait`
+so construct() populates the mobject tree without animating, then runs
+`shared.layout_check.run_all` **at every keyframe** (after each `play()`
+and `wait()` call) and deduplicates issues. Exit code:
 
 * 0 — no issues
 * 1 — one or more `high` issues
@@ -21,7 +22,6 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import re
-import subprocess
 import sys
 import traceback
 from pathlib import Path
@@ -61,11 +61,46 @@ def _import_scene_module(path: Path) -> Any:
     return mod
 
 
-def _patch_scene_animations() -> None:
-    """Make `Scene.play`/`wait`/`remove` no-ops that still register mobjects.
+class _LintCollector:
+    """Collects lint issues at every keyframe during construct()."""
 
-    `self.play(FadeIn(x), Create(y))` should end with both `x` and `y` added.
-    We walk every animation argument and pull `.mobject` or `.mobjects`.
+    def __init__(self) -> None:
+        self.step: int = 0
+        self.all_issues: list[tuple[int, Issue]] = []
+        # Dedup key: (code, tuple of mobject names)
+        self._seen: set[tuple[str, tuple[str, ...]]] = set()
+
+    def check(self, mobjects: list[Any]) -> None:
+        """Run all lint checks on current mobjects, collect new issues."""
+        self.step += 1
+        issues = run_all(mobjects)
+        for issue in issues:
+            key = (issue.code, issue.mobjects)
+            if key not in self._seen:
+                self._seen.add(key)
+                self.all_issues.append((self.step, issue))
+
+    def get_issues(self) -> list[Issue]:
+        """Return deduplicated issues, annotated with first-seen step."""
+        result: list[Issue] = []
+        for step, issue in self.all_issues:
+            annotated = Issue(
+                severity=issue.severity,
+                code=issue.code,
+                message=f"[step {step}] {issue.message}",
+                mobjects=issue.mobjects,
+            )
+            result.append(annotated)
+        return result
+
+
+def _patch_scene_animations(collector: _LintCollector) -> None:
+    """Make `Scene.play`/`wait` no-ops that register mobjects and lint.
+
+    After each `play()` call, mobjects from animations are added to the scene
+    and then ``run_all`` checks the current visible state. ``wait()`` also
+    triggers a lint pass. This catches issues at every keyframe — not just
+    the final frame.
     """
     from manim import Scene  # imported lazily so manim only loads when lint is run
 
@@ -89,12 +124,10 @@ def _patch_scene_animations() -> None:
         for m in _collect(animations):
             if m not in self.mobjects:
                 self.add(m)
+        collector.check(list(self.mobjects))
 
     def _wait(self: Scene, *_: Any, **__: Any) -> None:
-        return None
-
-    def _noop(self: Scene, *_: Any, **__: Any) -> None:
-        return None
+        collector.check(list(self.mobjects))
 
     Scene.play = _play  # type: ignore[method-assign]
     Scene.wait = _wait  # type: ignore[method-assign]
@@ -102,8 +135,9 @@ def _patch_scene_animations() -> None:
 
 
 def lint_scene(scene: str, scene_file: Path) -> list[Issue]:
-    """Import the scene, run construct() with patched animations, return issues."""
-    _patch_scene_animations()
+    """Import the scene, run construct() with per-keyframe linting."""
+    collector = _LintCollector()
+    _patch_scene_animations(collector)
     mod = _import_scene_module(scene_file)
     cls = getattr(mod, scene, None)
     if cls is None:
@@ -111,7 +145,11 @@ def lint_scene(scene: str, scene_file: Path) -> list[Issue]:
 
     instance = cls()
     instance.construct()
-    return run_all(list(instance.mobjects))
+
+    # Also lint the final state (in case construct ends without play/wait)
+    collector.check(list(instance.mobjects))
+
+    return collector.get_issues()
 
 
 def _suggest_venv_run(argv: list[str]) -> None:
