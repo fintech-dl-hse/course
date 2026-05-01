@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from typing import Iterable, Literal, Sequence
 
 import numpy as np
-from manim import Arrow, Mobject, Tex, VMobject
+from manim import Arrow, MathTex, Mobject, Tex, VMobject
 
 Severity = Literal["high", "med", "low"]
 
@@ -154,7 +154,7 @@ def check_min_label_scale(
     """
     issues: list[Issue] = []
     for m in _walk(list(mobjects)):
-        if not isinstance(m, Tex):
+        if not isinstance(m, (Tex, MathTex)):
             continue
         h = float(m.height)
         if h <= 0:
@@ -323,6 +323,72 @@ def check_labeled_group_centering(
     return issues
 
 
+def check_label_arrow_overlap(
+    mobjects: Iterable[Mobject],
+    padding: float = 0.06,
+) -> list[Issue]:
+    """Flag Tex/MathTex labels whose bounding box overlaps an arrow.
+
+    Common case: a label placed next to a tensor column gets clipped by
+    an arrow going out of that column. The check inflates the label AABB
+    by ``padding`` to catch near-misses.
+    """
+    issues: list[Issue] = []
+    all_mobs = _walk(list(mobjects))
+    arrows = [m for m in all_mobs if isinstance(m, Arrow)]
+    labels = [m for m in all_mobs if isinstance(m, (Tex, MathTex)) and _has_geometry(m)]
+
+    for lab in labels:
+        lx0, lx1, ly0, ly1 = _aabb(lab)
+        # inflate
+        lx0 -= padding
+        lx1 += padding
+        ly0 -= padding
+        ly1 += padding
+        lab_aabb = (lx0, lx1, ly0, ly1)
+        text = getattr(lab, "tex_string", "") or ""
+        nm = f"{type(lab).__name__}({text[:30]})" if text else type(lab).__name__
+
+        for arr in arrows:
+            if not _has_geometry(arr):
+                continue
+            try:
+                start = np.asarray(arr.get_start(), dtype=float)
+                end = np.asarray(arr.get_end(), dtype=float)
+            except Exception:
+                continue
+            if np.linalg.norm(end - start) < 1e-6:
+                continue
+            # Check: does the arrow line pass through the inflated label AABB?
+            hit = False
+            for t in np.linspace(0.0, 1.0, 25):
+                p = start + (end - start) * t
+                if _point_in_aabb(p, lab_aabb):
+                    hit = True
+                    break
+            # Also check if the arrow AABB overlaps with label AABB
+            if not hit:
+                arr_aabb = _aabb(arr)
+                hit = _aabbs_overlap(lab_aabb, arr_aabb)
+                # Refine: AABB overlap doesn't mean the line actually passes through.
+                # For straight arrows this is conservative enough.
+            if hit:
+                issues.append(
+                    Issue(
+                        "high",
+                        "label-arrow-overlap",
+                        f"{nm} overlaps with arrow from "
+                        f"({start[0]:.2f},{start[1]:.2f}) to "
+                        f"({end[0]:.2f},{end[1]:.2f}). "
+                        f"Fix: increase buff or change label position "
+                        f"(e.g. UP/DOWN instead of LEFT/RIGHT)",
+                        (nm,),
+                    )
+                )
+
+    return issues
+
+
 def run_all(
     mobjects: Sequence[Mobject],
     *,
@@ -338,6 +404,7 @@ def run_all(
 
     issues.extend(check_min_label_scale(mobjects, min_height=min_label_height))
     issues.extend(check_labeled_group_centering(mobjects))
+    issues.extend(check_label_arrow_overlap(mobjects))
 
     if check_arrows:
         arrows, obstacles = _collect_arrows_and_obstacles(mobjects)
