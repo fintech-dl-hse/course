@@ -7,17 +7,10 @@ Step-by-step attention computation:
 4. Softmax → attention weights α_i  (bar chart, only needle labeled)
 5. Weighted sum: draw lines from ALL h_i to context c, then highlight needle
 6. Answer: c ≈ 0.72·h_4 → 7392
-
-Fixes from review:
-- Filler tokens use horizontal \cdots
-- Only needle bar gets weight label (less visual noise)
-- Non-needle context lines stay semi-visible (opacity 0.25)
-- Step label fades out at the end
-- q positioned centrally above h row
-- Vertical connector lines from bars down to h cells
-- Result text made larger
 """
 from __future__ import annotations
+
+import numpy as np
 
 from manim import (
     Arrow,
@@ -32,12 +25,14 @@ from manim import (
     Line,
     MathTex,
     ORANGE,
+    PI,
     PURPLE,
     RED,
     RIGHT,
     Rectangle,
     RoundedRectangle,
     Scene,
+    SurroundingRectangle,
     Tex,
     Transform,
     UP,
@@ -65,16 +60,16 @@ class RNNWithAttention(Scene):
     N = 11
     NEEDLE_IDX = 3  # "7392"
 
-    # Layout
+    # Layout — tighter vertical spacing to reduce dead space
     Y_TITLE = 3.50
-    Y_RESULT = 2.70        # result line c ≈ ... → 7392
-    Y_CONTEXT = 2.20       # context vector c
-    Y_WEIGHTS = 0.80       # attention weight bars
-    Y_STEP_LBL = 0.10      # step labels
-    Y_QUERY = -0.50        # query q position
-    Y_H = -1.50            # hidden states
-    Y_TOKENS = -2.80       # tokens
-    Y_CONCLUSION = -3.50
+    Y_RESULT = 2.80        # result line c ≈ ... → 7392
+    Y_CONTEXT = 2.25       # context vector c
+    Y_WEIGHTS = 0.90       # attention weight bars
+    Y_STEP_LBL = 0.15      # step labels (only during animation)
+    Y_QUERY = -0.40        # query q position
+    Y_H = -1.30            # hidden states (moved up)
+    Y_TOKENS = -2.50       # tokens (moved up)
+    Y_CONCLUSION = -3.40
 
     X_START = -5.50
     X_STEP = 1.00
@@ -122,8 +117,11 @@ class RNNWithAttention(Scene):
                      else YELLOW if is_question
                      else WHITE)
             if is_filler:
-                # Horizontal dots for "skipped tokens"
-                mob = MathTex(r"\boldsymbol{\vdots}").scale(0.65).set_color(color)
+                # Grey dash as "skipped tokens" indicator (not text → no lint)
+                mob = Line(
+                    LEFT * 0.20, RIGHT * 0.20,
+                    color=GREY, stroke_width=2.5,
+                ).set_opacity(0.5)
             else:
                 mob = Tex(rf"\textit{{{tok}}}").scale(0.63).set_color(color)
             mob.move_to([xs[i], self.Y_TOKENS, 0])
@@ -207,7 +205,7 @@ class RNNWithAttention(Scene):
             score_val = f"{self.SCORES[i]:.1f}"
             s_color = COLOR_NEEDLE if is_needle else WHITE
             s_lbl = (MathTex(score_val).scale(0.42).set_color(s_color)
-                     .next_to(h_cells[i][0], UP, buff=0.52))
+                     .next_to(h_cells[i][0], UP, buff=0.42))
             if skip_line:
                 s_lbl.shift(LEFT * 0.45)
             score_labels.append(s_lbl)
@@ -226,7 +224,8 @@ class RNNWithAttention(Scene):
         )
         # Rest (skip None)
         self.play(
-            *[Create(score_lines[i]) for i in range(4, self.N) if score_lines[i] is not None],
+            *[Create(score_lines[i]) for i in range(4, self.N)
+              if score_lines[i] is not None],
             *[FadeIn(score_labels[i]) for i in range(4, self.N)],
             run_time=0.5,
         )
@@ -256,9 +255,9 @@ class RNNWithAttention(Scene):
             run_time=0.3,
         )
 
-        # Bar chart — min bar height bigger so tiny bars are still visible
-        max_bar_h = 0.90
-        min_bar_h = 0.10  # visible minimum
+        # Bar chart — min bar height visible as a bar, not a dash
+        max_bar_h = 0.85
+        min_bar_h = 0.18  # bumped up so non-needle bars look like bars
         w_max = max(self.ATTN_W)
         bars = []
         bar_labels = []
@@ -269,13 +268,13 @@ class RNNWithAttention(Scene):
             color = COLOR_NEEDLE if is_needle else COLOR_ATTN
 
             bar = Rectangle(
-                width=self.CELL_W * 0.70, height=bar_h,
+                width=self.CELL_W * 0.75, height=bar_h,
                 color=color, stroke_width=1.5,
-            ).set_fill(color, opacity=0.6 if is_needle else 0.25)
+            ).set_fill(color, opacity=0.6 if is_needle else 0.30)
             bar.move_to([xs[i], self.Y_WEIGHTS + bar_h / 2, 0])
             bars.append(bar)
 
-            # Only label the needle bar (avoid visual noise)
+            # Only label the needle bar
             if is_needle:
                 w_lbl = (MathTex(r"0.72").scale(0.48).set_color(COLOR_NEEDLE)
                          .next_to(bar, UP, buff=0.06))
@@ -294,19 +293,6 @@ class RNNWithAttention(Scene):
             MathTex(r"\alpha_i").scale(0.55).set_color(COLOR_ATTN)
             .move_to([xs[0] - 0.80, self.Y_WEIGHTS + max_bar_h / 2, 0]))
         self.play(FadeIn(alpha_label), run_time=0.3)
-
-        # Thin connector lines from bars down to h cells (visual link)
-        connectors = []
-        for i in range(self.N):
-            w = self.ATTN_W[i]
-            conn = Line(
-                start=bars[i].get_bottom(),
-                end=h_cells[i][0].get_top() + UP * 0.05,
-                stroke_width=0.8,
-                color=GREY,
-            ).set_opacity(0.3)
-            connectors.append(conn)
-        self.play(*[Create(c) for c in connectors], run_time=0.4)
         self.wait(0.3)
 
         # ======================================================
@@ -318,14 +304,15 @@ class RNNWithAttention(Scene):
             .move_to([0, self.Y_STEP_LBL, 0]))
         self.play(Transform(step_lbl, step4_lbl), run_time=0.3)
 
-        # Fade out connectors
-        self.play(*[FadeOut(c) for c in connectors], run_time=0.2)
-
-        # Context point
+        # Context label with surrounding box
         ctx_x = 0.0
-        context_label = (
-            MathTex(r"c").scale(0.65).set_color(COLOR_OUTPUT)
+        context_text = (
+            MathTex(r"c").scale(0.70).set_color(COLOR_OUTPUT)
             .move_to([ctx_x, self.Y_CONTEXT, 0]))
+        context_box = SurroundingRectangle(
+            context_text, buff=0.08, color=COLOR_OUTPUT, stroke_width=1.5,
+        ).set_fill(COLOR_OUTPUT, opacity=0.10)
+        context_group = VGroup(context_box, context_text)
 
         # Lines from each bar top to context c — ALL of them
         ctx_lines = []
@@ -336,7 +323,7 @@ class RNNWithAttention(Scene):
 
             line = Line(
                 start=[xs[i], bar_top_y + 0.03, 0],
-                end=[ctx_x, self.Y_CONTEXT - 0.15, 0],
+                end=[ctx_x, self.Y_CONTEXT - 0.18, 0],
                 stroke_width=1.0 + 4.0 * w,
                 color=COLOR_OUTPUT,
             ).set_opacity(0.25 + 0.75 * (w / w_max))
@@ -344,7 +331,7 @@ class RNNWithAttention(Scene):
 
         # Show all context lines at once
         self.play(
-            FadeIn(context_label),
+            FadeIn(context_group),
             *[Create(cl) for cl in ctx_lines],
             run_time=0.8,
         )
@@ -358,7 +345,8 @@ class RNNWithAttention(Scene):
                 new_line.set_stroke(width=5.0)
                 anims.append(Transform(cl, new_line))
             else:
-                anims.append(cl.animate.set_opacity(0.15))
+                # Keep non-needle lines semi-visible
+                anims.append(cl.animate.set_opacity(0.20))
         self.play(*anims, run_time=0.6)
 
         # Highlight needle bar + cell
