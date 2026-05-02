@@ -10,12 +10,9 @@ Step-by-step attention computation:
 """
 from __future__ import annotations
 
-import numpy as np
-
 from manim import (
     Arrow,
     Create,
-    DOWN,
     DashedLine,
     FadeIn,
     FadeOut,
@@ -25,7 +22,6 @@ from manim import (
     Line,
     MathTex,
     ORANGE,
-    PI,
     PURPLE,
     RED,
     RIGHT,
@@ -64,10 +60,10 @@ class RNNWithAttention(Scene):
     Y_TITLE = 3.50
     Y_RESULT = 2.80        # result line c ≈ ... → 7392
     Y_CONTEXT = 2.25       # context vector c
-    Y_WEIGHTS = 0.90       # attention weight bars
-    Y_STEP_LBL = 0.15      # step labels (only during animation)
-    Y_QUERY = -0.40        # query q position
-    Y_H = -1.30            # hidden states (moved up)
+    Y_WEIGHTS = 0.70       # attention weight bars (lowered)
+    Y_STEP_LBL = 0.00      # step labels (only during animation)
+    Y_QUERY = -0.50        # query q position
+    Y_H = -1.20            # hidden states (moved up more)
     Y_TOKENS = -2.50       # tokens (moved up)
     Y_CONCLUSION = -3.40
 
@@ -257,7 +253,7 @@ class RNNWithAttention(Scene):
 
         # Bar chart — min bar height visible as a bar, not a dash
         max_bar_h = 0.85
-        min_bar_h = 0.18  # bumped up so non-needle bars look like bars
+        min_bar_h = 0.22  # bumped up so non-needle bars look like bars
         w_max = max(self.ATTN_W)
         bars = []
         bar_labels = []
@@ -267,7 +263,8 @@ class RNNWithAttention(Scene):
             is_needle = (i == self.NEEDLE_IDX)
             color = COLOR_NEEDLE if is_needle else COLOR_ATTN
 
-            bar = Rectangle(
+            bar = RoundedRectangle(
+                corner_radius=0.03,
                 width=self.CELL_W * 0.75, height=bar_h,
                 color=color, stroke_width=1.5,
             ).set_fill(color, opacity=0.6 if is_needle else 0.30)
@@ -346,7 +343,7 @@ class RNNWithAttention(Scene):
                 anims.append(Transform(cl, new_line))
             else:
                 # Keep non-needle lines semi-visible
-                anims.append(cl.animate.set_opacity(0.20))
+                anims.append(cl.animate.set_opacity(0.25))
         self.play(*anims, run_time=0.6)
 
         # Highlight needle bar + cell
@@ -362,11 +359,14 @@ class RNNWithAttention(Scene):
         self.play(FadeOut(step_lbl), run_time=0.2)
 
         result_label = (
-            MathTex(r"c \approx 0.72 \cdot h_4 \quad \Rightarrow \quad \textbf{7392}")
-            .scale(0.58).move_to([0, self.Y_RESULT, 0]))
-        # Color parts
-        result_label[0][:13].set_color(COLOR_OUTPUT)   # c ≈ 0.72 · h_4
-        result_label[0][13:].set_color(COLOR_NEEDLE)   # ⇒ 7392
+            MathTex(
+                r"c \approx 0.72 \cdot h_4",
+                r"\quad \Rightarrow \quad",
+                r"\textbf{7392}",
+            ).scale(0.58).move_to([0, self.Y_RESULT, 0]))
+        result_label[0].set_color(COLOR_OUTPUT)
+        result_label[1].set_color(WHITE)
+        result_label[2].set_color(COLOR_NEEDLE)
 
         self.play(FadeIn(result_label), run_time=0.5)
         self.wait(0.5)
