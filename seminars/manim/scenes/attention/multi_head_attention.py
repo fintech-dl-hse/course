@@ -90,28 +90,28 @@ class MultiHeadAttention(Scene):
     NUM_TOKENS = 3
 
     # Phase 1 (compact Q/K/V before split)
-    QKV_CELL_PRE = 0.18           # 4 cells per token column
+    QKV_CELL_PRE = 0.22           # 4 cells per token column — slightly larger for readability
     QKV_DIM_PRE = NUM_HEADS       # one cell per head — important for split metaphor
-    Y_QKV_PRE = 1.85
-    X_Q_PRE_BASE = -5.6           # leftmost Q column x
-    X_K_PRE_BASE = -1.6           # leftmost K column x
-    X_V_PRE_BASE = 2.4            # leftmost V column x
-    PRE_TOK_SPACING = 0.45        # within-group token spacing
+    Y_QKV_PRE = 1.40              # lower to give more vertical breathing room
+    X_Q_PRE_BASE = -4.80          # leftmost Q column x — brought in from edge
+    X_K_PRE_BASE = -1.20          # leftmost K column x
+    X_V_PRE_BASE = 2.40           # leftmost V column x
+    PRE_TOK_SPACING = 0.50        # within-group token spacing
 
     # Phase 2 — split: same x positions, but cells get color-coded by head row.
 
-    # Title row
-    Y_TITLE = 3.45
+    # Title row — moved down slightly so equations don't dominate the frame
+    Y_TITLE = 3.35
 
     # Phase 3 — 4 mini attention matrices in the middle row.
-    Y_MATRIX = 0.30
-    MATRIX_CELL = 0.20
-    MATRIX_GROUP_DX = 3.30        # spacing between adjacent matrix centers
-    MATRIX_X_BASE = -3.0 * 1.65   # leftmost matrix center
+    Y_MATRIX = 0.10
+    MATRIX_CELL = 0.26            # larger cells for better readability
+    MATRIX_GROUP_DX = 3.50        # spacing between adjacent matrix centers
+    MATRIX_X_BASE = -1.5 * 3.50  # leftmost matrix center (-5.25, -1.75, +1.75, +5.25)
 
     # Phase 4 — head output slabs (1 per head per token), Y row near bottom.
     Y_HEAD_OUT = -1.40
-    HEAD_OUT_CELL = 0.18          # one cell per dim slice in this slab
+    HEAD_OUT_CELL = 0.22          # match matrix cell size
     HEAD_OUT_DIM = 1              # 1 cell per slab (slab IS the head's output for that token)
     # We display 4 head-output slabs per matrix group, side-by-side under
     # each matrix; each slab is itself a tiny TensorColumn of 1 cell.
@@ -119,7 +119,7 @@ class MultiHeadAttention(Scene):
 
     # Phase 5 — concat: a single tall TensorColumn per token, Y row.
     Y_CONCAT = -1.40              # same row will be re-used after fade
-    CONCAT_CELL = 0.18
+    CONCAT_CELL = 0.22
     CONCAT_DIM = NUM_HEADS        # 4-tall stack
     CONCAT_TOK_SPACING = 0.85
     CONCAT_X_BASE = -1.0          # leftmost concat token column x
@@ -127,7 +127,7 @@ class MultiHeadAttention(Scene):
     # Phase 6 — W_O and final output
     Y_WO = -2.65
     Y_FINAL = -3.50               # final MHA output row
-    FINAL_CELL = 0.18
+    FINAL_CELL = 0.22
     FINAL_DIM = NUM_HEADS         # keep same height as concat for visual continuity
     FINAL_TOK_SPACING = 0.85
     FINAL_X_BASE = -1.0
@@ -229,18 +229,18 @@ class MultiHeadAttention(Scene):
         # Tiny head-key legend on the LEFT margin so the audience can decode
         # the new colors without guessing.
         legend_items: list[VGroup] = []
-        legend_x = -6.65
-        legend_y_top = 1.10
-        legend_step = -0.32
+        legend_x = -6.20          # safe margin (frame goes to ±7.11)
+        legend_y_top = 1.40       # aligned with Y_QKV_PRE
+        legend_step = -0.36
         for k in range(self.NUM_HEADS):
             sq = Square(
-                side_length=0.20, color=HEAD_COLORS[k], stroke_width=2,
+                side_length=0.22, color=HEAD_COLORS[k], stroke_width=2,
             ).set_fill(HEAD_COLORS[k], opacity=0.55)
-            txt = MathTex(rf"\mathrm{{head}}_{k + 1}").scale(0.40)
+            txt = MathTex(rf"\mathrm{{head}}_{k + 1}").scale(0.50)
             grp = VGroup(sq, txt).arrange(RIGHT, buff=0.10)
             grp.move_to([legend_x, legend_y_top + k * legend_step, 0.0])
-            # Pin to actual coords (arrange recenters).
-            grp.move_to([legend_x + 0.45, legend_y_top + k * legend_step, 0.0])
+            # Shift left edge of group to legend_x so the swatch aligns left.
+            grp.shift([legend_x - grp.get_left()[0], 0, 0])
             legend_items.append(grp)
 
         self.play(*split_anims, run_time=0.7)
@@ -248,12 +248,14 @@ class MultiHeadAttention(Scene):
         self.wait(0.6)
 
         # ============== Phase 3: clear pre-split, build 4 mini matrices ==============
+        # Also fade legend here so it doesn't overlap matrix head titles on-screen.
         cleanup1 = [
             *[FadeOut(c) for c in q_cols + k_cols + v_cols],
             FadeOut(q_label), FadeOut(k_label), FadeOut(v_label),
+            *[FadeOut(g) for g in legend_items],
         ]
         self.play(*cleanup1, run_time=0.4)
-        for m in (*q_cols, *k_cols, *v_cols, q_label, k_label, v_label):
+        for m in (*q_cols, *k_cols, *v_cols, q_label, k_label, v_label, *legend_items):
             self.remove(m)
 
         # 4 mini attention matrices side-by-side at Y_MATRIX.
@@ -285,16 +287,16 @@ class MultiHeadAttention(Scene):
             # Head title above each matrix.
             ht = (
                 MathTex(rf"\mathrm{{head}}_{h_idx + 1}")
-                .scale(0.45)
-                .move_to([cx, self.Y_MATRIX + 1.5 * self.MATRIX_CELL + 0.30, 0.0])
+                .scale(0.60)
+                .move_to([cx, self.Y_MATRIX + 1.5 * self.MATRIX_CELL + 0.38, 0.0])
             )
             head_titles.append(ht)
 
         # Single shared formula above the row of matrices.
         attn_label = (
             MathTex(r"A_i = \mathrm{softmax}(Q_i K_i^\top / \sqrt{d_k})")
-            .scale(0.50)
-            .move_to([0.0, self.Y_MATRIX + 1.5 * self.MATRIX_CELL + 0.85, 0.0])
+            .scale(0.55)
+            .move_to([0.0, self.Y_MATRIX + 1.5 * self.MATRIX_CELL + 1.00, 0.0])
         )
 
         all_cells = [c for grp in matrix_groups for row in grp for c in row]
@@ -356,10 +358,9 @@ class MultiHeadAttention(Scene):
             *[FadeOut(t) for t in head_titles],
             *[FadeOut(a) for a in head_out_arrows],
             FadeOut(attn_label),
-            *[FadeOut(g) for g in legend_items],
         ]
         self.play(*cleanup2, run_time=0.4)
-        for m in (*all_cells, *head_titles, *head_out_arrows, attn_label, *legend_items):
+        for m in (*all_cells, *head_titles, *head_out_arrows, attn_label):
             self.remove(m)
 
         # Now MOVE the head slabs into a Concat layout: per-token vertical

@@ -56,16 +56,16 @@ class RNNWithAttention(Scene):
     N = 11
     NEEDLE_IDX = 3  # "7392"
 
-    # Layout — tighter vertical spacing to reduce dead space
-    Y_TITLE = 3.50
+    # Layout — spread content across the full frame (−3.5 to +3.5)
+    Y_TITLE = 3.30
     Y_RESULT = 2.80        # result line c ≈ ... → 7392
-    Y_CONTEXT = 2.25       # context vector c
-    Y_WEIGHTS = 0.70       # attention weight bars (lowered)
-    Y_STEP_LBL = 0.00      # step labels (only during animation)
-    Y_QUERY = -0.50        # query q position
-    Y_H = -1.20            # hidden states (moved up more)
-    Y_TOKENS = -2.50       # tokens (moved up)
-    Y_CONCLUSION = -3.40
+    Y_CONTEXT = 2.10       # context vector c
+    Y_WEIGHTS = 1.30       # attention weight bars
+    Y_STEP_LBL = 0.55      # step labels — above score-label zone
+    Y_QUERY = -0.05        # query q — higher to clear arrow overlap
+    Y_H = -0.65            # hidden states
+    Y_TOKENS = -1.55       # tokens
+    Y_CONCLUSION = -2.95
 
     X_START = -5.50
     X_STEP = 1.00
@@ -99,7 +99,7 @@ class RNNWithAttention(Scene):
 
         # ============== Title ==============
         title = (Tex(r"\textbf{RNN + Attention}")
-                 .scale(0.58).move_to([0, self.Y_TITLE, 0]))
+                 .scale(0.72).move_to([0, self.Y_TITLE, 0]))
         self.play(Write(title), run_time=0.5)
 
         # ============== Tokens (bottom) ==============
@@ -119,7 +119,7 @@ class RNNWithAttention(Scene):
                     color=GREY, stroke_width=2.5,
                 ).set_opacity(0.5)
             else:
-                mob = Tex(rf"\textit{{{tok}}}").scale(0.63).set_color(color)
+                mob = Tex(rf"\textit{{{tok}}}").scale(0.82).set_color(color)
             mob.move_to([xs[i], self.Y_TOKENS, 0])
             tok_mobs.append(mob)
         self.play(*[FadeIn(t) for t in tok_mobs], run_time=0.4)
@@ -154,17 +154,19 @@ class RNNWithAttention(Scene):
         # ======================================================
         step_lbl = (
             Tex(r"\textbf{Step 1:} query $q = h_{11}$")
-            .scale(0.48).set_color(COLOR_QUERY)
+            .scale(0.55).set_color(COLOR_QUERY)
             .move_to([0, self.Y_STEP_LBL, 0]))
         self.play(FadeIn(step_lbl), run_time=0.4)
 
-        # q above h_11
+        # q above h_11; use a Line (no arrowhead geometry) to avoid overlap
         q_label = (
-            MathTex(r"q").scale(0.58).set_color(COLOR_QUERY)
+            MathTex(r"q").scale(0.72).set_color(COLOR_QUERY)
             .move_to([xs[-1], self.Y_QUERY, 0]))
-        q_arrow = Arrow(
-            start=h_cells[-1][0].get_top(), end=q_label.get_bottom(),
-            buff=0.08, stroke_width=2, tip_length=0.08, color=COLOR_QUERY,
+        # SurroundingRectangle marks q as a box; Line connects to h_11
+        q_arrow = Line(
+            start=h_cells[-1][0].get_top(),
+            end=q_label.get_bottom(),
+            buff=0.10, stroke_width=2, color=COLOR_QUERY,
         )
         self.play(Create(q_arrow), FadeIn(q_label), run_time=0.5)
         self.wait(0.4)
@@ -174,7 +176,7 @@ class RNNWithAttention(Scene):
         # ======================================================
         step2_lbl = (
             Tex(r"\textbf{Step 2:} scores $s_i = q \cdot h_i$")
-            .scale(0.48).set_color(WHITE)
+            .scale(0.55).set_color(WHITE)
             .move_to([0, self.Y_STEP_LBL, 0]))
         self.play(Transform(step_lbl, step2_lbl), run_time=0.3)
 
@@ -200,8 +202,8 @@ class RNNWithAttention(Scene):
             # Score value label above h_i
             score_val = f"{self.SCORES[i]:.1f}"
             s_color = COLOR_NEEDLE if is_needle else WHITE
-            s_lbl = (MathTex(score_val).scale(0.42).set_color(s_color)
-                     .next_to(h_cells[i][0], UP, buff=0.42))
+            s_lbl = (MathTex(score_val).scale(0.55).set_color(s_color)
+                     .next_to(h_cells[i][0], UP, buff=0.08))
             if skip_line:
                 s_lbl.shift(LEFT * 0.45)
             score_labels.append(s_lbl)
@@ -240,7 +242,7 @@ class RNNWithAttention(Scene):
         # ======================================================
         step3_lbl = (
             Tex(r"\textbf{Step 3:} $\alpha_i = \mathrm{softmax}(s_i)$")
-            .scale(0.48).set_color(COLOR_ATTN)
+            .scale(0.55).set_color(COLOR_ATTN)
             .move_to([0, self.Y_STEP_LBL, 0]))
         self.play(Transform(step_lbl, step3_lbl), run_time=0.3)
 
@@ -273,7 +275,7 @@ class RNNWithAttention(Scene):
 
             # Only label the needle bar
             if is_needle:
-                w_lbl = (MathTex(r"0.72").scale(0.48).set_color(COLOR_NEEDLE)
+                w_lbl = (MathTex(r"0.72").scale(0.62).set_color(COLOR_NEEDLE)
                          .next_to(bar, UP, buff=0.06))
                 bar_labels.append(w_lbl)
 
@@ -287,7 +289,7 @@ class RNNWithAttention(Scene):
 
         # α_i label on the left
         alpha_label = (
-            MathTex(r"\alpha_i").scale(0.55).set_color(COLOR_ATTN)
+            MathTex(r"\alpha_i").scale(0.72).set_color(COLOR_ATTN)
             .move_to([xs[0] - 0.80, self.Y_WEIGHTS + max_bar_h / 2, 0]))
         self.play(FadeIn(alpha_label), run_time=0.3)
         self.wait(0.3)
@@ -297,14 +299,14 @@ class RNNWithAttention(Scene):
         # ======================================================
         step4_lbl = (
             Tex(r"\textbf{Step 4:} $c = \sum_i \alpha_i \, h_i$")
-            .scale(0.48).set_color(COLOR_OUTPUT)
+            .scale(0.55).set_color(COLOR_OUTPUT)
             .move_to([0, self.Y_STEP_LBL, 0]))
         self.play(Transform(step_lbl, step4_lbl), run_time=0.3)
 
         # Context label with surrounding box
         ctx_x = 0.0
         context_text = (
-            MathTex(r"c").scale(0.70).set_color(COLOR_OUTPUT)
+            MathTex(r"c").scale(0.90).set_color(COLOR_OUTPUT)
             .move_to([ctx_x, self.Y_CONTEXT, 0]))
         context_box = SurroundingRectangle(
             context_text, buff=0.08, color=COLOR_OUTPUT, stroke_width=1.5,

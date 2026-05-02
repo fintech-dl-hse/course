@@ -73,7 +73,7 @@ class Seq2SeqBottleneck(Scene):
     CTX_W = 2.80             # width of context area
     Y_CTX_TOP = 2.80
     Y_CTX_BOT = -3.00
-    CTX_ROW_H = 0.30         # height per token row in context
+    CTX_ROW_H = 0.42         # height per token row in context
 
     NEEDLE_TOKENS = ["The", "password", "is", "7392"]
     FILLER_TEXT = r"\ldots \text{1000 tokens} \ldots"
@@ -83,7 +83,7 @@ class Seq2SeqBottleneck(Scene):
         # ================ Title ================
         title = (
             Tex(r"\textbf{RNN Bottleneck}")
-            .scale(0.65)
+            .scale(0.80)
             .move_to([0, self.Y_TITLE, 0])
         )
         self.play(Write(title), run_time=0.4)
@@ -92,7 +92,7 @@ class Seq2SeqBottleneck(Scene):
         # ================ Context panel header (right side) ================
         ctx_header = (
             Tex(r"\textbf{Context seen so far}")
-            .scale(0.45)
+            .scale(0.58)
             .move_to([self.X_CTX, self.Y_CTX_TOP + 0.30, 0])
         )
         # Vertical line separating RNN from context
@@ -113,7 +113,7 @@ class Seq2SeqBottleneck(Scene):
         ).set_fill(COLOR_CELL, opacity=0.12).move_to([self.X_MAIN, self.Y_CELL, 0])
         cell_label = (
             Tex(r"\textbf{RNN Cell}")
-            .scale(0.45)
+            .scale(0.58)
             .move_to(cell_box.get_center())
         )
         cell_group = VGroup(cell_box, cell_label)
@@ -127,7 +127,7 @@ class Seq2SeqBottleneck(Scene):
         )
         input_label = (
             MathTex(r"x_t")
-            .scale(0.50)
+            .scale(0.65)
             .set_color(COLOR_INPUT)
             .next_to(arr_in, LEFT, buff=0.08)
         )
@@ -138,21 +138,28 @@ class Seq2SeqBottleneck(Scene):
         )
         output_label = (
             MathTex(r"h_t")
-            .scale(0.45)
+            .scale(0.62)
             .set_color(COLOR_HIDDEN)
             .next_to(arr_out, LEFT, buff=0.08)
         )
+        # Recurrent arrow entering the right side of the cell
+        recur_x_start = self.X_MAIN + self.CELL_W / 2 + 0.80
+        recur_arr = Arrow(
+            start=[recur_x_start, self.Y_CELL, 0],
+            end=cell_box.get_right(),
+            buff=0.05, stroke_width=2.5, color=COLOR_HIDDEN, tip_length=0.11,
+        )
         recur_label = (
             MathTex(r"h_{t-1}")
-            .scale(0.42)
+            .scale(0.58)
             .set_color(COLOR_HIDDEN)
-            .move_to([self.X_MAIN + self.CELL_W / 2 + 0.50, self.Y_CELL, 0])
+            .next_to(recur_arr, RIGHT, buff=0.08)
         )
 
         self.play(
             Create(arr_in), FadeIn(input_label),
             Create(arr_out), FadeIn(output_label),
-            FadeIn(recur_label),
+            Create(recur_arr), FadeIn(recur_label),
             run_time=0.4,
         )
 
@@ -163,7 +170,7 @@ class Seq2SeqBottleneck(Scene):
         ).move_cells_to([self.X_MAIN, self.Y_H, 0])
         dim_label = (
             MathTex(r"\dim = 256")
-            .scale(0.40)
+            .scale(0.55)
             .set_color(COLOR_HIDDEN)
             .next_to(h_vec, UP, buff=0.10)
         )
@@ -172,7 +179,7 @@ class Seq2SeqBottleneck(Scene):
         # Step counter
         step_counter = (
             MathTex(r"t = 0")
-            .scale(0.42)
+            .scale(0.55)
             .move_to([self.X_MAIN, self.Y_STEP_LABEL, 0])
         )
         self.play(FadeIn(step_counter), run_time=0.2)
@@ -190,7 +197,7 @@ class Seq2SeqBottleneck(Scene):
                     width=self.CTX_W - 0.40, height=h,
                     color=GREY, stroke_width=1,
                 ).set_fill(GREY, opacity=0.10)
-                label = MathTex(text).scale(0.38).set_color(color)
+                label = MathTex(text).scale(0.55).set_color(color)
                 item = VGroup(rect, label)
                 ctx_y_cursor -= h / 2
                 item.move_to([self.X_CTX, ctx_y_cursor, 0])
@@ -198,7 +205,7 @@ class Seq2SeqBottleneck(Scene):
             else:
                 label = (
                     Tex(rf"\textit{{{text}}}")
-                    .scale(0.63)
+                    .scale(0.72)
                     .set_color(color)
                 )
                 ctx_y_cursor -= self.CTX_ROW_H / 2
@@ -226,7 +233,7 @@ class Seq2SeqBottleneck(Scene):
             )
             new_counter = (
                 MathTex(rf"t = {t}")
-                .scale(0.42)
+                .scale(0.55)
                 .move_to([self.X_MAIN, self.Y_STEP_LABEL, 0])
             )
 
@@ -257,13 +264,13 @@ class Seq2SeqBottleneck(Scene):
             if is_needle:
                 needle_highlight = (
                     Tex(r"$\leftarrow$ needle!")
-                    .scale(0.45)
+                    .scale(0.58)
                     .set_color(RED)
                     .next_to(tok_mob, RIGHT, buff=0.20)
                 )
                 needle_in_h = (
                     Tex(r"7392 in $h_4$")
-                    .scale(0.40)
+                    .scale(0.55)
                     .set_color(RED)
                     .next_to(h_vec, LEFT, buff=0.20)
                 )
@@ -282,19 +289,19 @@ class Seq2SeqBottleneck(Scene):
 
         filler_mob = (
             MathTex(self.FILLER_TEXT)
-            .scale(0.50)
+            .scale(0.62)
             .set_color(GREY)
             .move_to([self.X_MAIN, self.Y_TOKEN, 0])
         )
         new_counter = (
             MathTex(r"t = 5 \ldots 1004")
-            .scale(0.42)
+            .scale(0.55)
             .move_to([self.X_MAIN, self.Y_STEP_LABEL, 0])
         )
         # Context panel: big filler block
         filler_ctx = _add_ctx_item(
             r"\vdots \quad \text{1000 tokens} \quad \vdots",
-            color=GREY, is_block=True, block_h=1.80,
+            color=GREY, is_block=True, block_h=1.60,
         )
 
         self.play(
@@ -327,7 +334,7 @@ class Seq2SeqBottleneck(Scene):
             )
             new_counter = (
                 MathTex(rf"t = {t}")
-                .scale(0.42)
+                .scale(0.55)
                 .move_to([self.X_MAIN, self.Y_STEP_LABEL, 0])
             )
             ctx_item = _add_ctx_item(tok, color=YELLOW)
@@ -362,7 +369,7 @@ class Seq2SeqBottleneck(Scene):
         ).set_color(WHITE).scale(0.9)
         ctx_brace_label = (
             MathTex(r"\text{1009 tokens}")
-            .scale(0.40)
+            .scale(0.55)
             .next_to(ctx_brace, RIGHT, buff=0.08)
         )
         self.play(FadeIn(ctx_brace), FadeIn(ctx_brace_label), run_time=0.4)
@@ -370,8 +377,9 @@ class Seq2SeqBottleneck(Scene):
         # Highlight h_t and show "ALL of this → one vector"
         punchline_anims = []
         for cell in h_vec.cells:
-            punchline_anims.append(cell.animate.set_stroke(YELLOW, width=3))
-            punchline_anims.append(cell.animate.set_fill(YELLOW, opacity=0.45))
+            punchline_anims.append(
+                cell.animate.set_stroke(YELLOW, width=3).set_fill(YELLOW, opacity=0.45)
+            )
         self.play(*punchline_anims, run_time=0.5)
 
         # Arrow from context to h_t with "compressed into"
@@ -382,7 +390,7 @@ class Seq2SeqBottleneck(Scene):
         )
         compress_label = (
             MathTex(r"\text{all } \to h_t")
-            .scale(0.42)
+            .scale(0.55)
             .set_color(RED)
             .next_to(compress_arrow, UP, buff=0.08)
         )
@@ -391,7 +399,7 @@ class Seq2SeqBottleneck(Scene):
         # Question
         doubt = (
             MathTex(r"\text{is 7392 still in } h_{1009} \text{?}")
-            .scale(0.45)
+            .scale(0.55)
             .set_color(RED)
             .next_to(h_vec, LEFT, buff=0.25)
         )
@@ -402,10 +410,10 @@ class Seq2SeqBottleneck(Scene):
         conclusion = (
             MathTex(
                 r"\Rightarrow \text{ need access to all } h_1 \ldots h_T"
-                r"\text{ — attention!}"
+                r"\text{ --- attention!}"
             )
-            .scale(0.50)
-            .move_to([0, -3.65, 0])
+            .scale(0.55)
+            .move_to([1.00, -3.10, 0])
         )
         self.play(FadeIn(conclusion), run_time=0.4)
         self.wait(1.5)

@@ -19,19 +19,16 @@ from manim import (
     DOWN,
     DashedLine,
     FadeIn,
-    FadeOut,
     GREEN,
     GREY,
     LEFT,
     MathTex,
     ORANGE,
     RED,
-    RIGHT,
     RoundedRectangle,
     Scene,
     Square,
     Tex,
-    UP,
     VGroup,
     WHITE,
     YELLOW,
@@ -89,7 +86,7 @@ class NoPositionInfo(Scene):
                 corner_radius=0.08, width=1.10, height=0.50,
                 color=COLOR_TOKEN, stroke_width=2,
             ).set_fill(COLOR_TOKEN, opacity=0.15).move_to([x, y, 0])
-            lbl = Tex(rf"\textit{{{w}}}").scale(0.68).move_to(box.get_center())
+            lbl = Tex(rf"\textit{{{w}}}").scale(0.80).move_to(box.get_center())
             groups.append(VGroup(box, lbl))
         return groups
 
@@ -118,7 +115,7 @@ class NoPositionInfo(Scene):
         r_lbls = []
         for i, w in enumerate(row_labels):
             lbl = (MathTex(rf"q_{{\text{{{w[0]}}}}}")
-                   .scale(0.48)
+                   .scale(0.58)
                    .move_to([x_center - 1.5 * self.MATRIX_CELL - 0.30,
                              y_center + (1 - i) * self.MATRIX_CELL, 0]))
             r_lbls.append(lbl)
@@ -127,7 +124,7 @@ class NoPositionInfo(Scene):
         c_lbls = []
         for j, w in enumerate(col_labels):
             lbl = (MathTex(rf"k_{{\text{{{w[0]}}}}}")
-                   .scale(0.48)
+                   .scale(0.58)
                    .move_to([x_center + (j - 1) * self.MATRIX_CELL,
                              y_center - 1.5 * self.MATRIX_CELL - 0.20, 0]))
             c_lbls.append(lbl)
@@ -143,7 +140,7 @@ class NoPositionInfo(Scene):
                 corner_radius=0.08, width=1.10, height=0.50,
                 color=COLOR_OUTPUT, stroke_width=2,
             ).set_fill(COLOR_OUTPUT, opacity=0.15).move_to([x, y, 0])
-            txt = MathTex(rf"z_{{\text{{{w}}}}}").scale(0.48).move_to(box.get_center())
+            txt = MathTex(rf"z_{{\text{{{w}}}}}").scale(0.63).move_to(box.get_center())
             groups.append(VGroup(box, txt))
         return groups
 
@@ -172,7 +169,12 @@ class NoPositionInfo(Scene):
         toks_l = self._make_token_boxes(words_l, self.X_LEFT, self.Y_TOKENS)
         weights_l = self._weights_for(words_l)
 
-        self.play(*[FadeIn(t) for t in toks_l], run_time=0.4)
+        title_l = (Tex(r"\textit{dog bites man}")
+                   .scale(0.55)
+                   .move_to([self.X_LEFT, self.Y_TOKENS - 0.55, 0])
+                   .set_color(COLOR_TOKEN))
+
+        self.play(*[FadeIn(t) for t in toks_l], FadeIn(title_l), run_time=0.4)
 
         attn_group_l, rlbls_l, clbls_l = self._make_attn_matrix(
             self.X_LEFT, self.Y_ATTN, weights_l, words_l, words_l)
@@ -223,7 +225,12 @@ class NoPositionInfo(Scene):
         toks_r = self._make_token_boxes(words_r, self.X_RIGHT, self.Y_TOKENS)
         weights_r = self._weights_for(words_r)
 
-        self.play(*[FadeIn(t) for t in toks_r], run_time=0.4)
+        title_r = (Tex(r"\textit{man bites dog}")
+                   .scale(0.55)
+                   .move_to([self.X_RIGHT, self.Y_TOKENS - 0.55, 0])
+                   .set_color(COLOR_TOKEN))
+
+        self.play(*[FadeIn(t) for t in toks_r], FadeIn(title_r), run_time=0.4)
 
         attn_group_r, rlbls_r, clbls_r = self._make_attn_matrix(
             self.X_RIGHT, self.Y_ATTN, weights_r, words_r, words_r)
@@ -262,7 +269,7 @@ class NoPositionInfo(Scene):
         self.wait(0.5)
 
         # ============== Highlight: matrices ARE different ==============
-        neq_matrix = (MathTex(r"\neq").scale(1.20)
+        neq_matrix = (MathTex(r"\neq").scale(0.90)
                       .move_to([0, self.Y_ATTN, 0])
                       .set_color(WHITE))
         self.play(FadeIn(neq_matrix), run_time=0.3)
@@ -287,8 +294,8 @@ class NoPositionInfo(Scene):
         highlight_r2 = SurroundingRectangle(
             out_r[2], color=COLOR_WARN, stroke_width=3, buff=0.06)
 
-        eq_out = (MathTex(r"z_{\text{dog}} = z_{\text{dog}}").scale(0.55)
-                  .move_to([0, self.Y_OUTPUT + 0.45, 0])
+        eq_out = (MathTex(r"z_{\text{dog}} = z_{\text{dog}}").scale(0.65)
+                  .move_to([0, self.Y_OUTPUT + 0.50, 0])
                   .set_color(COLOR_WARN))
 
         self.play(
@@ -304,8 +311,8 @@ class NoPositionInfo(Scene):
         highlight_r0 = SurroundingRectangle(
             out_r[0], color=COLOR_WARN, stroke_width=3, buff=0.06)
 
-        eq_out2 = (MathTex(r"z_{\text{man}} = z_{\text{man}}").scale(0.55)
-                   .move_to([0, self.Y_OUTPUT - 0.10, 0])
+        eq_out2 = (MathTex(r"z_{\text{man}} = z_{\text{man}}").scale(0.65)
+                   .move_to([0, self.Y_OUTPUT - 0.05, 0])
                    .set_color(COLOR_WARN))
 
         self.play(
