@@ -222,7 +222,7 @@ class EncoderBlock(Scene):
             width=self.LN_W,
             height=self.LN_H,
             color=self.COLOR_LN,
-            label_scale=0.50,
+            label_scale=0.60,
             fill_opacity=0.10,
         ).move_to([x, y, 0.0])
 
@@ -291,7 +291,7 @@ class EncoderBlock(Scene):
         # Token strip uses *wider* spacing than the tensor row beneath it so
         # the three quoted words don't run into each other (scale 0.55 ≈
         # 0.65 unit wide per word, narrower TOK_SPACING=0.42 would overlap).
-        tok_strip_spacing = 0.70
+        tok_strip_spacing = 0.60
         # Align the strip's center to the input row's center.
         tok_x_base = self.X_INPUT - (self.NUM_TOKENS - 1) * tok_strip_spacing / 2.0
         for j, tok in enumerate(tokens_text):
@@ -315,7 +315,7 @@ class EncoderBlock(Scene):
         )
         input_lbl = (
             MathTex(r"x")
-            .scale(0.55)
+            .scale(0.82)
             .next_to(input_cols[-1], DOWN, buff=0.18)
         )
 
@@ -411,7 +411,7 @@ class EncoderBlock(Scene):
         )
         xprime_lbl = (
             MathTex(r"x'")
-            .scale(0.55)
+            .scale(0.65)
             .next_to(xprime_cols[-1], DOWN, buff=0.18)
         )
 
@@ -460,7 +460,7 @@ class EncoderBlock(Scene):
             width=self.FFN_INNER_BOX_W,
             height=self.FFN_INNER_BOX_H,
             color=self.COLOR_FFN,
-            label_scale=0.36,
+            label_scale=0.52,
             fill_opacity=0.20,
         ).move_to([self.X_FFN, inner_y_top, 0.0])
         gelu = LabeledBox(
@@ -468,7 +468,7 @@ class EncoderBlock(Scene):
             width=self.FFN_INNER_BOX_W,
             height=self.FFN_INNER_BOX_H,
             color=self.COLOR_FFN,
-            label_scale=0.36,
+            label_scale=0.52,
             fill_opacity=0.20,
         ).move_to([self.X_FFN, inner_y_mid, 0.0])
         lin2 = LabeledBox(
@@ -476,7 +476,7 @@ class EncoderBlock(Scene):
             width=self.FFN_INNER_BOX_W,
             height=self.FFN_INNER_BOX_H,
             color=self.COLOR_FFN,
-            label_scale=0.36,
+            label_scale=0.52,
             fill_opacity=0.20,
         ).move_to([self.X_FFN, inner_y_bot, 0.0])
 
@@ -552,7 +552,7 @@ class EncoderBlock(Scene):
         )
         output_lbl = (
             MathTex(r"y")
-            .scale(0.55)
+            .scale(0.65)
             .next_to(output_cols[-1], DOWN, buff=0.18)
         )
 

@@ -196,8 +196,8 @@ class BERTClsClassification(Scene):
 
             pe = (
                 MathTex(rf"+\,PE_{i}")
-                .scale(0.42)
-                .next_to(col, RIGHT, buff=0.06)
+                .scale(0.55)
+                .next_to(col, RIGHT, buff=0.08)
             )
             pe_labels.append(pe)
 
@@ -237,7 +237,7 @@ class BERTClsClassification(Scene):
             width=self.STACK_W,
             height=self.STACK_H,
             color=PURPLE,
-            label_scale=0.42,
+            label_scale=0.52,
             fill_opacity=0.95,
         ).move_to([self.X_STACK, self.Y_STACK, 0.0])
         front_box.set_z_index(2)
@@ -281,11 +281,11 @@ class BERTClsClassification(Scene):
 
             if i == 0:
                 lbl_text = r"h_{[\mathrm{CLS}]}"
-                lbl_scale = 0.50
+                lbl_scale = 0.58
                 lbl_color = CLS_GOLD
             else:
                 lbl_text = rf"h_{i}"
-                lbl_scale = 0.45
+                lbl_scale = 0.58
                 lbl_color = GREY_B
             lbl = MathTex(lbl_text).scale(lbl_scale)
             lbl.set_color(lbl_color)
@@ -313,17 +313,17 @@ class BERTClsClassification(Scene):
         mlp_lin1 = LabeledBox(
             label=r"\mathrm{Linear}",
             width=self.MLP_W, height=self.MLP_H,
-            color=ORANGE, label_scale=0.42, fill_opacity=0.20,
+            color=ORANGE, label_scale=0.55, fill_opacity=0.20,
         ).move_to([self.X_MLP_LIN1, self.Y_MLP, 0.0])
         mlp_tanh = LabeledBox(
             label=r"\tanh",
             width=self.MLP_W, height=self.MLP_H,
-            color=ORANGE, label_scale=0.45, fill_opacity=0.20,
+            color=ORANGE, label_scale=0.60, fill_opacity=0.20,
         ).move_to([self.X_MLP_TANH, self.Y_MLP, 0.0])
         mlp_lin2 = LabeledBox(
             label=r"\mathrm{Linear}",
             width=self.MLP_W, height=self.MLP_H,
-            color=ORANGE, label_scale=0.42, fill_opacity=0.20,
+            color=ORANGE, label_scale=0.55, fill_opacity=0.20,
         ).move_to([self.X_MLP_LIN2, self.Y_MLP, 0.0])
 
         # h_[CLS] is at left side (x = X_LEFT). MLP starts at X_MLP_LIN1 = -2.40.
@@ -385,7 +385,7 @@ class BERTClsClassification(Scene):
         softmax_box = LabeledBox(
             label=r"\mathrm{softmax}",
             width=1.30, height=self.MLP_H,
-            color=ORANGE, label_scale=0.42, fill_opacity=0.20,
+            color=ORANGE, label_scale=0.55, fill_opacity=0.20,
         ).move_to([self.X_MLP_LIN2 + self.MLP_W / 2.0 + 0.10 + 1.30 / 2.0, self.Y_MLP, 0.0])
         # Tiny arrow from mlp_lin2 to softmax_box.
         arr_lin2_softmax = _horizontal_arrow(

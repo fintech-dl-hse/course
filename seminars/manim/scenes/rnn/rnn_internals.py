@@ -114,7 +114,7 @@ class RNNInternals(Scene):
         )
         tok_label = (
             MathTex(r"\text{token}_t")
-            .scale(0.42)
+            .scale(0.50)
             .next_to(tok, RIGHT, buff=0.20)
         )
         self.play(FadeIn(tok), FadeIn(tok_label), run_time=0.4)
@@ -126,7 +126,7 @@ class RNNInternals(Scene):
         ).move_cells_to([self.X_MAIN, self.Y_X, 0])
         x_t_label = (
             MathTex(r"x_t")
-            .scale(0.48)
+            .scale(0.62)
             .set_color(COLOR_INPUT)
             .next_to(x_t, RIGHT, buff=0.18)
         )
@@ -137,8 +137,8 @@ class RNNInternals(Scene):
         )
         emb_note = (
             MathTex(r"E[\text{id}]")
-            .scale(0.36)
-            .next_to(arr_tok_x, RIGHT, buff=0.10)
+            .scale(0.50)
+            .move_to([self.X_MAIN - 1.00, (self.Y_INPUT_TOKEN + self.Y_X) / 2, 0])
         )
         self.play(Create(arr_tok_x), FadeIn(x_t), FadeIn(x_t_label), FadeIn(emb_note), run_time=0.5)
 
@@ -204,7 +204,7 @@ class RNNInternals(Scene):
         # ================ tanh ================
         tanh_box = LabeledBox(
             label=r"\tanh", width=0.80, height=self.BOX_H,
-            label_scale=0.50, color=WHITE,
+            label_scale=0.58, color=WHITE,
         ).move_to([self.X_MAIN, self.Y_TANH, 0])
 
         arr_sum_tanh = Arrow(
@@ -238,7 +238,7 @@ class RNNInternals(Scene):
         ).move_cells_to([self.X_H_NEXT, self.Y_H, 0])
         h_next_label = (
             MathTex(r"h_t \to \text{next step}")
-            .scale(0.38)
+            .scale(0.48)
             .set_color(COLOR_HIDDEN)
             .next_to(h_t_next, DOWN, buff=0.10)
         )
@@ -265,7 +265,7 @@ class RNNInternals(Scene):
         # ================ softmax ================
         sm_box = LabeledBox(
             label=r"\text{softmax}", width=1.10, height=self.BOX_H,
-            label_scale=0.48, color=COLOR_OUTPUT,
+            label_scale=0.55, color=COLOR_OUTPUT,
         ).move_to([self.X_MAIN, self.Y_SOFTMAX, 0])
         arr_who_sm = Arrow(
             start=w_ho.get_top(), end=sm_box.get_bottom(),
@@ -281,7 +281,7 @@ class RNNInternals(Scene):
         ).move_cells_to([self.X_MAIN, self.Y_Y, 0])
         y_t_label = (
             MathTex(r"y_t")
-            .scale(0.48)
+            .scale(0.60)
             .set_color(COLOR_OUTPUT)
             .next_to(y_t, RIGHT, buff=0.18)
         )
@@ -292,12 +292,12 @@ class RNNInternals(Scene):
         )
         pred_label = (
             Tex(r"\textit{``sat''}")
-            .scale(0.55)
+            .scale(0.60)
             .next_to(y_t, RIGHT, buff=0.50)
         )
         argmax_label = (
             MathTex(r"\arg\max")
-            .scale(0.45)
+            .scale(0.58)
             .next_to(pred_label, DOWN, buff=0.05)
         )
 

@@ -262,7 +262,7 @@ class CrossAttention(Scene):
             width=2.50,
             height=0.78,
             color=GREY_B,
-            label_scale=0.48,
+            label_scale=0.55,
             fill_opacity=0.12,
         ).move_to([self.X_ENC_BLOCK, self.Y_BLOCK, 0.0])
 
@@ -282,11 +282,15 @@ class CrossAttention(Scene):
         # ===================== Phase 2: encoder hidden states e_1..e_3 =====================
         e_cols = self._build_e_columns()
         e_labels: list[MathTex] = []
-        for j, col in enumerate(e_cols):
+        # Place all e labels stacked to the right of the rightmost e column
+        # to stay clear of both the enc_block→e vertical arrows and the
+        # diagonal e→W_K/W_V arrows.
+        e_lbl_x = e_cols[-1].get_right()[0] + 0.18
+        for j in range(3):
             lbl = (
                 MathTex(rf"e_{j + 1}")
-                .scale(0.45)
-                .next_to(col, DOWN, buff=0.08)
+                .scale(0.65)
+                .move_to([e_lbl_x, self.Y_HIDDEN + (1 - j) * 0.30, 0.0])
             )
             e_labels.append(lbl)
 
@@ -324,7 +328,7 @@ class CrossAttention(Scene):
             width=2.50,
             height=0.78,
             color=GREY_B,
-            label_scale=0.48,
+            label_scale=0.55,
             fill_opacity=0.12,
         ).move_to([self.X_DEC_BLOCK, self.Y_BLOCK, 0.0])
 
@@ -342,8 +346,8 @@ class CrossAttention(Scene):
         ).move_to([self.X_DT, self.Y_HIDDEN, 0.0])
         d_t_lbl = (
             MathTex(r"d_t")
-            .scale(0.50)
-            .next_to(d_t, DOWN, buff=0.10)
+            .scale(0.62)
+            .next_to(d_t, RIGHT, buff=0.10)
         )
         arr_dec_to_dt = _vertical_arrow(
             dec_block, d_t,
@@ -382,12 +386,12 @@ class CrossAttention(Scene):
         v_cols = self._build_kv_columns(self.X_WV, GREEN)
         k_label = (
             MathTex(r"K")
-            .scale(0.50)
+            .scale(0.62)
             .next_to(k_cols[-1], DOWN, buff=0.10)
         )
         v_label = (
             MathTex(r"V")
-            .scale(0.50)
+            .scale(0.62)
             .next_to(v_cols[-1], DOWN, buff=0.10)
         )
 
@@ -441,7 +445,7 @@ class CrossAttention(Scene):
         ).move_to([self.X_Q, self.Y_QKV, 0.0])
         q_label = (
             MathTex(r"Q")
-            .scale(0.50)
+            .scale(0.62)
             .next_to(q_col, DOWN, buff=0.10)
         )
 
@@ -469,8 +473,8 @@ class CrossAttention(Scene):
         score_cells = self._build_score_row()
         score_lbl = (
             MathTex(r"Q\, K^\top")
-            .scale(0.48)
-            .next_to(score_cells[0], LEFT, buff=0.18)
+            .scale(0.58)
+            .next_to(score_cells[0], LEFT, buff=0.60)
         )
         # Long horizontal "feeder" arrows: Q → score-row left edge, K-rightmost
         # column → score-row left edge (we use Lines from each side that meet
@@ -553,7 +557,7 @@ class CrossAttention(Scene):
         # avoid double-formula at midpoint frame sampling.
         softmax_lbl = (
             MathTex(r"\mathrm{softmax}")
-            .scale(0.48)
+            .scale(0.58)
             .move_to(score_lbl.get_center())
         )
         self.play(
@@ -583,7 +587,7 @@ class CrossAttention(Scene):
         ).move_to([self.X_CTX, self.Y_CTX, 0.0])
         c_t_lbl = (
             MathTex(r"c_t")
-            .scale(0.50)
+            .scale(0.62)
             .next_to(c_t, RIGHT, buff=0.12)
         )
 

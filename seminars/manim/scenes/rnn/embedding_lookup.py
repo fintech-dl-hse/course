@@ -46,7 +46,7 @@ class EmbeddingLookup(Scene):
     """word -> vocab index -> E row -> embedding vector x_t."""
 
     # ---- Vocabulary (shuffled so lookup indices are non-sequential) ----
-    VOCAB = ["dog", ".", "cat", "the", "ran", "sat"]
+    VOCAB = ["dog", "end", "cat", "the", "ran", "sat"]
     EMB_DIM = 4  # d columns in E
     CELL = 0.30  # matrix cell size
     PULLED_CELL = 0.27  # TensorColumn cell size
@@ -63,14 +63,14 @@ class EmbeddingLookup(Scene):
     MATRIX_Y = 1.80
 
     # Horizontal positions for the 3 timesteps (left, center, right)
-    STEP_X = [-4.20, 0.0, 4.20]
+    STEP_X = [-4.50, 0.0, 4.50]
 
     # Vertical positions within each step column
     Y_WORD = -0.70    # input word
     Y_INDEX = -1.45   # vocabulary index
     Y_EMB = -2.80     # embedding vector x_t
 
-    # Indices into VOCAB for the 3 timesteps: "the"=3, "cat"=2, "sat"=5
+    # Indices into VOCAB for the 3 timesteps: "the"=3, "cat"=2, "sat"=5 (idx 1="end")
     TOKEN_IDX = [3, 2, 5]
 
     def construct(self) -> None:
@@ -125,13 +125,13 @@ class EmbeddingLookup(Scene):
             row_y = gy0 - r * cell - cell / 2.0
             idx_lbl = (
                 MathTex(f"{r}:")
-                .scale(0.40)
+                .scale(0.56)
                 .set_color(self.INDEX_COLOR)
                 .move_to([gx0 - 1.00, row_y, 0.0])
             )
             tok_lbl = (
                 Tex(rf"\textit{{{tok}}}")
-                .scale(0.45)
+                .scale(0.65)
                 .move_to([gx0 - 0.50, row_y, 0.0])
             )
             pair = VGroup(idx_lbl, tok_lbl)
@@ -141,7 +141,7 @@ class EmbeddingLookup(Scene):
         # Column headers (1..d)
         col_headers: list[MathTex] = []
         for c in range(d):
-            hd = MathTex(str(c + 1)).scale(0.40)
+            hd = MathTex(str(c + 1)).scale(0.56)
             hd.move_to([gx0 + c * cell + cell / 2.0, gy0 + 0.20, 0.0])
             col_headers.append(hd)
         col_headers_group = VGroup(*col_headers)
@@ -156,7 +156,7 @@ class EmbeddingLookup(Scene):
         # Dimensions under the matrix
         dims_label = (
             MathTex(r"V{=}6,\; d{=}4")
-            .scale(0.40)
+            .scale(0.58)
             .move_to([self.MATRIX_X, gy0 - V * cell - 0.22, 0.0])
         )
 
@@ -174,7 +174,7 @@ class EmbeddingLookup(Scene):
         for step in range(3):
             t_lbl = (
                 MathTex(f"t={step + 1}")
-                .scale(0.50)
+                .scale(0.62)
                 .move_to([self.STEP_X[step], self.Y_WORD + 0.55, 0.0])
             )
             self.play(FadeIn(t_lbl), run_time=0.25)
@@ -237,7 +237,18 @@ class EmbeddingLookup(Scene):
                 self.remove(prev_return_arrow)
 
             # --- 4. Arrow from index up to E row (forward: red) ---
-            if is_center:
+            # All arrows to the matrix row are curved to avoid crossing the matrix labels.
+            if step == 0:
+                # Left column: curve upward-right, bypassing row labels on left of matrix
+                idx_to_row = CurvedArrow(
+                    start_point=idx_tex.get_right() + [0, 0.1, 0],
+                    end_point=row_box.get_left() + [-0.05, 0, 0],
+                    angle=0.9,
+                    stroke_width=2.5,
+                    color=COLOR_FORWARD,
+                    tip_length=0.12,
+                )
+            elif is_center:
                 # Center column: curve LEFT to avoid crossing the matrix labels
                 idx_to_row = CurvedArrow(
                     start_point=idx_tex.get_left() + [0, 0.1, 0],
@@ -248,10 +259,11 @@ class EmbeddingLookup(Scene):
                     tip_length=0.12,
                 )
             else:
-                idx_to_row = Arrow(
-                    start=idx_tex.get_top(),
-                    end=row_box.get_bottom(),
-                    buff=0.08,
+                # Right column: curve upward-left, bypassing row labels on right of matrix
+                idx_to_row = CurvedArrow(
+                    start_point=idx_tex.get_left() + [0, 0.1, 0],
+                    end_point=row_box.get_right() + [0.05, 0, 0],
+                    angle=-0.9,
                     stroke_width=2.5,
                     color=COLOR_FORWARD,
                     tip_length=0.12,
@@ -273,15 +285,18 @@ class EmbeddingLookup(Scene):
             row_ghost = VGroup(*row_ghost_cells)
 
             # Target: TensorColumn x_t below the index
-            # Use move_cells_to to avoid label-induced jitter
+            # No built-in label — place label separately to avoid centering jitter.
             x_t = TensorColumn(
                 dim=d,
                 cell_size=self.PULLED_CELL,
                 color=BLUE,
                 fill_opacity=0.35,
-                label=f"x_{t}",
-                label_scale=0.55,
-            ).move_cells_to([sx, self.Y_EMB, 0.0])
+            ).move_to([sx, self.Y_EMB, 0.0])
+            x_t_label = (
+                MathTex(f"x_{t}")
+                .scale(0.70)
+                .next_to(x_t, direction=[1.0, 0.0, 0.0], buff=0.12)
+            )
 
             # Build target ghost cells matching x_t's CELLS positions exactly
             target_cells: list[Square] = []
@@ -296,7 +311,18 @@ class EmbeddingLookup(Scene):
             target_group = VGroup(*target_cells)
 
             # Arrow from E row to x_t (return: blue)
-            if is_center:
+            # All arrows from the matrix row are curved to avoid crossing the matrix labels.
+            if step == 0:
+                # Left column: curve from left edge of row down to x_t
+                row_to_x = CurvedArrow(
+                    start_point=row_box.get_left() + [-0.05, 0, 0],
+                    end_point=x_t.get_top() + [0.05, 0, 0],
+                    angle=-0.9,
+                    stroke_width=2.5,
+                    color=COLOR_RETURN,
+                    tip_length=0.13,
+                )
+            elif is_center:
                 # Center column: curve RIGHT to avoid crossing the matrix labels
                 row_to_x = CurvedArrow(
                     start_point=row_box.get_right() + [0.05, 0, 0],
@@ -307,10 +333,11 @@ class EmbeddingLookup(Scene):
                     tip_length=0.13,
                 )
             else:
-                row_to_x = Arrow(
-                    start=row_box.get_bottom(),
-                    end=x_t.get_top(),
-                    buff=0.12,
+                # Right column: curve from right edge of row down to x_t
+                row_to_x = CurvedArrow(
+                    start_point=row_box.get_right() + [0.05, 0, 0],
+                    end_point=x_t.get_top() + [-0.05, 0, 0],
+                    angle=0.9,
                     stroke_width=2.5,
                     color=COLOR_RETURN,
                     tip_length=0.13,
@@ -325,6 +352,7 @@ class EmbeddingLookup(Scene):
             self.play(
                 FadeOut(target_group),
                 FadeIn(x_t),
+                FadeIn(x_t_label),
                 FadeOut(row_ghost),
                 FadeOut(idx_to_row),
                 run_time=0.4,

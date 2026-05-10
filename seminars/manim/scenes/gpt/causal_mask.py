@@ -91,7 +91,7 @@ class CausalMask(Scene):
     Y_MATRIX = 0.80
 
     # Token strip + arrows (RIGHT panel only).
-    Y_TOKENS = -2.55
+    Y_TOKENS = -3.05
     Y_ARROW_FAN = -1.85          # mid-height of arrow fan from "on" to ≤ t
 
     # Caption row.
@@ -175,8 +175,8 @@ class CausalMask(Scene):
             pos = self._matrix_cell_position(panel_x, i, 0)
             lbl = (
                 MathTex(rf"{panel_label}_{i}")
-                .scale(0.5)
-                .move_to([pos[0] - self.CELL / 2.0 - 0.22, pos[1], 0.0])
+                .scale(0.62)
+                .move_to([pos[0] - self.CELL / 2.0 - 0.28, pos[1], 0.0])
             )
             row_lbls.append(lbl)
         # Column labels BELOW row SEQ_LEN-1.
@@ -184,8 +184,8 @@ class CausalMask(Scene):
             pos = self._matrix_cell_position(panel_x, self.SEQ_LEN - 1, j)
             lbl = (
                 MathTex(rf"{col_label}_{j}")
-                .scale(0.5)
-                .move_to([pos[0], pos[1] - self.CELL / 2.0 - 0.24, 0.0])
+                .scale(0.62)
+                .move_to([pos[0], pos[1] - self.CELL / 2.0 - 0.28, 0.0])
             )
             col_lbls.append(lbl)
         return row_lbls, col_lbls
@@ -207,12 +207,12 @@ class CausalMask(Scene):
         # ===================== Phase 1: panel sub-titles =====================
         left_subtitle = (
             MathTex(r"\text{Bidirectional (BERT)}")
-            .scale(0.5)
+            .scale(0.62)
             .move_to([self.X_LEFT_PANEL, self.Y_SUBTITLE, 0.0])
         )
         right_subtitle = (
             MathTex(r"\text{Causal (GPT)}")
-            .scale(0.5)
+            .scale(0.62)
             .move_to([self.X_RIGHT_PANEL, self.Y_SUBTITLE, 0.0])
         )
         self.play(
@@ -274,15 +274,17 @@ class CausalMask(Scene):
                 mask_anims.append(
                     cell.animate.set_fill(GREY_B, opacity=0.55).set_stroke(RED)
                 )
-                inf = (
-                    MathTex(r"-\infty")
-                    .scale(0.40)
-                    .move_to(cell.get_center())
-                    .set_color(RED)
-                )
-                inf_labels.append(inf)
+        # Instead of per-cell -infty labels (too small in 0.45-wide cells),
+        # show a single legend in the top-right of the right panel.
+        inf_legend = (
+            MathTex(r"\text{grey} = -\infty\ \text{(masked)}")
+            .scale(0.55)
+            .move_to([self.X_RIGHT_PANEL + 1.0, self.Y_MATRIX + 1.60, 0.0])
+            .set_color(RED)
+        )
+        inf_labels = [inf_legend]
         self.play(*mask_anims, run_time=0.5)
-        self.play(*[FadeIn(lbl) for lbl in inf_labels], run_time=0.4)
+        self.play(FadeIn(inf_legend), run_time=0.4)
         self.wait(0.4)
 
         # ===================== Phase 5: row-wise softmax → causal weights =====================
@@ -310,16 +312,10 @@ class CausalMask(Scene):
                         cell.animate.set_fill(YELLOW, opacity=op)
                         .set_stroke(YELLOW)
                     )
-            # Also fade out -∞ labels in this row that belonged to masked cells.
+            # Fade out the legend on the last row.
             row_inf_fades = []
-            # inf_labels are stored in flat order over (i, j) with j > i.
-            # Compute the flat index for cells in row i where j > i.
-            base = 0
-            for ii in range(i):
-                base += (self.SEQ_LEN - 1 - ii)
-            n_in_row = self.SEQ_LEN - 1 - i
-            for k in range(n_in_row):
-                row_inf_fades.append(FadeOut(inf_labels[base + k]))
+            if i == self.SEQ_LEN - 1 and inf_labels:
+                row_inf_fades.append(FadeOut(inf_labels[0]))
             self.play(*anims, *row_inf_fades, run_time=0.45)
         self.wait(0.3)
 
@@ -376,9 +372,11 @@ class CausalMask(Scene):
                 color=TEAL,
                 stroke_width=2,
             )
+            # End the downward arrow well above the token label (0.30 clearance)
+            # so the arrow tip does not enter the token's bounding box.
             seg_down = Arrow(
                 start=[tx, rail_y, 0.0],
-                end=[tx, ty + 0.02, 0.0],
+                end=[tx, ty + 0.30, 0.0],
                 buff=0.0,
                 stroke_width=2,
                 tip_length=0.10,
@@ -388,7 +386,11 @@ class CausalMask(Scene):
             # the up segment shorter and skip the over-segment so the arrow
             # is a tiny bump above "on".
             if j == self.SEQ_LEN - 1:
-                bump_y = sy + 0.30
+                # Self-loop: rise to bump_y (0.55 above token top) then come
+                # back down, ending 0.35 above token top so the arrow tip
+                # stays clear of the token bounding box.
+                bump_y = sy + 0.55
+                end_y = sy + 0.35
                 seg_up = Line(
                     start=[sx - 0.05, sy, 0.0],
                     end=[sx - 0.05, bump_y, 0.0],
@@ -403,7 +405,7 @@ class CausalMask(Scene):
                 )
                 seg_down = Arrow(
                     start=[sx + 0.05, bump_y, 0.0],
-                    end=[sx + 0.05, sy + 0.02, 0.0],
+                    end=[sx + 0.05, end_y, 0.0],
                     buff=0.0,
                     stroke_width=2,
                     tip_length=0.08,
@@ -418,7 +420,7 @@ class CausalMask(Scene):
             MathTex(
                 r"\text{causal mask = autoregressive generation precondition}"
             )
-            .scale(0.50)
+            .scale(0.60)
             .move_to([0.0, self.Y_CAPTION, 0.0])
         )
         self.play(FadeIn(caption), run_time=0.4)

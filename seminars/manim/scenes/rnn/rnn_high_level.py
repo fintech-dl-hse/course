@@ -81,10 +81,10 @@ class RNNHighLevel(Scene):
         h0 = TensorColumn(
             dim=4, cell_size=0.22, color=COLOR_HIDDEN, fill_opacity=0.3,
         ).move_cells_to([h0_x, self.Y_HIDDEN, 0])
-        h0_label = MathTex(r"h_0").scale(0.55).next_to(h0, DOWN, buff=0.15)
+        h0_label = MathTex(r"h_0").scale(0.62).next_to(h0, DOWN, buff=0.15)
         h0_caption = (
             Tex(r"\textit{zeros}")
-            .scale(0.65)
+            .scale(0.82)
             .next_to(h0_label, DOWN, buff=0.08)
         )
 
@@ -110,7 +110,7 @@ class RNNHighLevel(Scene):
             )
             tok_in_label = (
                 MathTex(f"x_{t}")
-                .scale(0.50)
+                .scale(0.62)
                 .set_color(COLOR_INPUT)
                 .next_to(tok_in, LEFT, buff=0.15)
             )
@@ -138,7 +138,7 @@ class RNNHighLevel(Scene):
             )
             tok_out_label = (
                 MathTex(f"y_{t}")
-                .scale(0.50)
+                .scale(0.62)
                 .set_color(COLOR_OUTPUT)
                 .next_to(tok_out, LEFT, buff=0.15)
             )

@@ -51,8 +51,8 @@ class RNNVariants(Scene):
     TOKENS = ["the", "cat", "sat"]
     N = 3
 
-    CELL_W = 0.70
-    CELL_H = 0.42
+    CELL_W = 0.75
+    CELL_H = 0.44
 
     # Vertical
     Y_TOKEN = -3.30
@@ -80,7 +80,7 @@ class RNNVariants(Scene):
             corner_radius=0.06, width=self.CELL_W, height=self.CELL_H,
             color=color, stroke_width=2,
         ).set_fill(color, opacity=0.12).move_to([x, y, 0])
-        lbl = Tex(rf"\textbf{{{label}}}").scale(0.42).move_to(box.get_center())
+        lbl = Tex(rf"\textbf{{{label}}}").scale(0.55).move_to(box.get_center())
         return VGroup(box, lbl)
 
     def _h_arrow(self, cell_from: VGroup, cell_to: VGroup, color,
@@ -132,9 +132,9 @@ class RNNVariants(Scene):
 
         # Column titles
         col_titles = [
-            Tex(r"\textbf{2-Layer}").scale(0.48),
-            Tex(r"\textbf{Bidirectional}").scale(0.48),
-            Tex(r"\textbf{2-Layer BiDir}").scale(0.48),
+            Tex(r"\textbf{2-Layer}").scale(0.58),
+            Tex(r"\textbf{Bidirectional}").scale(0.58),
+            Tex(r"\textbf{2-Layer BiDir}").scale(0.58),
         ]
         for i, ct in enumerate(col_titles):
             ct.move_to([self.X_COL[i], self.Y_SUBTITLE, 0])
@@ -161,7 +161,7 @@ class RNNVariants(Scene):
         xs = self._xs(0)
 
         # Tokens
-        toks1 = [Tex(rf"\textit{{{t}}}").scale(0.55).move_to([xs[i], self.Y_TOKEN, 0])
+        toks1 = [Tex(rf"\textit{{{t}}}").scale(0.62).move_to([xs[i], self.Y_TOKEN, 0])
                   for i, t in enumerate(self.TOKENS)]
         self.play(*[FadeIn(t) for t in toks1], run_time=self.T_FAST)
 
@@ -180,7 +180,7 @@ class RNNVariants(Scene):
         self._animate_fwd_row(l2, l2_up, COLOR_L2)
 
         # Output
-        out1 = [MathTex(rf"h^2_{i+1}").scale(0.45).set_color(COLOR_L2)
+        out1 = [MathTex(rf"h^2_{i+1}").scale(0.58).set_color(COLOR_L2)
                 .move_to([xs[i], self.Y_OUTPUT, 0]) for i in range(self.N)]
         out1_arr = [Arrow(start=l2[i][0].get_top(), end=out1[i].get_bottom(),
                           buff=0.10, stroke_width=1.5, color=COLOR_L2, tip_length=0.07)
@@ -188,7 +188,7 @@ class RNNVariants(Scene):
         self.play(*[FadeIn(o) for o in out1], *[Create(a) for a in out1_arr],
                   run_time=self.T_CELL)
 
-        note1 = MathTex(r"\text{depth}").scale(0.45).move_to(
+        note1 = MathTex(r"\text{depth}").scale(0.58).move_to(
             [self.X_COL[0], self.Y_OUTPUT + 0.40, 0])
         self.play(FadeIn(note1), run_time=self.T_FAST)
         self.wait(self.T_PAUSE)
@@ -200,7 +200,7 @@ class RNNVariants(Scene):
         Y_FWD = self.Y_R1 - 0.25
         Y_BWD = self.Y_R1 + 0.25
 
-        toks2 = [Tex(rf"\textit{{{t}}}").scale(0.55).move_to([xs[i], self.Y_TOKEN, 0])
+        toks2 = [Tex(rf"\textit{{{t}}}").scale(0.62).move_to([xs[i], self.Y_TOKEN, 0])
                   for i, t in enumerate(self.TOKENS)]
         self.play(*[FadeIn(t) for t in toks2], run_time=self.T_FAST)
 
@@ -220,7 +220,7 @@ class RNNVariants(Scene):
 
         # Concat output
         out2 = [MathTex(rf"[\vec{{h}};\overleftarrow{{h}}]_{i+1}")
-                .scale(0.38).set_color(COLOR_CONCAT)
+                .scale(0.48).set_color(COLOR_CONCAT)
                 .move_to([xs[i], self.Y_OUTPUT, 0]) for i in range(self.N)]
         out2_arr = [Arrow(start=bwd[i][0].get_top(), end=out2[i].get_bottom(),
                           buff=0.10, stroke_width=1.5, color=COLOR_CONCAT, tip_length=0.07)
@@ -228,7 +228,7 @@ class RNNVariants(Scene):
         self.play(*[FadeIn(o) for o in out2], *[Create(a) for a in out2_arr],
                   run_time=self.T_CELL)
 
-        note2 = MathTex(r"\text{full context}").scale(0.45).move_to(
+        note2 = MathTex(r"\text{full context}").scale(0.58).move_to(
             [self.X_COL[1], self.Y_OUTPUT + 0.40, 0])
         self.play(FadeIn(note2), run_time=self.T_FAST)
         self.wait(self.T_PAUSE)
@@ -245,7 +245,7 @@ class RNNVariants(Scene):
         Y_F2 = self.Y_R2 - 0.25
         Y_B2 = self.Y_R2 + 0.25
 
-        toks3 = [Tex(rf"\textit{{{t}}}").scale(0.55).move_to([xs[i], self.Y_TOKEN, 0])
+        toks3 = [Tex(rf"\textit{{{t}}}").scale(0.62).move_to([xs[i], self.Y_TOKEN, 0])
                   for i, t in enumerate(self.TOKENS)]
         self.play(*[FadeIn(t) for t in toks3], run_time=self.T_FAST)
 
@@ -264,7 +264,7 @@ class RNNVariants(Scene):
         self._animate_bwd_row(b1, b1_up, COLOR_BWD)
 
         # L1 label
-        l1_lbl = MathTex(r"\text{L1}").scale(0.45).set_color(COLOR_L1)
+        l1_lbl = MathTex(r"\text{L1}").scale(0.60).set_color(COLOR_L1)
         l1_lbl.next_to(VGroup(f1[0], b1[0]), LEFT, buff=0.08)
 
         # Layer 2 forward — left to right
@@ -282,7 +282,7 @@ class RNNVariants(Scene):
                         buff=0.03, stroke_width=1, color=GREY, tip_length=0.06)
                   for i in range(self.N)]
 
-        l2_lbl = MathTex(r"\text{L2}").scale(0.45).set_color(COLOR_L2)
+        l2_lbl = MathTex(r"\text{L2}").scale(0.60).set_color(COLOR_L2)
         l2_lbl.next_to(VGroup(f2[0], b2[0]), LEFT, buff=0.08)
 
         self._animate_bwd_row(b2, b2_up, COLOR_BWD)
@@ -290,7 +290,7 @@ class RNNVariants(Scene):
 
         # Output
         out3 = [MathTex(rf"[\vec{{h}}^2;\overleftarrow{{h}}^2]_{i+1}")
-                .scale(0.36).set_color(COLOR_CONCAT)
+                .scale(0.46).set_color(COLOR_CONCAT)
                 .move_to([xs[i], self.Y_OUTPUT, 0]) for i in range(self.N)]
         out3_arr = [Arrow(start=b2[i][0].get_top(), end=out3[i].get_bottom(),
                           buff=0.10, stroke_width=1.5, color=COLOR_CONCAT, tip_length=0.07)
@@ -298,7 +298,7 @@ class RNNVariants(Scene):
         self.play(*[FadeIn(o) for o in out3], *[Create(a) for a in out3_arr],
                   run_time=self.T_CELL)
 
-        note3 = MathTex(r"\text{depth + context}").scale(0.45).move_to(
+        note3 = MathTex(r"\text{depth + context}").scale(0.58).move_to(
             [self.X_COL[2], self.Y_OUTPUT + 0.40, 0])
         self.play(FadeIn(note3), run_time=self.T_FAST)
         self.wait(self.T_PAUSE)
