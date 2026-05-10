@@ -22,3 +22,4 @@ website:
           - 06_gan/06_gan.ipynb
           - 07_vae_diffusion/07_vae_diffusion.ipynb
           - 08_nlp_w2v/08_nlp_w2v.ipynb
+          - 09_rnn_transformer/08_seminar_rnn_transformer.ipynb
