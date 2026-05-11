@@ -50,9 +50,33 @@ def _ensure_static_dir(static_dir: Path) -> Path:
     return static_dir
 
 
+def _next_image_index(static_dir: Path) -> int:
+    """Return one past the highest existing img_N.* index, so new files never overwrite."""
+    if not static_dir.exists():
+        return 0
+    pattern = re.compile(r"^img_(\d+)\.[a-zA-Z0-9]+$")
+    max_idx = -1
+    for entry in static_dir.iterdir():
+        m = pattern.match(entry.name)
+        if m:
+            max_idx = max(max_idx, int(m.group(1)))
+    return max_idx + 1
+
+
+def _detect_image_ext(data: bytes, declared_mime: str) -> str:
+    """Detect image extension from magic bytes; fallback to declared MIME."""
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "png"
+    if data[:3] == b"\xff\xd8\xff":
+        return "jpg"
+    if data[:6] in (b"GIF87a", b"GIF89a"):
+        return "gif"
+    return MIME_TO_EXT.get(declared_mime.lower(), "png")
+
+
 def _save_base64_image(static_dir: Path, data: bytes, mime: str, counter: int) -> str:
     """Save decoded image to static_dir; return path for src (e.g. 'static/img_0.png')."""
-    ext = MIME_TO_EXT.get(mime.lower(), "png")
+    ext = _detect_image_ext(data, mime)
     name = f"img_{counter}.{ext}"
     path = static_dir / name
     path.write_bytes(data)
@@ -137,6 +161,37 @@ def process_cell_source(
         r"!\[[^\]]*\]\(((?:\./)?static/[^)]+)\)",
         replace_local_md,
         text,
+    )
+
+    # 3.5) HTML <img> with base64 data URL: <img src="data:image/xxx;base64,..." ... />
+    def replace_img_data_url(match: re.Match) -> str:
+        nonlocal changed
+        mime = match.group(1).strip().lower()
+        b64_raw = match.group(2)
+        ext = MIME_TO_EXT.get(mime)
+        if not ext:
+            print("Unknown mime type:", mime)
+            return match.group(0)
+        b64_clean = b64_raw.replace("\n", "").replace("\r", "").strip()
+        idx = image_counter[0]
+        image_counter[0] += 1
+        if dry_run:
+            changed = True
+            return f'<img src="static/img_{idx}.{ext}" width={MAX_WIDTH} />'
+        try:
+            data = base64.b64decode(b64_clean)
+        except Exception:
+            print("Failed to decode base64:", b64_clean[:100])
+            return match.group(0)
+        src_path = _save_base64_image(static_dir, data, mime, idx)
+        changed = True
+        return f'<img src="{src_path}" width={MAX_WIDTH} />'
+
+    text = re.sub(
+        r"""<img\s+[^>]*?src\s*=\s*["']data:image/([^;]+);base64,([^"']+)["'][^>]*?/?>""",
+        replace_img_data_url,
+        text,
+        flags=re.DOTALL,
     )
 
     # 4) Existing <img ... src="..." ...>: ensure width=400 (add or replace)
@@ -228,7 +283,7 @@ def process_notebook(notebook_path: Path, dry_run: bool = False) -> bool:
         nb = json.load(f)
 
     modified = False
-    image_counter = [0]
+    image_counter = [_next_image_index(static_dir)]
 
     for cell in nb.get("cells", []):
         src = cell.get("source", [])
