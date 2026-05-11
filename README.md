@@ -126,20 +126,22 @@ $ O_{exam3} $ и $ O_{exam4} $ - оценки за экзамен соответ
 | 20.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE. | transformer-attention, rnn-attention |
 | 27.04 | -                                                                |                                  |
 | 04.05 | -                                                                |                                  |
-| 11.05 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models.  |                 |
-| 18.05 | Scaling Laws. In context learning. Test time scaling (thinking models). PEFT. | efficiency          |
+| 11.05 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models. Scaling Laws. In context learning. (Seminar: + Distributed Train, Evaluation) |                 |
+| 18.05 | Test time scaling: majority voting, CoT. GRPO. (Seminar: + vllm, PEFT) | efficiency          |
 | 01.06 | Function Calling. Agentic patterns. Observability. MCP. RAG.     | llm-agent (+mcp)                 |
 | 08.06 | Vision Transformers. Self-supervised, contrastive learning.      | clip                             |
 | 22.06 | Мультимодальные модели                                           | 🎁 multimodal-llm        |
 | 15.06 | -                                                                |                                  |
 | 17.06 | _экзамен_                                                        |                                  |
 
+<!--
 **Дополнительные темы:**
 * Эволюционные алгоритмы и LLM - AlphaEvolve
 * Методы интерпретируемости глубоких нейросетевых моделей - SAE, Activation Patching
 * Устройство GPU. Низкоуровневое программирование на Triton
 * Эффективность LLM (квантизация, спекулятивный декодинг, дистилляция, прунинг)
 * GNN - графовые нейросети
+-->
 
 
 ## Литература
