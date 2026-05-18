@@ -128,6 +128,7 @@ $ O_{exam3} $ и $ O_{exam4} $ - оценки за экзамен соответ
 | 04.05 | -                                                                |                                  |
 | 11.05 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models. Scaling Laws. In context learning. (Seminar: + Distributed Train, Evaluation) |                 |
 | 18.05 | Evaluation. Test time scaling: majority voting, CoT. DPO, PPO, GRPO. (Seminar: + vllm, efficiency) | efficiency          |
+| 25.05 | -                                                                |                                  |
 | 01.06 | Function Calling. Agentic patterns. Observability. MCP. RAG.     | llm-agent (+mcp)                 |
 | 08.06 | Vision Transformers. Self-supervised, contrastive learning.      | clip                             |
 | 22.06 | Мультимодальные модели                                           | 🎁 multimodal-llm        |
