@@ -24,3 +24,4 @@ website:
           - 08_nlp_w2v/08_nlp_w2v.ipynb
           - 09_rnn_transformer/08_seminar_rnn_transformer.ipynb
           - 10_llm/10_llm.ipynb
+          - 11_eval_tts/11_eval_tts.ipynb
