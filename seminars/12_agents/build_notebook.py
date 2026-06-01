@@ -82,16 +82,20 @@ md(
 3. **наш код** исполняет вызов и возвращает результат модели;
 4. повторяем, пока задача не решена.
 
-Ниже почти весь код работает **без GPU и без интернета** — на детерминированном «mock LLM», чтобы семинар был воспроизводим. Реальный Qwen и внешние API подключаются опциональными ячейками.
+В качестве модели используем **реальную** Qwen через [Cloud.ru Foundation Models](https://cloud.ru/docs/foundation-models/ug/index) — это OpenAI-совместимый API. Нужен только ключ в переменной окружения `API_KEY` (получить в личном кабинете Cloud.ru) и пакет `openai`. GPU не требуется — модель крутится на стороне облака.
+
+> Если ключа/сети нет — все демо автоматически падают на детерминированный `MockLLM`, чтобы семинар оставался воспроизводимым.
 """
 )
 
 code(
     """
 # В Colab при необходимости раскомментируйте:
-# !pip install -q transformers torch
+# !pip install -q openai
 
+import getpass
 import json
+import os
 import re
 import textwrap
 from dataclasses import dataclass, field
@@ -101,7 +105,25 @@ import random
 
 random.seed(0)
 
-print("Окружение готово. Тяжёлые зависимости (torch/transformers) — опциональны.")
+# --- Конфиг Cloud.ru Foundation Models (OpenAI-совместимый API) ---
+# Документация: https://cloud.ru/docs/foundation-models/ug/index
+CLOUDRU_BASE_URL = "https://foundation-models.api.cloud.ru/v1"
+CLOUDRU_MODEL = "Qwen/Qwen3-Coder-Next"
+
+# Ключ берём из переменной окружения API_KEY (получить в ЛК Cloud.ru).
+# Если не задан — спросим интерактивно с маскированием ввода (как пароль).
+if not os.environ.get("API_KEY"):
+    try:
+        os.environ["API_KEY"] = getpass.getpass(
+            "Введите API-ключ Cloud.ru (ввод скрыт; Enter — пропустить и работать на MockLLM): "
+        ).strip()
+    except Exception:  # noqa: BLE001
+        pass  # неинтерактивный запуск (nbconvert): остаёмся без ключа -> MockLLM
+
+if os.environ.get("API_KEY"):
+    print("Ключ Cloud.ru принят. Модель по умолчанию:", CLOUDRU_MODEL)
+else:
+    print("⚠️  Ключ не задан — демо автоматически упадут на MockLLM (фолбэк).")
 """
 )
 
@@ -130,7 +152,7 @@ model:   "В Париже сейчас +18°C и ясно."
 - **parsing**: вытаскиваем `name`/`arguments` из ответа (и валидируем их);
 - **execution**: реально вызываем функцию и кладём результат обратно в диалог.
 
-![Цикл tool calling: модель решает, харнесс парсит и исполняет](static/tool_calling_cycle.png)
+<img src="https://github.com/fintech-dl-hse/course/raw/refs/heads/main/seminars/12_agents/static/tool_calling_cycle.png" width=700 />
 """
 )
 
@@ -404,18 +426,62 @@ print(execute_tool_calls(parse_tool_calls(demo)))
 
 md(
     """
-### 1.3 Детерминированный mock LLM
+### 1.3 Подключаем реальную модель (Cloud.ru Foundation Models)
 
-Чтобы цикл tool calling был воспроизводим на семинаре (без GPU и сети), заменим модель на **сценарный mock**: он отдаёт заранее заданные ответы по шагам — ровно в том формате, который выдала бы настоящая Qwen. Парсер и исполнитель при этом — настоящие.
+Возьмём **настоящую** модель `Qwen/Qwen3-Coder-Next` через [Cloud.ru Foundation Models](https://cloud.ru/docs/foundation-models/ug/index). Она обучена на tool calling в формате `<tool_call>...</tool_call>`, поэтому наш самодельный харнесс (system prompt + regex-парсер + исполнитель) работает с ней напрямую.
+
+Главная мысль: модель — это просто функция `messages -> текст`. Завернём вызов API в класс с методом `.generate(messages) -> str` — ровно такой интерфейс ждёт `run_tool_loop`. Поэтому **харнесс не меняется**: реальная модель и `MockLLM`-фолбэк взаимозаменяемы.
+
+Так как tool calling мы делаем «вручную» (теги в тексте, а не нативное поле `tool_calls`), результат инструмента возвращаем модели как user-сообщение в обёртке `<tool_response>...</tool_response>` — именно так его ждёт chat template Qwen. Детерминированный `MockLLM` оставляем как фолбэк на случай отсутствия ключа/сети.
 """
 )
 
 code(
     '''
-class MockLLM:
-    """Игрушечная «модель»: отдаёт заранее заготовленные ответы по очереди.
+from openai import OpenAI
 
-    Реальная модель смотрит на messages; mock просто проигрывает script.
+
+class CloudRuLLM:
+    """Реальная модель поверх Cloud.ru Foundation Models (OpenAI-совместимый API).
+
+    Интерфейс совпадает с MockLLM — .generate(messages) -> str, поэтому весь
+    харнесс (run_tool_loop / run_agent) работает без изменений.
+    """
+
+    def __init__(self, model: str = CLOUDRU_MODEL, temperature: float = 0.3,
+                 max_tokens: int = 1024):
+        self.client = OpenAI(api_key=os.environ["API_KEY"], base_url=CLOUDRU_BASE_URL)
+        self.model = model
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+
+    @staticmethod
+    def _to_api(msg: dict) -> dict:
+        """Привести наше внутреннее сообщение к формату chat-completions API."""
+        # Tool calling делаем «вручную» (теги <tool_call> в тексте), поэтому
+        # результат инструмента возвращаем как user-сообщение в обёртке
+        # <tool_response> — так его ждёт chat template Qwen.
+        if msg["role"] == "tool":
+            return {"role": "user",
+                    "content": f"<tool_response>\\n{msg['content']}\\n</tool_response>"}
+        return {"role": msg["role"], "content": msg["content"]}
+
+    def generate(self, messages: list[dict]) -> str:
+        resp = self.client.chat.completions.create(
+            model=self.model,
+            messages=[self._to_api(m) for m in messages],
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+            top_p=0.95,
+        )
+        return resp.choices[0].message.content or ""
+
+
+class MockLLM:
+    """Детерминированный фолбэк: отдаёт заранее заготовленные ответы по очереди.
+
+    Нужен для воспроизводимости без сети/ключа. Реальная модель смотрит на
+    messages; mock просто проигрывает script — в том же формате, что выдала бы Qwen.
     """
 
     def __init__(self, script: list[str]):
@@ -428,7 +494,19 @@ class MockLLM:
         return out
 
 
-# Сценарий: сначала два tool call, потом финальный ответ.
+def make_llm(fallback_script: list[str] | None = None, **kwargs):
+    """Вернуть реальную модель Cloud.ru, либо MockLLM как фолбэк (без ключа/сети)."""
+    if os.environ.get("API_KEY"):
+        try:
+            return CloudRuLLM(**kwargs)
+        except Exception as exc:  # noqa: BLE001
+            print(f"CloudRuLLM недоступна ({exc}); используем MockLLM.")
+    else:
+        print("API_KEY не задан — используем детерминированный MockLLM (фолбэк).")
+    return MockLLM(fallback_script or ["(нет ответа)"])
+
+
+# Сценарий-фолбэк для MockLLM: сначала два tool call, потом финальный ответ.
 weather_calc_script = [
     (
         '<tool_call>{"name": "get_weather", "arguments": {"city": "Paris"}}</tool_call>\\n'
@@ -436,7 +514,7 @@ weather_calc_script = [
     ),
     "В Париже +18°C и ясно, а 2 + 2 * 10 = 22.",
 ]
-print("mock готов")
+print("LLM-обёртки готовы: CloudRuLLM (реальная) + MockLLM (фолбэк).")
 '''
 )
 
@@ -464,7 +542,8 @@ def run_tool_loop(llm, user_msg: str, schemas: list[dict], max_steps: int = 5, v
     return "Достигнут лимит шагов"
 
 
-final = run_tool_loop(MockLLM(weather_calc_script), "Погода в Париже и сколько 2+2*10?", TOOL_SCHEMAS)
+llm = make_llm(weather_calc_script)  # реальная Cloud.ru при наличии ключа, иначе mock
+final = run_tool_loop(llm, "Погода в Париже и сколько 2+2*10?", TOOL_SCHEMAS)
 print("\\nИТОГ:", final)
 '''
 )
@@ -487,9 +566,9 @@ md(
 
 md(
     """
-### 1.4 Реальная Qwen (опционально, нужен torch+transformers)
+### 1.4 Альтернатива: локальный Qwen через transformers (опционально)
 
-Здесь всё то же самое, но шаблон с инструментами строит сам `transformers`. Передаём `tools=` как список python-функций — схема собирается из docstring и type hints.
+Если хочется крутить модель **локально** (а не через Cloud.ru), всё то же самое, но шаблон с инструментами строит сам `transformers`. Передаём `tools=` как список python-функций — схема собирается из docstring и type hints.
 """
 )
 
@@ -501,7 +580,7 @@ def try_qwen_tool_call(user_msg: str, model_name: str = "Qwen/Qwen2.5-1.5B-Instr
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
     except ImportError:
-        print("transformers/torch не установлены — пропускаем (см. mock выше).")
+        print("transformers/torch не установлены — пропускаем (используйте Cloud.ru выше).")
         return None
 
     tok = AutoTokenizer.from_pretrained(model_name)
@@ -529,32 +608,38 @@ print("Ячейка с Qwen готова — раскомментируйте в
 
 md(
     """
-### 1.5 Внешний API (опционально)
+### 1.5 Нативный tool calling через API (структурно)
 
-С хостед-моделями tool calling — это структурное поле в ответе (`tool_calls`), парсить регулярками не нужно. Любой OpenAI-совместимый эндпоинт (OpenAI, локальный vLLM с `--enable-auto-tool-choice`, и т.д.) работает одинаково.
+Выше мы парсили `<tool_call>` регулярками — так видно, что «под капотом». Но OpenAI-совместимый API (включая Cloud.ru) умеет возвращать вызовы инструментов **структурно**: передаём `tools=` со схемами, а в ответе получаем готовое поле `tool_calls` (имя + JSON-аргументы) — парсить регэкспами не нужно. Это и есть «промышленный» путь поверх того же Cloud.ru.
 """
 )
 
 code(
     '''
-# ОПЦИОНАЛЬНО: нужен ключ/эндпоинт и пакет openai.
-def try_openai_tool_call(user_msg: str):
-    try:
-        from openai import OpenAI
-    except ImportError:
-        print("пакет openai не установлен — пропускаем.")
+def cloudru_native_tool_call(user_msg: str, model: str = CLOUDRU_MODEL):
+    """Структурный tool calling: tools= на входе, готовое поле tool_calls на выходе."""
+    if not os.environ.get("API_KEY"):
+        print("API_KEY не задан — пропускаем (нужен ключ Cloud.ru).")
         return None
-    # client = OpenAI()  # или base_url=локальный vLLM, api_key=...
-    # resp = client.chat.completions.create(
-    #     model="gpt-4o-mini",
-    #     messages=[{"role": "user", "content": user_msg}],
-    #     tools=TOOL_SCHEMAS,
-    # )
-    # tool_calls = resp.choices[0].message.tool_calls  # уже структурно!
-    print("Раскомментируйте тело функции и задайте ключ/эндпоинт.")
+
+    client = OpenAI(api_key=os.environ["API_KEY"], base_url=CLOUDRU_BASE_URL)
+    resp = client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": user_msg}],
+        tools=TOOL_SCHEMAS,        # те же схемы, что мы отдавали вручную в system prompt
+        temperature=0.3,
+    )
+    msg = resp.choices[0].message
+    if msg.tool_calls:
+        for tc in msg.tool_calls:
+            # tc.function.name / tc.function.arguments — уже структурно, без regex.
+            print(f"tool_call: {tc.function.name}({tc.function.arguments})")
+    else:
+        print("Модель ответила текстом:", msg.content)
+    return msg
 
 
-print("Ячейка с API готова.")
+cloudru_native_tool_call("Какая погода в Москве?")
 '''
 )
 
@@ -569,7 +654,7 @@ md(
 
 > **Agent = LLM + Harness**
 
-![Agent = LLM + Harness: модель внутри обвязки](static/agent_equals_llm_harness.png)
+<img src="https://github.com/fintech-dl-hse/course/raw/refs/heads/main/seminars/12_agents/static/agent_equals_llm_harness.png" width=700 />
 
 Разница между workflow и агентом — в **степени неопределённости** и в том, **кто решает, что делать дальше**.
 
@@ -583,7 +668,7 @@ md(
 
 Эвристика: если вы можете нарисовать блок-схему заранее и она не меняется от входа — это **workflow**. Если модель сама выбирает следующий шаг в цикле «подумал → сделал → посмотрел на результат» — это **agent**.
 
-![Workflow vs Agent: фиксированный конвейер против петли решений](static/workflow_vs_agent.png)
+<img src="https://github.com/fintech-dl-hse/course/raw/refs/heads/main/seminars/12_agents/static/workflow_vs_agent.png" width=600 />
 
 **Harness** (обвязка) — это всё вокруг модели: цикл, набор тулзов, system prompt, управление контекстом/памятью, лимиты шагов, обработка ошибок, логирование.
 """
@@ -760,7 +845,7 @@ def run_agent(llm, task: str, tools: dict, schemas: list[dict], max_steps: int =
 
 code(
     '''
-# Сценарий для mock-агента: записать число, прочитать, возвести в квадрат, ответить.
+# Фолбэк-сценарий для MockLLM: записать число, прочитать, возвести в квадрат, ответить.
 agent_script = [
     '<tool_call>{"name": "write_file", "arguments": {"filename": "n.txt", "content": "7"}}</tool_call>',
     '<tool_call>{"name": "read_file", "arguments": {"filename": "n.txt"}}</tool_call>',
@@ -769,8 +854,8 @@ agent_script = [
 ]
 
 result = run_agent(
-    MockLLM(agent_script),
-    task="Сохрани число 7 в файл n.txt, потом посчитай его квадрат.",
+    make_llm(agent_script),  # реальная Cloud.ru при наличии ключа, иначе mock
+    task="Сохрани число 7 в файл n.txt, потом прочитай его и посчитай его квадрат.",
     tools=AGENT_TOOLS,
     schemas=AGENT_SCHEMAS,
 )
@@ -781,7 +866,7 @@ print("Файлы в песочнице:", list_files())
 
 md(
     """
-Чтобы подключить реальную модель — достаточно отдать в `run_agent` объект с методом `.generate(messages) -> str` поверх Qwen (как в 1.4) или внешнего API. Весь харнесс (цикл, тулзы, лимиты) остаётся тем же. **Это и есть «сделать своего openclaw».**
+Мы уже подключили реальную модель: в `run_agent` ушёл `CloudRuLLM` с методом `.generate(messages) -> str` (через `make_llm`). Весь харнесс (цикл, тулзы, лимиты) при этом не изменился — поменялась только сама «модель». **Это и есть «сделать своего openclaw».**
 """
 )
 
@@ -1121,10 +1206,11 @@ md(
 ## Идеи и материалы
 
 - **Загоняйте модель в жёсткие рамки.** Узкие тулзы, точные контракты, plan mode, лимиты шагов — чем меньше свободы у модели в опасных местах, тем надёжнее агент.
-- Поиграть: подключить к `run_agent` реальную Qwen из 1.4 и дать задачу посложнее.
+- Поиграть: дать `run_agent` (на реальной Cloud.ru-модели) задачу посложнее или добавить новый тул.
 
 ### Ссылки
 
+- Cloud.ru Foundation Models — документация: https://cloud.ru/docs/foundation-models/ug/index
 - SWE-bench: https://www.swebench.com/
 - Anthropic — *Building effective agents*: https://www.anthropic.com/research/building-effective-agents
 - Model Context Protocol: https://modelcontextprotocol.io/
