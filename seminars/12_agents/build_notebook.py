@@ -152,7 +152,7 @@ model:   "В Париже сейчас +18°C и ясно."
 - **parsing**: вытаскиваем `name`/`arguments` из ответа (и валидируем их);
 - **execution**: реально вызываем функцию и кладём результат обратно в диалог.
 
-<img src="https://github.com/fintech-dl-hse/course/raw/refs/heads/main/seminars/12_agents/static/tool_calling_cycle.png" width=700 />
+<img src="static/tool_calling_cycle.png" width=700 />
 """
 )
 
@@ -654,7 +654,7 @@ md(
 
 > **Agent = LLM + Harness**
 
-<img src="https://github.com/fintech-dl-hse/course/raw/refs/heads/main/seminars/12_agents/static/agent_equals_llm_harness.png" width=700 />
+<img src="static/agent_equals_llm_harness.png" width=700 />
 
 Разница между workflow и агентом — в **степени неопределённости** и в том, **кто решает, что делать дальше**.
 
@@ -668,7 +668,7 @@ md(
 
 Эвристика: если вы можете нарисовать блок-схему заранее и она не меняется от входа — это **workflow**. Если модель сама выбирает следующий шаг в цикле «подумал → сделал → посмотрел на результат» — это **agent**.
 
-<img src="https://github.com/fintech-dl-hse/course/raw/refs/heads/main/seminars/12_agents/static/workflow_vs_agent.png" width=600 />
+<img src="static/workflow_vs_agent.png" width=600 />
 
 **Harness** (обвязка) — это всё вокруг модели: цикл, набор тулзов, system prompt, управление контекстом/памятью, лимиты шагов, обработка ошибок, логирование.
 """
