@@ -1,0 +1,58 @@
+\documentclass[border=10pt]{standalone}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, fit, backgrounds, calc}
+
+\definecolor{inputcol}{HTML}{4FC3F7}
+\definecolor{modelcol}{HTML}{AB47BC}
+\definecolor{harncol}{HTML}{FFA726}
+\definecolor{outputcol}{HTML}{66BB6A}
+
+\begin{document}
+\begin{tikzpicture}[
+  comp/.style={draw, rounded corners=3pt, minimum width=2.5cm, minimum height=0.85cm,
+    font=\sffamily\small, align=center, line width=0.6pt, fill=harncol!18},
+  model/.style={draw, rounded corners=3pt, minimum width=3.0cm, minimum height=1.4cm,
+    font=\sffamily\bfseries, align=center, line width=0.9pt, fill=modelcol!30},
+  io/.style={draw, rounded corners=3pt, minimum width=2.0cm, minimum height=0.9cm,
+    font=\sffamily\small, align=center, line width=0.6pt},
+  conn/.style={-{Stealth[length=5pt, width=4pt]}, line width=0.7pt},
+  annot/.style={font=\sffamily\scriptsize, text=gray!60!black},
+]
+
+% LLM at the center
+\node[model] (llm) {LLM\\[2pt]\scriptsize messages $\to$ text};
+
+% Harness components around the LLM
+\node[comp, above=1.3cm of llm] (loop) {Agent loop};
+\node[comp, below=1.3cm of llm] (tools) {Tools};
+\node[comp, left=1.6cm of llm] (sys) {System prompt};
+\node[comp, right=1.6cm of llm] (mem) {Memory /\\ context};
+\node[comp, above left=1.0cm and 1.2cm of llm] (limit) {Step limit};
+\node[comp, above right=1.0cm and 1.2cm of llm] (err) {Error handling};
+
+% thin connectors model <-> components
+\foreach \n in {loop, tools, sys, mem, limit, err} {
+  \draw[gray!50, line width=0.5pt] (llm) -- (\n);
+}
+
+% Group everything as the harness
+\begin{scope}[on background layer]
+  \node[fit=(llm)(loop)(tools)(sys)(mem)(limit)(err), fill=harncol!7,
+        rounded corners=10pt, inner sep=16pt] (harness) {};
+\end{scope}
+\node[annot, text=harncol!60!black, anchor=north west, font=\sffamily\small]
+  at (harness.north west) [xshift=2pt, yshift=-2pt] {Harness};
+
+% Input / output
+\node[io, fill=inputcol!30, left=1.4cm of harness] (task) {Task};
+\node[io, fill=outputcol!30, right=1.4cm of harness] (result) {Result};
+\draw[conn] (task) -- (harness.west);
+\draw[conn] (harness.east) -- (result);
+
+% Title equation below
+\node[font=\sffamily\Large, below=0.7cm of harness]
+  {$\textbf{Agent} = \textbf{LLM} + \textbf{Harness}$};
+
+\end{tikzpicture}
+\end{document}

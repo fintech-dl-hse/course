@@ -129,6 +129,8 @@ model:   "В Париже сейчас +18°C и ясно."
 - **system prompt**: рассказываем модели, какие тулы есть и в каком формате звать;
 - **parsing**: вытаскиваем `name`/`arguments` из ответа (и валидируем их);
 - **execution**: реально вызываем функцию и кладём результат обратно в диалог.
+
+![Цикл tool calling: модель решает, харнесс парсит и исполняет](static/tool_calling_cycle.png)
 """
 )
 
@@ -234,6 +236,95 @@ md(
 Описание инструментов кладётся в **system prompt**. Когда мы пользуемся `transformers`, это делает `tokenizer.apply_chat_template(..., tools=...)` за нас. Но чтобы понять, что «под капотом», соберём system prompt руками.
 """
 )
+
+md(
+    """
+### Qwen3 Chat Template
+
+
+- [Playground](https://huggingface.co/spaces/huggingfacejs/chat-template-playground?modelId=Qwen%2FQwen3-235B-A22B)
+- [Blog](https://huggingface.co/blog/qwen-3-chat-template-deep-dive)
+
+
+<div style="font-family: ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace; font-size: 13px; line-height: 1.5;">
+
+<div style="border: 1px solid #ddd6fe; border-left: 4px solid #7c3aed; background: #faf5ff; padding: 10px 14px; border-radius: 6px; margin: 8px 0; color: #1f2937;">
+<div style="font-size: 11px; letter-spacing: 0.05em; color: #7c3aed; font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">▌ SYSTEM</div>
+<div style="color: #9ca3af; font-size: 11px;">&lt;|im_start|&gt;<span style="color:#7c3aed; font-weight:600;">system</span></div>
+<div>You are a helpful assistant that can use tools to get information for the user.</div>
+
+<div style="color: #b45309; font-weight: 700; margin-top: 10px;"># Tools</div>
+<div style="margin-top: 4px;">You may call one or more functions to assist with the user query.</div>
+<div style="margin-top: 4px;">You are provided with function signatures within <span style="color:#0891b2; font-weight:600;">&lt;tools&gt;&lt;/tools&gt;</span> XML tags:</div>
+<div style="color:#0891b2; font-weight:600; margin-top: 4px;">&lt;tools&gt;</div>
+<pre style="margin: 4px 0; padding: 8px 10px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 4px; white-space: pre-wrap; word-break: break-word; color: #111827; font-size: 12px;">{"name": "get_weather", "description": "Get current weather information for a location", "parameters": {"type": "object", "properties": {"location": {"type": "string", "description": "The city and state, e.g. San Francisco, CA"}, "unit": {"type": "string", "enum": ["celsius", "fahrenheit"], "description": "The unit of temperature to use"}}, "required": ["location"]}}</pre>
+<div style="color:#0891b2; font-weight:600;">&lt;/tools&gt;</div>
+<div style="margin-top: 4px;">For each function call, return a json object with function name and arguments within <span style="color:#ea580c; font-weight:600;">&lt;tool_call&gt;&lt;/tool_call&gt;</span> XML tags.</div>
+
+<div style="color: #b45309; font-weight: 700; margin-top: 12px;"># Tools</div>
+<div style="margin-top: 4px;">You may call one or more functions to assist with the user query.</div>
+<div style="margin-top: 4px;">You are provided with function signatures within <span style="color:#0891b2; font-weight:600;">&lt;tools&gt;&lt;/tools&gt;</span> XML tags:</div>
+<div style="color:#0891b2; font-weight:600; margin-top: 4px;">&lt;tools&gt;</div>
+<pre style="margin: 4px 0; padding: 8px 10px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 4px; white-space: pre-wrap; word-break: break-word; color: #111827; font-size: 12px;">{"name": "get_weather", "description": "Get current weather information for a location", "parameters": {"type": "object", "properties": {"location": {"type": "string", "description": "The city and state, e.g. San Francisco, CA"}, "unit": {"type": "string", "enum": ["celsius", "fahrenheit"], "description": "The unit of temperature to use"}}, "required": ["location"]}}</pre>
+<div style="color:#0891b2; font-weight:600;">&lt;/tools&gt;</div>
+<div style="margin-top: 4px;">For each function call, return a json object with function name and arguments within <span style="color:#ea580c; font-weight:600;">&lt;tool_call&gt;&lt;/tool_call&gt;</span> XML tags:</div>
+<div style="color:#ea580c; font-weight:600; margin-top: 4px;">&lt;tool_call&gt;</div>
+<pre style="margin: 4px 0; padding: 8px 10px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 4px; color: #111827; font-size: 12px;">{"name": &lt;function-name&gt;, "arguments": &lt;args-json-object&gt;}</pre>
+<div style="color:#ea580c; font-weight:600;">&lt;/tool_call&gt;</div>
+<div style="color: #9ca3af; font-size: 11px; margin-top: 4px;">&lt;|im_end|&gt;</div>
+</div>
+
+<div style="border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; background: #f0fdf4; padding: 10px 14px; border-radius: 6px; margin: 8px 0; color: #1f2937;">
+<div style="font-size: 11px; letter-spacing: 0.05em; color: #16a34a; font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">▌ USER</div>
+<div style="color: #9ca3af; font-size: 11px;">&lt;|im_start|&gt;<span style="color:#16a34a; font-weight:600;">user</span></div>
+<div>What's the weather like in New York?</div>
+<div style="color: #9ca3af; font-size: 11px;">&lt;|im_end|&gt;</div>
+</div>
+
+<div style="border: 1px solid #bfdbfe; border-left: 4px solid #2563eb; background: #eff6ff; padding: 10px 14px; border-radius: 6px; margin: 8px 0; color: #1f2937;">
+<div style="font-size: 11px; letter-spacing: 0.05em; color: #2563eb; font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">▌ ASSISTANT <span style="color:#ea580c; font-weight:500; text-transform: none; letter-spacing: 0;">→ tool call</span></div>
+<div style="color: #9ca3af; font-size: 11px;">&lt;|im_start|&gt;<span style="color:#2563eb; font-weight:600;">assistant</span></div>
+<div>I'll check the current weather in New York for you.</div>
+<div style="color:#ea580c; font-weight:600; margin-top: 4px;">&lt;tool_call&gt;</div>
+<pre style="margin: 4px 0; padding: 8px 10px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 4px; color: #111827; font-size: 12px;">{"name": "get_weather", "arguments": {"location": "New York", "unit": "celsius"}}</pre>
+<div style="color:#ea580c; font-weight:600;">&lt;/tool_call&gt;</div>
+<div style="color: #9ca3af; font-size: 11px;">&lt;|im_end|&gt;</div>
+</div>
+
+<div style="border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; background: #f0fdf4; padding: 10px 14px; border-radius: 6px; margin: 8px 0; color: #1f2937;">
+<div style="font-size: 11px; letter-spacing: 0.05em; color: #16a34a; font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">▌ USER <span style="color:#0891b2; font-weight:500; text-transform: none; letter-spacing: 0;">← tool response</span></div>
+<div style="color: #9ca3af; font-size: 11px;">&lt;|im_start|&gt;<span style="color:#16a34a; font-weight:600;">user</span></div>
+<div style="color:#0891b2; font-weight:600; margin-top: 4px;">&lt;tool_response&gt;</div>
+<pre style="margin: 4px 0; padding: 8px 10px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 4px; color: #111827; font-size: 12px;">{"temperature": 22, "condition": "Sunny", "humidity": 45, "wind_speed": 10}</pre>
+<div style="color:#0891b2; font-weight:600;">&lt;/tool_response&gt;</div>
+<div style="color: #9ca3af; font-size: 11px;">&lt;|im_end|&gt;</div>
+</div>
+
+<div style="border: 1px solid #bfdbfe; border-left: 4px solid #2563eb; background: #eff6ff; padding: 10px 14px; border-radius: 6px; margin: 8px 0; color: #1f2937;">
+<div style="font-size: 11px; letter-spacing: 0.05em; color: #2563eb; font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">▌ ASSISTANT</div>
+<div style="color: #9ca3af; font-size: 11px;">&lt;|im_start|&gt;<span style="color:#2563eb; font-weight:600;">assistant</span></div>
+<div>The weather in New York is currently sunny with a temperature of 22°C. The humidity is at 45% with a wind speed of 10 km/h. It's a great day to be outside!</div>
+<div style="color: #9ca3af; font-size: 11px;">&lt;|im_end|&gt;</div>
+</div>
+
+<div style="border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; background: #f0fdf4; padding: 10px 14px; border-radius: 6px; margin: 8px 0; color: #1f2937;">
+<div style="font-size: 11px; letter-spacing: 0.05em; color: #16a34a; font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">▌ USER</div>
+<div style="color: #9ca3af; font-size: 11px;">&lt;|im_start|&gt;<span style="color:#16a34a; font-weight:600;">user</span></div>
+<div>Thanks! What about Boston?</div>
+<div style="color: #9ca3af; font-size: 11px;">&lt;|im_end|&gt;</div>
+</div>
+
+<div style="border: 1px dashed #93c5fd; border-left: 4px solid #2563eb; background: #eff6ff; padding: 10px 14px; border-radius: 6px; margin: 8px 0; color: #1f2937;">
+<div style="font-size: 11px; letter-spacing: 0.05em; color: #2563eb; font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">▌ ASSISTANT <span style="color:#9ca3af; font-weight:500; text-transform: none; letter-spacing: 0;">— модель продолжает генерацию отсюда</span></div>
+<div style="color: #9ca3af; font-size: 11px;">&lt;|im_start|&gt;<span style="color:#2563eb; font-weight:600;">assistant</span></div>
+<div style="color:#9ca3af; font-style: italic;">▍</div>
+</div>
+
+</div>
+
+"""
+)
+
 
 code(
     '''
@@ -478,6 +569,8 @@ md(
 
 > **Agent = LLM + Harness**
 
+![Agent = LLM + Harness: модель внутри обвязки](static/agent_equals_llm_harness.png)
+
 Разница между workflow и агентом — в **степени неопределённости** и в том, **кто решает, что делать дальше**.
 
 | | Workflow | Agent |
@@ -489,6 +582,8 @@ md(
 | Надёжность | высокая, предсказуемая | ниже, зато гибкая |
 
 Эвристика: если вы можете нарисовать блок-схему заранее и она не меняется от входа — это **workflow**. Если модель сама выбирает следующий шаг в цикле «подумал → сделал → посмотрел на результат» — это **agent**.
+
+![Workflow vs Agent: фиксированный конвейер против петли решений](static/workflow_vs_agent.png)
 
 **Harness** (обвязка) — это всё вокруг модели: цикл, набор тулзов, system prompt, управление контекстом/памятью, лимиты шагов, обработка ошибок, логирование.
 """
