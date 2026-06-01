@@ -836,18 +836,25 @@ print("Инструменты агента:", list(AGENT_TOOLS))
 
 code(
     '''
-def run_agent(llm, task: str, tools: dict, schemas: list[dict], max_steps: int = 8, verbose: bool = True):
+def run_agent(llm, task: str, tools: dict, schemas: list[dict], max_steps: int = 8,
+              verbose: bool = True, messages: list[dict] | None = None):
     """Agent loop: модель в цикле дёргает тулзы, пока не вернёт финальный текст.
 
     Это и есть харнесс: system prompt + цикл + исполнение + лимит шагов.
+
+    Если передать `messages` — продолжаем уже существующий диалог (с историей);
+    список мутируется на месте, поэтому вызывающий код видит всю переписку.
+    Без `messages` каждый вызов начинает разговор с нуля.
     """
-    system = render_system_prompt(schemas) + (
-        "\\n\\nКогда задача выполнена — ответь пользователю обычным текстом без tool_call."
-    )
-    messages = [
-        {"role": "system", "content": system},
-        {"role": "user", "content": task},
-    ]
+    if messages is None:
+        messages = []
+    # system prompt (со списком тулзов) добавляем один раз — если его ещё нет.
+    if not any(m["role"] == "system" for m in messages):
+        system = render_system_prompt(schemas) + (
+            "\\n\\nКогда задача выполнена — ответь пользователю обычным текстом без tool_call."
+        )
+        messages.insert(0, {"role": "system", "content": system})
+    messages.append({"role": "user", "content": task})
     for step in range(max_steps):
         reply = llm.generate(messages)
         messages.append({"role": "assistant", "content": reply})
@@ -904,7 +911,7 @@ md(
 - `посчитай (123 + 456) * 2 и сохрани результат в answer.txt`
 - `покажи, какие файлы лежат в песочнице`
 
-Песочница (`WORKDIR`) общая между задачами, поэтому файлы сохраняются между запросами. Пустая строка или `exit` — выход. Нужен реальный ключ Cloud.ru (см. ячейку setup).
+История диалога сохраняется между задачами, поэтому агент помнит предыдущие шаги (можно сказать «а теперь удвой результат» — он поймёт, о чём речь). Песочница (`WORKDIR`) тоже общая, файлы не теряются. Пустая строка или `exit` — выход. Нужен реальный ключ Cloud.ru (см. ячейку setup).
 """
 )
 
@@ -914,12 +921,15 @@ def chat_with_agent(max_steps: int = 8) -> None:
     """Интерактивный диалог с нашим агентом openclaw на реальной модели Cloud.ru.
 
     Вводите задачи в свободной форме; пустая строка или 'exit' — выход.
-    Песочница (WORKDIR) общая между задачами — файлы между ними сохраняются.
+    История диалога сохраняется между задачами (общий `messages`), поэтому агент
+    помнит предыдущие шаги. Песочница (WORKDIR) тоже общая — файлы не теряются.
     """
     if not os.environ.get("API_KEY"):
         print("Нужен API_KEY Cloud.ru — задайте ключ в ячейке setup и перезапустите.")
         return
 
+    llm = CloudRuLLM()
+    messages: list[dict] = []  # одна история на весь диалог -> агент помнит контекст
     print("openclaw готов. Введите задачу (пустая строка или 'exit' — выход).\\n")
     while True:
         try:
@@ -930,9 +940,10 @@ def chat_with_agent(max_steps: int = 8) -> None:
         if not task or task.lower() in {"exit", "quit", "выход"}:
             print("Выходим из чата.")
             return
+        # messages мутируется на месте -> следующий запрос видит всю переписку.
         answer = run_agent(
-            CloudRuLLM(), task,
-            tools=AGENT_TOOLS, schemas=AGENT_SCHEMAS, max_steps=max_steps,
+            llm, task, tools=AGENT_TOOLS, schemas=AGENT_SCHEMAS,
+            max_steps=max_steps, messages=messages,
         )
         print(f"\\nАгент > {answer}\\n")
 
