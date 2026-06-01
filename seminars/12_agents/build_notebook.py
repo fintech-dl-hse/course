@@ -305,14 +305,6 @@ md(
 <div style="color:#0891b2; font-weight:600; margin-top: 4px;">&lt;tools&gt;</div>
 <pre style="margin: 4px 0; padding: 8px 10px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 4px; white-space: pre-wrap; word-break: break-word; color: #111827; font-size: 12px;">{"name": "get_weather", "description": "Get current weather information for a location", "parameters": {"type": "object", "properties": {"location": {"type": "string", "description": "The city and state, e.g. San Francisco, CA"}, "unit": {"type": "string", "enum": ["celsius", "fahrenheit"], "description": "The unit of temperature to use"}}, "required": ["location"]}}</pre>
 <div style="color:#0891b2; font-weight:600;">&lt;/tools&gt;</div>
-<div style="margin-top: 4px;">For each function call, return a json object with function name and arguments within <span style="color:#ea580c; font-weight:600;">&lt;tool_call&gt;&lt;/tool_call&gt;</span> XML tags.</div>
-
-<div style="color: #b45309; font-weight: 700; margin-top: 12px;"># Tools</div>
-<div style="margin-top: 4px;">You may call one or more functions to assist with the user query.</div>
-<div style="margin-top: 4px;">You are provided with function signatures within <span style="color:#0891b2; font-weight:600;">&lt;tools&gt;&lt;/tools&gt;</span> XML tags:</div>
-<div style="color:#0891b2; font-weight:600; margin-top: 4px;">&lt;tools&gt;</div>
-<pre style="margin: 4px 0; padding: 8px 10px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 4px; white-space: pre-wrap; word-break: break-word; color: #111827; font-size: 12px;">{"name": "get_weather", "description": "Get current weather information for a location", "parameters": {"type": "object", "properties": {"location": {"type": "string", "description": "The city and state, e.g. San Francisco, CA"}, "unit": {"type": "string", "enum": ["celsius", "fahrenheit"], "description": "The unit of temperature to use"}}, "required": ["location"]}}</pre>
-<div style="color:#0891b2; font-weight:600;">&lt;/tools&gt;</div>
 <div style="margin-top: 4px;">For each function call, return a json object with function name and arguments within <span style="color:#ea580c; font-weight:600;">&lt;tool_call&gt;&lt;/tool_call&gt;</span> XML tags:</div>
 <div style="color:#ea580c; font-weight:600; margin-top: 4px;">&lt;tool_call&gt;</div>
 <pre style="margin: 4px 0; padding: 8px 10px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 4px; color: #111827; font-size: 12px;">{"name": &lt;function-name&gt;, "arguments": &lt;args-json-object&gt;}</pre>
@@ -371,6 +363,54 @@ md(
 """
 )
 
+md(
+    """
+Выше — схема диалога. Соберём **то же самое реальным токенизатором Qwen3**: передаём наши python-функции в `tools=`, а весь `# Tools`-блок системного промта (JSON-схемы + формат `<tool_call>`) строит сам чат-темплейт. Скачивается только **токенизатор** (без весов модели) — это быстро.
+"""
+)
+
+code(
+    '''
+def render_qwen3_chat_template(model_name: str = "Qwen/Qwen3-0.6B") -> str | None:
+    """Показать РЕАЛЬНЫЙ рендер чат-темплейта Qwen3 с нашими тулзами.
+
+    tools=[...] — список python-функций; transformers строит JSON-схему из
+    docstring и type hints (те же get_weather/calculator из блока 1.1).
+    """
+    try:
+        from transformers import AutoTokenizer
+    except ImportError:
+        print("Нет transformers (`pip install transformers`) — пропускаем рендер.")
+        return None
+    try:
+        tok = AutoTokenizer.from_pretrained(model_name)
+    except Exception as exc:  # noqa: BLE001  (нет сети/доступа к HuggingFace)
+        print(f"Не удалось загрузить токенизатор ({exc}); нужен доступ к HuggingFace.")
+        return None
+
+    # Полный диалог: system + user + ответ-tool_call + результат тула.
+    messages = [
+        {"role": "system",
+         "content": "You are a helpful assistant that can use tools to get information for the user."},
+        {"role": "user", "content": "What's the weather like in New York?"},
+        {"role": "assistant", "content": "I'll check the current weather in New York for you.",
+         "tool_calls": [{"type": "function",
+                         "function": {"name": "get_weather", "arguments": {"city": "New York"}}}]},
+        {"role": "tool", "name": "get_weather", "content": "New York: +22C, sunny"},
+    ]
+    text = tok.apply_chat_template(
+        messages,
+        tools=[get_weather, calculator],   # реальные тулзы -> реальный # Tools блок
+        add_generation_prompt=True,        # дописать приглашение ответить ассистенту
+        tokenize=False,                    # вернуть строку, а не token ids
+    )
+    print(text)
+    return text
+
+
+_ = render_qwen3_chat_template()
+'''
+)
 
 code(
     '''
