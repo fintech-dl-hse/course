@@ -124,7 +124,7 @@ md(
 
 Начнём с **ванильного** ViT — именно он лежит в основе всех остальных архитектур этого семинара. Сначала запустим готовую модель (Outside-In: сперва «как пользоваться»), потом разберём, что у неё внутри.
 
-ViT впервые предложили в статье [«An Image is Worth 16x16 Words»](https://arxiv.org/pdf/2010.11929) — само название намекает на главную идею: картинка для трансформера это просто последовательность патчей-«слов».
+ViT впервые предложили в статье [«An Image is Worth 16x16 Words»](https://www.semanticscholar.org/reader/268d347e8a55b5eb82fb5e7d2f800e33c75ab18a) — само название намекает на главную идею: картинка для трансформера это просто последовательность патчей-«слов».
 
 <img width="640" src=\""""
     + IMG_BASE
@@ -239,6 +239,22 @@ print("Дальше: + CLS-токен, + positional embeddings -> обычный
 
 md(
     """
+#### ❓ **Вопрос**: какой это трансформер по типу — encoder-only, encoder-decoder или decoder-only?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+**Encoder-only** — как `BERT`. ViT это стопка из Transformer Encoder с **двунаправленным** self-attention: каждый патч видит все остальные, никакой причинной (causal) маски нет.</br>
+Декодера и авторегрессии тоже нет: мы не генерируем последовательность токен за токеном, а агрегируем всю картинку в один вектор (`[CLS]`) и отдаём его в голову-классификатор.</br>
+(Decoder-only — это про авторегрессионную генерацию, как `GPT`; encoder-decoder — про seq2seq вроде перевода. ViT решает задачу понимания картинки, поэтому ему достаточно энкодера.)
+
+</details>
+"""
+)
+
+md(
+    """
 ### 1.2 ViT vs CNN: inductive bias
 
 У свёрточных сетей встроены сильные предположения о картинках (**inductive bias**): локальность (соседние пиксели связаны) и трансляционная инвариантность (кошка остаётся кошкой при сдвиге). ViT этих предположений почти **не** имеет — он смотрит на все патчи глобально с первого слоя и должен выучить структуру изображений «с нуля».
@@ -263,6 +279,26 @@ md(
 """
 )
 
+md(
+    """
+#### ❓ **Вопрос**: зачем вообще нужно было изобретать ViT? Почему для картинок не оставить только свёртки?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Свёртки не устарели, но трансформер даёт то, чего у них нет:
+
+- **Глобальный контекст сразу** — attention связывает любые два патча в одном слое, тогда как у CNN рецептивное поле растёт медленно.</br>
+- **Масштаб** — слабый inductive bias не упирается в потолок: на больших данных ViT обгоняет CNN, который выходит на плато.</br>
+- **Унификация модальностей (главное)** — картинка-как-токены работает с тем же трансформером, что текст и аудио, поэтому их легко объединить в одном пространстве (CLIP, мультимодальные LLM).</br>
+
+При этом на малых данных CNN часто выигрывают, а `Swin` дальше намеренно возвращает в трансформер их локальность и иерархию.
+
+</details>
+"""
+)
+
 # ---------------------------------------------------------------------------
 # Part 2: Swin
 # ---------------------------------------------------------------------------
@@ -272,7 +308,7 @@ md(
 
 У ванильного ViT self-attention **глобальный**: каждый патч смотрит на все остальные, поэтому сложность растёт как $O(n^2)$ от числа патчей. Для картинок высокого разрешения это дорого.
 
-**Swin** (Shifted **WIN**dows, статья [«Swin Transformer: Hierarchical Vision Transformer using Shifted Windows»](https://arxiv.org/pdf/2103.14030)) чинит это двумя идеями:
+**Swin** (Shifted **WIN**dows, статья [«Swin Transformer: Hierarchical Vision Transformer using Shifted Windows»](https://www.semanticscholar.org/reader/c8b25fab5608c3e033d34b4483ec47e68ba109b7)) чинит это двумя идеями:
 
 1. **Window attention.** Attention считается только внутри небольших окон (например, $7 \\times 7$ патчей), а не по всей картинке. Сложность становится **линейной** по числу патчей.
 2. **Shifted windows.** Если бы окна всегда стояли на одном месте, патчи из разных окон никогда бы не «общались». Поэтому на следующем слое окна **сдвигают** — так информация перетекает между соседними окнами.
@@ -317,8 +353,7 @@ md(
     """
 Разбор исходников `transformers` (для самостоятельного чтения):
 
-- Window attention: [`modeling_swin.py#L822`](https://github.com/huggingface/transformers/blob/v4.51.3/src/transformers/models/swin/modeling_swin.py#L822)
-- Сборка блоков: [`modeling_swin.py#L990`](https://github.com/huggingface/transformers/blob/v4.51.3/src/transformers/models/swin/modeling_swin.py#L990)
+- Window attention: [`modeling_swin.py#L459`](https://github.com/huggingface/transformers/blob/5f4ecf2d9f867a1255131d2461d75793c0cf1db2/src/transformers/models/swin/modeling_swin.py#L459)
 """
 )
 
@@ -400,6 +435,45 @@ md(
 """
 )
 
+md(
+    """
+### 3.1 DINO: self-distillation без меток и без негативов
+
+Из non-contrastive семейства стоит разобрать [**DINO**](https://www.semanticscholar.org/reader/ad4a0938c48e61b7827869e4ac3baffd0aefab35) (*self-**di**stillation with **no** labels*) — он дал самые яркие результаты и лёг в основу современных vision-фундаментальных моделей.
+
+Идея — **дистилляция, где учитель и ученик это одна и та же сеть**, без разметки и без негативов:
+
+- **Ученик и учитель** — два ViT с одинаковой архитектурой. Ученик обучается градиентным спуском; **учитель не обучается напрямую** — его веса это EMA (экспоненциальное скользящее среднее) весов ученика (`stop-gradient` на учителе).
+- **Задача — совпасть распределениями по разным видам.** Каждая сеть выдаёт распределение softmax по $K$ «прототипам». Из картинки делают несколько кропов: 2 **глобальных** (крупных) и много **локальных** (мелких). Учитель видит только глобальные, ученик — все. Лосс — cross-entropy: ученик должен по мелкому кропу предсказать то, что учитель «видит» на всей картинке (**local → global**).
+- **Защита от коллапса без негативов** — два балансирующих трюка на выходе учителя: **centering** (вычесть скользящее среднее, чтобы ни одно измерение не доминировало) и **sharpening** (низкая температура softmax, чтобы распределение не схлопнулось в равномерное). Они тянут в разные стороны и стабилизируют обучение.
+
+**Эмерджентность:** ViT, обученный DINO, даёт карты внимания, которые **сами сегментируют объекты** (без масок в разметке), а его признаки так хороши, что классификация работает даже простым k-NN.
+
+<img width="420" src=\""""
+    + IMG_BASE
+    + """/dino_overview.png" alt="Схема DINO: ученик и EMA-учитель (одинаковые ViT), разные виды одной картинки, centering + sharpening на выходе учителя, cross-entropy между распределениями, stop-gradient на учителе">
+
+Дальше идею просто масштабировали: [**DINOv2**](https://arxiv.org/pdf/2304.07193) добавил patch-level лосс (iBOT) и курируемые данные → универсальные замороженные признаки; **DINOv3** — приём *Gram anchoring*, чтобы плотные (по-патчевые) признаки не деградировали при очень долгом обучении.
+"""
+)
+
+md(
+    """
+#### ❓ **Вопрос**: в DINO нет негативов — что мешает сети выдавать один и тот же вектор на любую картинку (коллапс)?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Два противоположных трюка на выходе учителя, которые балансируют друг друга:</br>
+**centering** — из выхода вычитают скользящее среднее, чтобы ни одно измерение не доминировало (само по себе тянет к равномерному распределению);</br>
+**sharpening** — низкая температура softmax делает распределение учителя «острым» (само по себе тянет к схлопыванию в одно измерение).</br>
+Вместе они не дают коллапсировать ни в константу, ни в равномерность. Плюс помогает EMA-учитель со `stop-gradient`: цель меняется медленно и не «подыгрывает» ученику мгновенно.
+
+</details>
+"""
+)
+
 # ---------------------------------------------------------------------------
 # Part 4: CLIP
 # ---------------------------------------------------------------------------
@@ -407,7 +481,7 @@ md(
     """
 ## 4. CLIP — Contrastive Language–Image Pre-training
 
-**CLIP** — это contrastive learning, но между **двумя модальностями**: текстом и картинкой. У модели два энкодера (image encoder — ViT, text encoder — трансформер), которые проецируют картинку и текст в **общее векторное пространство**. Обучают на ~400M пар «картинка ↔ её подпись из интернета»: эмбеддинги совпадающих пар сближают, несовпадающих — отталкивают.
+**CLIP** ([Contrastive Language–Image Pre-training, оригинальная статья](https://www.semanticscholar.org/reader/6f870f7f02a8c59c3e23f407f3ef00dd1dcf8fc4)) — это contrastive learning, но между **двумя модальностями**: текстом и картинкой. У модели два энкодера (image encoder — ViT, text encoder — трансформер), которые проецируют картинку и текст в **общее векторное пространство**. Обучают на ~400M пар «картинка ↔ её подпись из интернета»: эмбеддинги совпадающих пар сближают, несовпадающих — отталкивают.
 
 <img width="720" src=\""""
     + IMG_BASE
@@ -512,11 +586,11 @@ image_embeds = torch.rand(8, 512)
 text_embeds = torch.rand(8, 512)
 
 # Шаг 1: L2-нормировка эмбеддингов -> косинусная близость.
-image_embeds = image_embeds / image_embeds.norm(p=2, dim=-1, keepdim=True)
-text_embeds = text_embeds / text_embeds.norm(p=2, dim=-1, keepdim=True)
+image_embeds = image_embeds / image_embeds.norm(p=2, dim=-1, keepdim=True)   # [8, 512]
+text_embeds = text_embeds / text_embeds.norm(p=2, dim=-1, keepdim=True)       # [8, 512]
 
 # Шаг 2: матрица сходства всех пар. ВНИМАНИЕ: значения лежат в [-1, 1].
-logits_per_text = text_embeds @ image_embeds.t()
+logits_per_text = text_embeds @ image_embeds.t()    # [8, 512] @ [512, 8] -> [8, 8]
 print("Диапазон логитов:", round(logits_per_text.min().item(), 3),
       "..", round(logits_per_text.max().item(), 3))
 
@@ -681,18 +755,18 @@ md(
 # Дополнительные материалы
 
 **Архитектуры:**
-- ViT — [An Image is Worth 16x16 Words](https://arxiv.org/abs/2010.11929)
-- Swin — [Hierarchical Vision Transformer using Shifted Windows](https://arxiv.org/abs/2103.14030)
+- ViT — [An Image is Worth 16x16 Words](https://www.semanticscholar.org/reader/268d347e8a55b5eb82fb5e7d2f800e33c75ab18a)
+- Swin — [Hierarchical Vision Transformer using Shifted Windows](https://www.semanticscholar.org/reader/c8b25fab5608c3e033d34b4483ec47e68ba109b7)
 
 **Self-supervised:**
 - SimCLR — [A Simple Framework for Contrastive Learning](https://arxiv.org/abs/2002.05709)
 - MoCo — [Momentum Contrast](https://arxiv.org/abs/1911.05722)
 - BYOL — [Bootstrap Your Own Latent](https://arxiv.org/abs/2006.07733)
-- DINO — [Emerging Properties in Self-Supervised ViT](https://arxiv.org/abs/2104.14294)
+- DINO — [Emerging Properties in Self-Supervised ViT](https://www.semanticscholar.org/reader/ad4a0938c48e61b7827869e4ac3baffd0aefab35)
 - MAE — [Masked Autoencoders Are Scalable Vision Learners](https://arxiv.org/abs/2111.06377)
 
 **Мультимодальность:**
-- CLIP — [Learning Transferable Visual Models From Natural Language Supervision](https://arxiv.org/abs/2103.00020)
+- CLIP — [Learning Transferable Visual Models From Natural Language Supervision](https://www.semanticscholar.org/reader/6f870f7f02a8c59c3e23f407f3ef00dd1dcf8fc4)
 - ImageBind — [One Embedding Space To Bind Them All](https://github.com/facebookresearch/ImageBind)
 - LLaVA — [Visual Instruction Tuning](https://arxiv.org/abs/2304.08485)
 
