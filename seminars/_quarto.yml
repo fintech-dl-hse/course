@@ -26,3 +26,4 @@ website:
           - 10_llm/10_llm.ipynb
           - 11_eval_tts/11_eval_tts.ipynb
           - 12_agents/12_agents.ipynb
+          - 13_vit_clip/13_seminar_vit_clip.ipynb
