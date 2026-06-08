@@ -17,64 +17,7 @@ This is a Deep Learning course repository for the Fintech faculty at HSE Univers
 
 ## Key Technologies
 
-### Manim Animations
-
-This repository uses **3b1b's version of Manim** (https://github.com/3b1b/manim), NOT the community version. Animations are used for educational content visualization.
-
-#### Manim Configuration
-
-- Configuration file: `custom_config.yml`
-- Default resolution: 1080x1920 (vertical video format)
-- FPS: 30
-- Background: Black (#000000)
-- Font: CMU Serif
-- Universal import: `from manim_imports_ext import *`
-
-#### Running Manim Animations
-
-```bash
-# Execute a Manim animation
-~/miniconda3/envs/manim/bin/manimgl <path_to_script.py>
-
-# Example from cursor rules:
-~/miniconda3/envs/manim/bin/manimgl handbook/manim/vllm/prefill_decode.py
-```
-
-Note: The `pyrightconfig.json` includes execution environments that point to manim paths for type checking.
-
-### YFM (Yandex Flavored Markdown)
-
-The course materials may use YFM for documentation. Key YFM features:
-
-- Each Markdown file MUST start with a single H1 title: `# Page title`
-- Use `###` for section headings
-- Notes/admonitions syntax:
-  ```markdown
-  {% note info %}
-  Content here
-  {% endnote %}
-  ```
-- Simple GFM tables for basic content
-- Multiline tables (starting with `#|`, ending with `|#`) for complex content with lists/code blocks
-- Cell merging: `^` for vertical merge, `>` for horizontal merge
-
 ## Development Commands
-
-### Notebook Processing
-
-```bash
-# Remove widget metadata from Jupyter notebooks in seminars directory
-./seminars/rm_widgets.sh
-```
-
-This script uses `jq` and `sponge` to clean notebook metadata.
-
-### Python Type Checking
-
-Type checking is configured via `pyrightconfig.json`:
-- Python version: 3.10
-- Type checking mode: basic
-- Reports missing imports as warnings
 
 ### Jupyter Notebooks
 
@@ -144,28 +87,12 @@ cell = {
 #### Jupyter Commands
 
 ```bash
-# Open notebook
-~/miniconda3/envs/audio/bin/jupyter notebook <filename>.ipynb
-
 # Convert to Python script
 ~/miniconda3/envs/audio/bin/jupyter nbconvert --to script <filename>.ipynb
 
-# Clear outputs (ALWAYS do before committing)
+# Clear outputs
 ~/miniconda3/envs/audio/bin/jupyter nbconvert --ClearOutputPreprocessor.enabled=True --inplace <filename>.ipynb
-
-# Convert to HTML
-~/miniconda3/envs/audio/bin/jupyter nbconvert --to html <filename>.ipynb
 ```
-
-#### Notebook Best Practices
-
-1. **Always clear outputs** before committing to keep file size small
-2. **Test notebooks** by running "Restart & Run All" before committing
-3. **Use type hints** in code cells for educational clarity
-4. **Add docstrings** to functions for student reference
-5. **Keep cells focused** - one concept per cell when possible
-6. **Add markdown explanations** between code cells
-7. **Use proper formatting** when creating notebooks programmatically (see above)
 
 ## Deployment
 
@@ -196,19 +123,9 @@ The repository uses GitHub Actions to deploy static content to GitHub Pages:
 ### Naming Conventions
 
 - Active seminars: `01_seminar_<topic>.ipynb`, `02_seminar_<topic>.ipynb`, etc.
-- Archived seminars: `old_01_seminar_<topic>.ipynb`, `old_02_seminar_<topic>.ipynb`
 - Helper scripts: `merge_notebooks.py`, `rebuild_notebook.py`, `test_notebook.py`
 
 ### Seminar Notebook Pattern
-
-Each seminar notebook should follow this structure:
-
-1. **Title and Plan** - Overview of what will be covered
-2. **Part I** - Practical implementation (usually PyTorch/hands-on)
-3. **Transition** - Connecting practical to theory
-4. **Part II** - Theoretical understanding (how things work under the hood)
-5. **Part III** - Practice exercises for students
-6. **Additional Materials** - Links to documentation, tutorials, papers
 
 ### Pedagogical Approach
 
@@ -245,38 +162,6 @@ def train(model: nn.Module,
         num_steps: Количество шагов оптимизации
     """
     # Implementation...
-```
-
-### Merging/Modifying Notebooks
-
-When combining or updating notebooks:
-
-1. **Plan first** - Create a clear structure before merging
-2. **Use scripts** - Automate notebook manipulation (don't edit JSON manually)
-3. **Preserve formatting** - Always use proper cell source formatting (see Jupyter section)
-4. **Test thoroughly** - Run "Restart & Run All" before committing
-5. **Clear outputs** - Keep repository clean
-6. **Update README** - Document changes in `seminars/README.md`
-
-### Testing Seminar Notebooks
-
-Before committing:
-
-```bash
-# 1. Test key components in isolation
-python test_notebook.py
-
-# 2. Test full notebook execution
-~/miniconda3/envs/audio/bin/jupyter nbconvert --execute --to notebook \
-  --inplace <notebook>.ipynb
-
-# 3. Clear outputs
-~/miniconda3/envs/audio/bin/jupyter nbconvert \
-  --ClearOutputPreprocessor.enabled=True \
-  --inplace <notebook>.ipynb
-
-# 4. Verify file size
-ls -lh <notebook>.ipynb  # Should be < 100 KB without outputs
 ```
 
 ## Common Pitfalls to Avoid
@@ -327,13 +212,6 @@ ls -lh <notebook>.ipynb  # Should be < 100 KB without outputs
 - Maintain clean main branch structure
 
 ## Seminars Overview
-
-### Expected seminar flow
-- Start with quick feedback fixes (from last seminar / forms).
-- Short recap of previous material.
-- New material (hands-on first, then "how it works").
-- Blitz questions on new concepts.
-- Homework overview (what matters, pitfalls, grading hints).
 
 ### Core themes we cover (use as anchors)
 - In each seminar, avoid topics that students have not covered yet; use the plan implied by the list below. For example, do not use CNNs in seminars until the CV block has been covered.
