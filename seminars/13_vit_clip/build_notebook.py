@@ -1,0 +1,1111 @@
+"""Generator for Seminar 13 notebook: Vision Transformers, Self-supervised, CLIP.
+
+Run:
+    ~/miniconda3/envs/audio/bin/python seminars/13_vit_clip/build_notebook.py
+
+Produces 13_seminar_vit_clip.ipynb with properly formatted cells (each line is a
+separate array element, as required by CLAUDE.md).
+
+Note: the loss-scaling part of CLIP (logit_scale / temperature) is intentionally
+left as an open question — students implement it themselves in the `clip` homework.
+"""
+import json
+import os
+
+CELLS = []
+
+# Относительный путь до картинок-схем (рендерятся в локальном Jupyter и на GitHub).
+IMG_BASE = "static"
+
+
+def md(text: str) -> None:
+    """Append a markdown cell from a raw string."""
+    CELLS.append({"cell_type": "markdown", "metadata": {}, "source": _src(text)})
+
+
+def code(text: str) -> None:
+    """Append a code cell from a raw string."""
+    CELLS.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": _src(text),
+    })
+
+
+def _src(text: str):
+    """Split text into a Jupyter source array (each line keeps its \\n)."""
+    text = text.strip("\n")
+    lines = text.split("\n")
+    return [ln + "\n" for ln in lines[:-1]] + [lines[-1]]
+
+
+# ---------------------------------------------------------------------------
+# Cell 0: Colab badge + title + plan
+# ---------------------------------------------------------------------------
+md(
+    '<a target="_blank" href="https://colab.research.google.com/github/fintech-dl-hse/course/blob/main/seminars/13_vit_clip/13_seminar_vit_clip.ipynb">\n'
+    '  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>\n'
+    "</a>"
+)
+
+md("# Vision Transformers. Self-supervised & Contrastive Learning")
+
+md(
+    """
+*Это последний содержательный семинар курса. Хорошая новость: почти всё новое сегодня — это **перенос уже знакомых идей из NLP в компьютерное зрение**.*
+"""
+)
+
+md("---")
+
+md(
+    """
+## План семинара
+
+Мы уже знаем трансформеры, self-attention, CLS-токен (из `BERT`), позиционные эмбэддинги и идею self-supervised предобучения в тексте (MLM). Сегодня применим всё это к картинкам.
+
+1. **Recap** — мост из NLP-блока: что именно мы переносим в зрение.
+2. **ViT (Vision Transformer)** — как скормить картинку трансформеру: патчи как токены, CLS, positional embeddings; чем ViT отличается от CNN.
+3. **Swin Transformer** — ViT с оконным вниманием и иерархией (как у CNN), вычислительно эффективный.
+4. **Self-supervised в CV** — contrastive (SimCLR/MoCo), non-contrastive (DINO/BYOL), masked image modeling (MAE).
+5. **CLIP** — два энкодера в общем пространстве, симметричный InfoNCE, zero-shot классификация.
+6. **Блиц** — закрепляем основные концепты.
+
+> **Главная мысль:** картинка для трансформера — это **последовательность патчей-токенов**. Дальше работает всё то же, что мы уже знаем про attention.
+"""
+)
+
+# ---------------------------------------------------------------------------
+# Setup
+# ---------------------------------------------------------------------------
+md(
+    """
+## 0. Recap и setup
+
+Короткий мост из NLP-блока — что мы переносим в зрение:
+
+| Знаем из NLP | Переносим в CV |
+|---|---|
+| Текст → последовательность токенов | Картинка → последовательность **патчей** |
+| Self-attention между токенами | Self-attention между патчами |
+| CLS-токен агрегирует последовательность (`BERT`) | CLS-токен агрегирует картинку (`ViT`) |
+| Positional encoding (порядок слов) | Positional embeddings (позиция патча) |
+| Self-supervised: MLM (предсказать замаскированное слово) | MAE (восстановить замаскированный патч) |
+
+Картинку-пример возьмём один раз и переиспользуем во всех блоках.
+"""
+)
+
+code(
+    """
+# В Colab при необходимости раскомментируйте:
+# !pip install -q datasets transformers
+
+import torch
+from datasets import load_dataset
+
+torch.manual_seed(0)
+
+# Картинка-пример: кошки (та же, что в HF-туториалах). Используем её везде ниже.
+dataset = load_dataset("huggingface/cats-image")
+image = dataset["test"]["image"][0]
+image
+"""
+)
+
+# ---------------------------------------------------------------------------
+# Part I: ViT
+# ---------------------------------------------------------------------------
+md(
+    """
+## 1. Vision Transformer (ViT)
+
+Начнём с **ванильного** ViT — именно он лежит в основе всех остальных архитектур этого семинара. Сначала запустим готовую модель (Outside-In: сперва «как пользоваться»), потом разберём, что у неё внутри.
+
+ViT впервые предложили в статье [«An Image is Worth 16x16 Words»](https://www.semanticscholar.org/reader/268d347e8a55b5eb82fb5e7d2f800e33c75ab18a) — само название намекает на главную идею: картинка для трансформера это просто последовательность патчей-«слов».
+
+<img width="640" src=\""""
+    + IMG_BASE
+    + """/an_image_worth_1616_words.png" alt="An Image is Worth 16x16 Words — иллюстрация к идее ViT: картинка как последовательность патчей-токенов">
+"""
+)
+
+code(
+    """
+from transformers import AutoImageProcessor, ViTForImageClassification
+
+# Классический ViT, предобученный на ImageNet (patch 16x16, вход 224x224).
+vit_processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
+vit = ViTForImageClassification.from_pretrained("google/vit-base-patch16-224")
+
+inputs = vit_processor(image, return_tensors="pt")
+
+with torch.no_grad():
+    logits = vit(**inputs).logits
+
+# Модель предсказывает один из 1000 классов ImageNet.
+predicted_label = logits.argmax(-1).item()
+print(vit.config.id2label[predicted_label])
+"""
+)
+
+md(
+    """
+### 1.1 Как устроен ViT
+
+Трансформер умеет работать с **последовательностью векторов**. Чтобы скормить ему картинку, её надо превратить в такую последовательность:
+
+1. **Патчификация.** Картинку `224x224` режут на непересекающиеся патчи `16x16`. Получается $\\left(\\frac{224}{16}\\right)^2 = 14 \\times 14 = 196$ патчей — это и есть «токены».
+2. **Patch embedding.** Каждый патч (вектор из $16 \\times 16 \\times 3 = 768$ чисел) линейно проецируется в эмбеддинг размерности $d$. Технически это удобно сделать одной свёрткой с `kernel_size = stride = patch_size`.
+3. **CLS-токен.** В начало последовательности добавляют обучаемый CLS-токен — ровно как в `BERT`. Его выход после энкодера идёт в классификатор.
+4. **Positional embeddings.** К каждому токену прибавляют обучаемый вектор позиции — иначе трансформер не знает, где находился патч (attention сам по себе не учитывает порядок).
+5. Дальше — обычный **Transformer Encoder** (multi-head self-attention + MLP), который мы уже разбирали.
+
+Вся схема целиком:
+
+<img width="760" src=\""""
+    + IMG_BASE
+    + """/vit_pipeline.png" alt="Схема ViT: картинка → патчи → patch embedding → +CLS +positional → Transformer Encoder ×L → выход CLS → MLP Head → класс">
+
+Посмотрим на патчи руками.
+"""
+)
+
+code(
+    '''
+import matplotlib.pyplot as plt
+
+
+def patchify(img: torch.Tensor, patch_size: int = 16) -> torch.Tensor:
+    """Разбить изображение [C, H, W] на последовательность патчей [N, C, P, P].
+
+    Args:
+        img: Тензор изображения формы [C, H, W].
+        patch_size: Размер стороны квадратного патча P.
+
+    Returns:
+        Тензор [N, C, P, P], где N = (H/P) * (W/P) — число патчей.
+    """
+    c, h, w = img.shape
+    assert h % patch_size == 0 and w % patch_size == 0, "H и W должны делиться на patch_size"
+    patches = (
+        img.unfold(1, patch_size, patch_size)        # режем по высоте
+           .unfold(2, patch_size, patch_size)        # режем по ширине -> [C, H/P, W/P, P, P]
+           .permute(1, 2, 0, 3, 4)                   # -> [H/P, W/P, C, P, P]
+           .reshape(-1, c, patch_size, patch_size)   # -> [N, C, P, P]
+    )
+    return patches
+
+
+pixel_values = inputs["pixel_values"][0]              # [3, 224, 224]
+patches = patchify(pixel_values, patch_size=16)
+print("Картинка:", tuple(pixel_values.shape), "-> патчей:", patches.shape[0], "по", tuple(patches.shape[1:]))
+'''
+)
+
+code(
+    '''
+# Визуализируем патчи в виде сетки 14x14 — это и есть "токены" для трансформера.
+grid = pixel_values.shape[1] // 16
+fig, axes = plt.subplots(grid, grid, figsize=(6, 6))
+for i, ax in enumerate(axes.flat):
+    p = patches[i].permute(1, 2, 0)
+    p = (p - p.min()) / (p.max() - p.min() + 1e-8)    # денормализация только для показа
+    ax.imshow(p)
+    ax.axis("off")
+plt.suptitle(f"{grid}x{grid} = {grid * grid} патчей — последовательность 'токенов' для ViT")
+plt.tight_layout()
+plt.show()
+'''
+)
+
+code(
+    '''
+import torch.nn as nn
+
+# Patch embedding = свёртка с kernel=stride=patch_size: каждый патч -> вектор размерности embed_dim.
+embed_dim, patch_size = 768, 16
+patch_embed = nn.Conv2d(in_channels=3, out_channels=embed_dim,
+                        kernel_size=patch_size, stride=patch_size)
+
+tokens = patch_embed(pixel_values.unsqueeze(0))       # [1, 768, 14, 14]
+tokens = tokens.flatten(2).transpose(1, 2)            # [1, 196, 768]
+print("Последовательность токенов:", tuple(tokens.shape), "= (batch, 196 патчей, 768)")
+print("Дальше: + CLS-токен, + positional embeddings -> обычный Transformer Encoder")
+'''
+)
+
+md(
+    """
+#### ❓ **Вопрос**: какой это трансформер по типу — encoder-only, encoder-decoder или decoder-only?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+**Encoder-only** — как `BERT`. ViT это стопка из Transformer Encoder с **двунаправленным** self-attention: каждый патч видит все остальные, никакой причинной (causal) маски нет.</br>
+Декодера и авторегрессии тоже нет: мы не генерируем последовательность токен за токеном, а агрегируем всю картинку в один вектор (`[CLS]`) и отдаём его в голову-классификатор.</br>
+(Decoder-only — это про авторегрессионную генерацию, как `GPT`; encoder-decoder — про seq2seq вроде перевода. ViT решает задачу понимания картинки, поэтому ему достаточно энкодера.)
+
+</details>
+"""
+)
+
+md(
+    """
+### 1.2 ViT vs CNN: inductive bias
+
+У свёрточных сетей встроены сильные предположения о картинках (**inductive bias**): локальность (соседние пиксели связаны) и трансляционная инвариантность (кошка остаётся кошкой при сдвиге). ViT этих предположений почти **не** имеет — он смотрит на все патчи глобально с первого слоя и должен выучить структуру изображений «с нуля».
+
+Плата за гибкость: **ViT жаден до данных**. На небольших датасетах CNN обычно выигрывает, но при предобучении на огромных корпусах (ImageNet-21k, JFT-300M) ViT догоняет и обгоняет свёртки. Поэтому ViT почти всегда используют как **предобученную** модель.
+"""
+)
+
+md(
+    """
+#### ❓ **Вопрос**: почему ViT требует больше данных для обучения, чем CNN сопоставимого размера?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+У CNN в архитектуру «зашиты» полезные предположения о картинках — локальность и трансляционная инвариантность. Это бесплатный inductive bias, который не нужно выучивать из данных.</br>
+У ViT таких предположений почти нет: глобальный self-attention с первого слоя должен сам выучить, что пиксели/патчи рядом связаны и что объект инвариантен к сдвигу. Чтобы выучить эти закономерности «с нуля», нужно много данных.</br>
+Поэтому ViT обычно предобучают на очень больших датасетах, а потом дообучают (fine-tune) под конкретную задачу.
+
+</details>
+"""
+)
+
+md(
+    """
+#### ❓ **Вопрос**: зачем вообще нужно было изобретать ViT? Почему для картинок не оставить только свёртки?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Свёртки не устарели, но трансформер даёт то, чего у них нет:
+
+- **Глобальный контекст сразу** — attention связывает любые два патча в одном слое, тогда как у CNN рецептивное поле растёт медленно.</br>
+- **Масштаб** — слабый inductive bias не упирается в потолок: на больших данных ViT обгоняет CNN, который выходит на плато.</br>
+- **Унификация модальностей (главное)** — картинка-как-токены работает с тем же трансформером, что текст и аудио, поэтому их легко объединить в одном пространстве (CLIP, мультимодальные LLM).</br>
+
+При этом на малых данных CNN часто выигрывают, а `Swin` дальше намеренно возвращает в трансформер их локальность и иерархию.
+
+</details>
+"""
+)
+
+# ---------------------------------------------------------------------------
+# Part 2: Swin
+# ---------------------------------------------------------------------------
+md(
+    """
+## 2. Swin Transformer
+
+У ванильного ViT self-attention **глобальный**: каждый патч смотрит на все остальные, поэтому сложность растёт как $O(n^2)$ от числа патчей. Для картинок высокого разрешения это дорого.
+
+**Swin** (Shifted **WIN**dows, статья [«Swin Transformer: Hierarchical Vision Transformer using Shifted Windows»](https://www.semanticscholar.org/reader/c8b25fab5608c3e033d34b4483ec47e68ba109b7)) чинит это двумя идеями:
+
+1. **Window attention.** Attention считается только внутри небольших окон (например, $7 \\times 7$ патчей), а не по всей картинке. Сложность становится **линейной** по числу патчей.
+2. **Shifted windows.** Если бы окна всегда стояли на одном месте, патчи из разных окон никогда бы не «общались». Поэтому на следующем слое окна **сдвигают** — так информация перетекает между соседними окнами.
+
+<img width="640" src=\""""
+    + IMG_BASE
+    + """/swin_window_attention.png" alt="Global attention (ViT, O(n^2)) против window attention (Swin, O(n)): слева патч смотрит на все патчи, справа — только внутри своего окна">
+
+А вот как работает сдвиг окон между соседними слоями — границы окон смещаются, и патчи, которые раньше были в разных окнах, попадают в одно:
+
+<img width="640" src=\""""
+    + IMG_BASE
+    + """/swin_shifted.png" alt="Shifted windows в Swin: на следующем слое сетка окон сдвигается, поэтому информация перетекает между соседними окнами">
+
+Плюс **иерархия**: как в CNN, Swin постепенно уменьшает разрешение и увеличивает число каналов (`patch merging`), строя многоуровневые признаки. Это делает Swin удобным backbone для детекции и сегментации.
+
+<img width="640" src=\""""
+    + IMG_BASE
+    + """/swin_patches.png" alt="Иерархия патчей в Swin: мелкие патчи на первых слоях постепенно объединяются (patch merging) в более крупные, формируя многоуровневое представление как в CNN">
+
+Запустим Swin на той же картинке.
+"""
+)
+
+code(
+    """
+from transformers import SwinForImageClassification
+
+swin_processor = AutoImageProcessor.from_pretrained("microsoft/swin-tiny-patch4-window7-224")
+swin = SwinForImageClassification.from_pretrained("microsoft/swin-tiny-patch4-window7-224")
+
+swin_inputs = swin_processor(image, return_tensors="pt")
+
+with torch.no_grad():
+    swin_logits = swin(**swin_inputs).logits
+
+print(swin.config.id2label[swin_logits.argmax(-1).item()])
+"""
+)
+
+md(
+    """
+Разбор исходников `transformers` (для самостоятельного чтения):
+
+- Window attention: [`modeling_swin.py#L459`](https://github.com/huggingface/transformers/blob/5f4ecf2d9f867a1255131d2461d75793c0cf1db2/src/transformers/models/swin/modeling_swin.py#L459)
+"""
+)
+
+# ---------------------------------------------------------------------------
+# Part 3: Self-supervised in CV
+# ---------------------------------------------------------------------------
+md(
+    """
+## 3. Self-supervised learning в компьютерном зрении
+
+Разметка картинок дорогая, а неразмеченных изображений — бесконечно много. **Self-supervised learning (SSL)** придумывает задачу-предлог (pretext task) прямо из самих данных, без человеческой разметки — ровно как MLM в `BERT`. Получаем сильные представления, которые потом дообучаем под конкретную задачу.
+
+Три больших семейства SSL в зрении:
+
+| Семейство | Идея | Примеры | Нужны негативы? |
+|---|---|---|---|
+| **Contrastive** | сблизить две аугментации одной картинки (позитивы), оттолкнуть разные картинки (негативы) | SimCLR, MoCo | да |
+| **Non-contrastive** | сблизить два вида одной картинки без явных негативов (хитрости против коллапса) | BYOL, DINO | нет |
+| **Masked image modeling** | замаскировать часть патчей и восстановить их (аналог MLM) | MAE, BEiT | нет |
+
+Ключевая механика contrastive-подхода — **позитивная пара**: две случайные аугментации одной и той же картинки. Модель учат выдавать им близкие эмбеддинги. Посмотрим, как выглядит такая пара.
+"""
+)
+
+code(
+    '''
+import torchvision.transforms as T
+
+# SimCLR-аугментации: из одной картинки делаем две случайные "вьюхи" = позитивная пара.
+simclr_aug = T.Compose([
+    T.RandomResizedCrop(160, scale=(0.4, 1.0)),
+    T.RandomHorizontalFlip(),
+    T.ColorJitter(0.4, 0.4, 0.4, 0.1),
+    T.RandomGrayscale(p=0.2),
+])
+
+view1, view2 = simclr_aug(image), simclr_aug(image)
+
+fig, ax = plt.subplots(1, 2, figsize=(6, 3))
+ax[0].imshow(view1); ax[0].set_title("view 1"); ax[0].axis("off")
+ax[1].imshow(view2); ax[1].set_title("view 2"); ax[1].axis("off")
+plt.suptitle("Позитивная пара: одна картинка -> две аугментации (их эмбеддинги сближаем)")
+plt.tight_layout()
+plt.show()
+'''
+)
+
+md(
+    """
+#### ❓ **Вопрос**: в contrastive learning что выступает позитивной парой, а что — негативной? Зачем вообще нужны негативы?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Позитивная пара — две разные аугментации **одной и той же** картинки; их эмбеддинги мы сближаем.</br>
+Негативы — это другие картинки в батче; их эмбеддинги мы отталкиваем.</br>
+Без негативов есть риск **коллапса**: модель может выдавать один и тот же вектор на всё подряд — тогда позитивы «совпадают» идеально, но представления бесполезны. Негативы заставляют пространство быть различающим. (Non-contrastive методы вроде BYOL/DINO борются с коллапсом другими трюками — stop-gradient, momentum-энкодер, центрирование.)
+
+</details>
+"""
+)
+
+md(
+    """
+#### ❓ **Вопрос**: чем self-supervised обучение отличается от unsupervised и от supervised?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+* **supervised** — есть человеческая разметка (метки классов, переводы и т.п.). Размеченных данных обычно на порядки меньше, чем сырых.</br>
+* **unsupervised** — целевых меток нет вообще, цель — найти структуру в данных (например, кластеризация).</br>
+* **self-supervised** — меток от человека нет, но задачу-цель мы конструируем из самих данных (предсказать замаскированный патч/слово, сблизить аугментации). Формально метки «генерируются автоматически», поэтому это частный случай unsupervised, но с supervised-подобной лоссовой задачей.</br>
+
+Типичный рецепт: self-supervised **предобучение** на куче неразмеченных данных, затем **дообучение** на маленьком размеченном датасете под конкретную задачу.
+
+</details>
+"""
+)
+
+md(
+    """
+### 3.1 DINO: self-distillation без меток и без негативов
+
+Из non-contrastive семейства стоит разобрать [**DINO**](https://www.semanticscholar.org/reader/ad4a0938c48e61b7827869e4ac3baffd0aefab35) (*self-**di**stillation with **no** labels*) — он дал самые яркие результаты и лёг в основу современных vision-фундаментальных моделей.
+
+Идея — **дистилляция, где учитель и ученик это одна и та же сеть**, без разметки и без негативов:
+
+- **Ученик и учитель** — два ViT с одинаковой архитектурой. Ученик обучается градиентным спуском; **учитель не обучается напрямую** — его веса это EMA (экспоненциальное скользящее среднее) весов ученика (`stop-gradient` на учителе).
+- **Задача — совпасть распределениями по разным видам.** Каждая сеть выдаёт распределение softmax по $K$ «прототипам». Из картинки делают несколько кропов: 2 **глобальных** (крупных) и много **локальных** (мелких). Учитель видит только глобальные, ученик — все. Лосс — cross-entropy: ученик должен по мелкому кропу предсказать то, что учитель «видит» на всей картинке (**local → global**).
+- **Защита от коллапса без негативов** — два балансирующих трюка на выходе учителя: **centering** (вычесть скользящее среднее, чтобы ни одно измерение не доминировало) и **sharpening** (низкая температура softmax, чтобы распределение не схлопнулось в равномерное). Они тянут в разные стороны и стабилизируют обучение.
+
+**Эмерджентность:** ViT, обученный DINO, даёт карты внимания, которые **сами сегментируют объекты** (без масок в разметке), а его признаки так хороши, что классификация работает даже простым k-NN.
+
+<img width="420" src=\""""
+    + IMG_BASE
+    + """/dino_overview.png" alt="Схема DINO: ученик и EMA-учитель (одинаковые ViT), разные виды одной картинки, centering + sharpening на выходе учителя, cross-entropy между распределениями, stop-gradient на учителе">
+
+Дальше идею просто масштабировали: [**DINOv2**](https://arxiv.org/pdf/2304.07193) добавил patch-level лосс (iBOT) и курируемые данные → универсальные замороженные признаки; **DINOv3** — приём *Gram anchoring*, чтобы плотные (по-патчевые) признаки не деградировали при очень долгом обучении.
+"""
+)
+
+md(
+    """
+#### ❓ **Вопрос**: в DINO нет негативов — что мешает сети выдавать один и тот же вектор на любую картинку (коллапс)?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Два противоположных трюка на выходе учителя, которые балансируют друг друга:</br>
+**centering** — из выхода вычитают скользящее среднее, чтобы ни одно измерение не доминировало (само по себе тянет к равномерному распределению);</br>
+**sharpening** — низкая температура softmax делает распределение учителя «острым» (само по себе тянет к схлопыванию в одно измерение).</br>
+Вместе они не дают коллапсировать ни в константу, ни в равномерность. Плюс помогает EMA-учитель со `stop-gradient`: цель меняется медленно и не «подыгрывает» ученику мгновенно.
+
+</details>
+"""
+)
+
+# ---------------------------------------------------------------------------
+# Part 4: CLIP
+# ---------------------------------------------------------------------------
+md(
+    """
+## 4. CLIP — Contrastive Language–Image Pre-training
+
+**CLIP** ([Contrastive Language–Image Pre-training, оригинальная статья](https://www.semanticscholar.org/reader/6f870f7f02a8c59c3e23f407f3ef00dd1dcf8fc4)) — это contrastive learning, но между **двумя модальностями**: текстом и картинкой. У модели два энкодера (image encoder — ViT, text encoder — трансформер), которые проецируют картинку и текст в **общее векторное пространство**. Обучают на ~400M пар «картинка ↔ её подпись из интернета»: эмбеддинги совпадающих пар сближают, несовпадающих — отталкивают.
+
+<img width="720" src=\""""
+    + IMG_BASE
+    + """/clip_overview.png" alt="CLIP из оригинальной статьи: слева contrastive pre-training (матрица сходств текст-картинка), справа zero-shot классификация через текстовые промпты">
+
+Та же идея чуть детальнее — как именно считается матрица сходств в батче:
+
+<img width="640" src=\""""
+    + IMG_BASE
+    + """/clip_dual_encoder.png" alt="Обучение CLIP: image encoder и text encoder дают эмбеддинги, считается матрица сходств N×N; диагональ (совпадающие пары) сближаем, остальное отталкиваем">
+
+Сначала — как этим пользоваться: **zero-shot классификация** без единого примера обучения под наши классы.
+"""
+)
+
+code(
+    """
+from transformers import CLIPProcessor, CLIPModel
+
+clip = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+
+# Произвольные классы, оформленные как текстовые описания ("prompt").
+classes = ["a photo of a cat", "a photo of a dog", "a photo of two cats", "a photo of a car"]
+
+clip_inputs = clip_processor(text=classes, images=image, return_tensors="pt", padding=True)
+
+with torch.no_grad():
+    outputs = clip(**clip_inputs)
+
+# logits_per_image: близость картинки к каждому тексту; softmax -> "вероятности классов".
+probs = outputs.logits_per_image.softmax(dim=1)[0]
+for cls, p in sorted(zip(classes, probs.tolist()), key=lambda x: -x[1]):
+    print(f"{p:.3f}  {cls}")
+"""
+)
+
+md(
+    """
+### 4.1 Zero-shot рецепт и prompt engineering
+
+CLIP **не обучался** на наши классы — мы просто описали каждый класс текстом и спросили, какой текст ближе к картинке. Это и есть **zero-shot**: задача, на которую модель не училась напрямую.
+
+Несколько практических деталей:
+
+- Класс оформляют как **фразу**, а не одно слово: `"a photo of a {class}"` работает лучше, чем просто `"cat"` — так распределение текста ближе к подписям, на которых училась модель.
+- Можно усреднять несколько шаблонов (`"a photo of a {}"`, `"a blurry photo of a {}"`, ...) — это **prompt ensembling**, заметно поднимает точность.
+- На вход и текст, и картинка идут как последовательности; **единый эмбеддинг** берётся со специального агрегирующего токена (как CLS в `BERT`) и проецируется в общее пространство.
+
+Посмотрим на сырые эмбеддинги и косинусную близость напрямую — это база и для retrieval, и для CLIP-score.
+"""
+)
+
+code(
+    """
+import torch.nn.functional as F
+
+texts = ["a cat", "a dog", "a sofa", "two cats sleeping"]
+ti = clip_processor(text=texts, images=image, return_tensors="pt", padding=True)
+
+with torch.no_grad():
+    out = clip(**ti)
+    img_emb = out.image_embeds   # [1, d] — картинка в общем пространстве
+    txt_emb = out.text_embeds    # [len(texts), d] — тексты там же
+
+# L2-нормировка -> скалярное произведение = косинусная близость.
+img_emb = F.normalize(img_emb, dim=-1)
+txt_emb = F.normalize(txt_emb, dim=-1)
+
+sims = (img_emb @ txt_emb.T)[0]
+print("Косинусная близость картинки к текстам:")
+for t, s in sorted(zip(texts, sims.tolist()), key=lambda x: -x[1]):
+    print(f"  cos = {s:+.3f}   {t}")
+"""
+)
+
+code(
+    '''
+import torch.nn as nn
+
+
+def contrastive_loss(logits: torch.Tensor) -> torch.Tensor:
+    """Cross-entropy, где правильный класс для строки i — это столбец i (совпадающая пара).
+
+    Args:
+        logits: Матрица сходства [N, N].
+
+    Returns:
+        Скаляр — средняя cross-entropy по строкам.
+    """
+    targets = torch.arange(len(logits), device=logits.device)
+    return nn.functional.cross_entropy(logits, targets)
+
+
+def clip_loss(similarity: torch.Tensor) -> torch.Tensor:
+    """Симметричный InfoNCE: cross-entropy и по строкам, и по столбцам."""
+    return (contrastive_loss(similarity) + contrastive_loss(similarity.t())) / 2.0
+
+
+# Игрушечный батч из 8 пар (картинка_i <-> текст_i):
+image_embeds = torch.rand(8, 512)
+text_embeds = torch.rand(8, 512)
+
+# Шаг 1: L2-нормировка эмбеддингов -> косинусная близость.
+image_embeds = image_embeds / image_embeds.norm(p=2, dim=-1, keepdim=True)   # [8, 512]
+text_embeds = text_embeds / text_embeds.norm(p=2, dim=-1, keepdim=True)       # [8, 512]
+
+# Шаг 2: матрица сходства всех пар. ВНИМАНИЕ: значения лежат в [-1, 1].
+logits_per_text = text_embeds @ image_embeds.t()    # [8, 512] @ [512, 8] -> [8, 8]
+print("Диапазон логитов:", round(logits_per_text.min().item(), 3),
+      "..", round(logits_per_text.max().item(), 3))
+
+loss = clip_loss(logits_per_text)
+print("CLIP loss:", round(loss.item(), 4))
+'''
+)
+
+md(
+    """
+#### ❓ **Вопрос (мотивация к домашке)**: мы кормим в softmax логиты из диапазона $[-1, 1]$. Что это значит для итогового распределения вероятностей и насколько «уверенным» сможет стать обучение?
+
+<details>
+
+<summary><strong>Подсказка</strong></summary>
+
+Softmax от логитов в $[-1, 1]$ даёт почти **равномерное** распределение: даже у идеально совпадающей пары вероятность не может приблизиться к 1, а градиент остаётся слабым — модель почти не может стать «уверенной».</br>
+Лечится это **масштабированием** логитов перед softmax. А вот *какой* множитель выбрать, должен ли он быть **обучаемым** или фиксированным, почему его удобно хранить и применять определённым образом — вы разберётесь и внедрите **сами в домашке `clip`**. Это ключевая часть задания, поэтому здесь намеренно оставляем вопрос открытым.
+
+</details>
+"""
+)
+
+# ---------------------------------------------------------------------------
+# Part 5: Image search engine
+# ---------------------------------------------------------------------------
+md(
+    """
+## 5. Проектируем свой поиск картинок по тексту
+
+Соберём из CLIP **поиск картинок по текстовому запросу** — как в Google Images, только наоборот: на входе текст, на выходе релевантные картинки. Это классический **векторный (semantic) поиск**.
+
+Любая такая система состоит из двух фаз:
+
+- **Offline (индексация).** Один раз прогоняем **все** картинки базы через image-энкодер CLIP и складываем эмбеддинги в **векторную БД** (FAISS, Qdrant, Milvus, pgvector...).
+- **Online (запрос).** Эмбеддим текстовый запрос тем же CLIP в **то же пространство** и ищем ближайшие к нему векторы картинок.
+
+Дальше — ключевые проектные решения, которые отличают игрушку от рабочего поиска. Каждое оформим как вопрос.
+"""
+)
+
+md(
+    """
+### 5.0 Мини-база картинок
+
+Возьмём небольшой срез CIFAR-10 (10 классов: самолёт, машина, птица, кошка, ...) как нашу «базу» и посчитаем CLIP-эмбеддинги один раз.
+"""
+)
+
+code(
+    '''
+# Мини-база: срез CIFAR-10 как набор картинок для поиска (скачается один раз).
+gallery_ds = load_dataset("uoft-cs/cifar10", split="test[:300]")
+gallery_images = [img.convert("RGB") for img in gallery_ds["img"]]
+gallery_labels = [gallery_ds.features["label"].int2str(l) for l in gallery_ds["label"]]
+print("Картинок в базе:", len(gallery_images))
+
+
+def clip_image_embeddings(images: list, batch_size: int = 64) -> torch.Tensor:
+    """Посчитать CLIP-эмбеддинги списка картинок батчами.
+
+    Args:
+        images: Список PIL-картинок.
+        batch_size: Размер батча для прогона через энкодер.
+
+    Returns:
+        Тензор [N, d] — по одному эмбеддингу на картинку (ещё НЕ нормированы).
+    """
+    chunks = []
+    for i in range(0, len(images), batch_size):
+        # image_embeds из полного forward не зависят от текста, поэтому передаём
+        # произвольную текстовую заглушку "x" — так код стабилен между версиями transformers.
+        batch = clip_processor(text=["x"], images=images[i:i + batch_size],
+                               return_tensors="pt", padding=True)
+        with torch.no_grad():
+            chunks.append(clip(**batch).image_embeds)
+    return torch.cat(chunks)
+
+
+raw_embeds = clip_image_embeddings(gallery_images)   # [300, 512]
+print("Эмбеддинги базы:", tuple(raw_embeds.shape))
+'''
+)
+
+md(
+    """
+### 5.1 Решение №1: нормированные эмбеддинги или оригинальные?
+
+#### ❓ **Вопрос**: в векторную БД класть сырые эмбеддинги CLIP или предварительно L2-нормированные?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Хранить **L2-нормированные**. Тогда:</br>
+— скалярное произведение **сразу равно косинусной близости** — не нужно делить на нормы на каждом запросе;</br>
+— все векторы на единичной сфере, метрика консистентна, пороги переносимы между запросами;</br>
+— большинство ANN-индексов (FAISS `IndexFlatIP`, HNSW) ждут уже нормированные векторы для inner-product поиска.</br>
+
+Длина вектора у CLIP смысловой нагрузки почти не несёт (важно **направление**), так что нормировкой мы ничего полезного не теряем. Нормируем **один раз** при индексации.
+
+</details>
+"""
+)
+
+code(
+    """
+import torch.nn.functional as F
+
+# Решение: храним L2-нормированные эмбеддинги -> dot product = cosine.
+db_embeds = F.normalize(raw_embeds, dim=-1)   # [300, 512], каждая строка длины 1
+print("Норма первого вектора:", round(db_embeds[0].norm().item(), 4))
+"""
+)
+
+md(
+    """
+### 5.2 Решение №2: метрика поиска — cosine или евклидово расстояние?
+
+#### ❓ **Вопрос**: косинусную близость или (квадрат) евклидова расстояния брать для ранжирования?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Для **нормированных** векторов это почти одно и то же: $\\|a-b\\|^2 = 2 - 2\\cos(a,b)$, поэтому ранжирование по косинусу и по евклиду **совпадает** (одно монотонно от другого).</br>
+На практике берут **cosine = inner product**: это просто матричное умножение, и так устроены IP-индексы. «Pairwise» (полная матрица расстояний) — это не другая метрика, а способ посчитать всё разом; на больших базах его заменяют ANN-индексом.
+
+</details>
+"""
+)
+
+code(
+    '''
+def search(query: str, db: torch.Tensor, top_k: int = 8) -> tuple:
+    """Найти top_k ближайших картинок к текстовому запросу.
+
+    Args:
+        query: Текстовый запрос.
+        db: Матрица [N, d] L2-нормированных эмбеддингов картинок.
+        top_k: Сколько кандидатов вернуть.
+
+    Returns:
+        (индексы [top_k], скоры-косинусы [top_k]).
+    """
+    inp = clip_processor(text=[query], images=image, return_tensors="pt", padding=True)
+    with torch.no_grad():
+        q = clip(**inp).text_embeds    # text_embeds не зависят от картинки-заглушки
+    q = F.normalize(q, dim=-1)[0]      # [d]
+    sims = db @ q                      # [N] — косинусы (db уже нормирована)
+    scores, idx = sims.topk(top_k)
+    return idx, scores
+
+
+def show(indices: list, scores: list = None, title: str = "") -> None:
+    """Показать картинки базы по индексам в ряд (с подписью класса и скором)."""
+    n = len(indices)
+    fig, axes = plt.subplots(1, n, figsize=(1.5 * n, 2.0))
+    axes = axes if n > 1 else [axes]
+    for pos, (ax, k) in enumerate(zip(axes, indices)):
+        ax.imshow(gallery_images[k]); ax.axis("off")
+        cap = gallery_labels[k]
+        if scores is not None:
+            cap += f"\\n{scores[pos]:.2f}"
+        ax.set_title(cap, fontsize=8)
+    plt.suptitle(title); plt.tight_layout(); plt.show()
+
+
+idx, scores = search("a photo of a dog", db_embeds, top_k=8)
+show(idx.tolist(), scores.tolist(), title='Запрос: "a photo of a dog" — базовый top-8')
+'''
+)
+
+md(
+    """
+### 5.3 Решение №3: как убрать дубликаты?
+
+#### ❓ **Вопрос**: в выдаче несколько почти одинаковых картинок. Как убрать near-duplicates?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Near-дубликаты — картинки с **очень высокой взаимной косинусной близостью** (например $> 0.95$). Жадно идём по выдаче сверху вниз и **выкидываем кандидата, если он слишком похож на уже оставленный**.</br>
+Точные дубли (побайтово одинаковые, ресайзы, кропы) дешевле ловить перцептивным хешем (pHash) ещё на этапе индексации, не доводя до векторного сравнения.
+
+</details>
+"""
+)
+
+code(
+    '''
+def dedup(indices: list, db: torch.Tensor, sim_threshold: float = 0.95) -> list:
+    """Жадно убрать near-дубликаты из ранжированного списка кандидатов.
+
+    Кандидат отбрасывается, если его косинус с любым уже принятым > sim_threshold.
+    """
+    kept = []
+    for i in indices:
+        if all((db[i] @ db[j]).item() <= sim_threshold for j in kept):
+            kept.append(i)
+    return kept
+
+
+idx, _ = search("a photo of a dog", db_embeds, top_k=30)
+kept = dedup(idx.tolist(), db_embeds, sim_threshold=0.9)[:8]
+show(kept, title="После удаления дубликатов (sim > 0.9)")
+'''
+)
+
+md(
+    """
+### 5.4 Решение №4: как разнообразить выдачу?
+
+#### ❓ **Вопрос**: топ по близости часто однообразен (восемь почти одинаковых поз одной собаки). Как сделать выдачу разнообразной, не теряя релевантность?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Классика — **MMR (Maximal Marginal Relevance)**: на каждом шаге выбираем кандидата, максимизирующего
+
+$$\\lambda \\cdot \\mathrm{sim}(q, d) - (1-\\lambda)\\cdot \\max_{s\\in S}\\mathrm{sim}(d, s),$$
+
+то есть **близкого к запросу** $q$, но **не похожего на уже выбранное** $S$. $\\lambda=1$ — чистая релевантность, $\\lambda=0$ — чистое разнообразие. Дедупликация — это жёсткий частный случай разнообразия.
+
+</details>
+"""
+)
+
+code(
+    '''
+def mmr(query_emb: torch.Tensor, db: torch.Tensor, candidates: list,
+        k: int = 8, lambda_: float = 0.5) -> list:
+    """Отобрать k релевантных и разнообразных кандидатов через MMR."""
+    cand = list(candidates)
+    rel = {i: (db[i] @ query_emb).item() for i in cand}
+    selected = []
+    while cand and len(selected) < k:
+        def mmr_score(i: int) -> float:
+            div = max((db[i] @ db[j]).item() for j in selected) if selected else 0.0
+            return lambda_ * rel[i] - (1 - lambda_) * div
+        best = max(cand, key=mmr_score)
+        selected.append(best)
+        cand.remove(best)
+    return selected
+
+
+# Эмбеддинг запроса считаем один раз и переиспользуем.
+inp = clip_processor(text=["a photo of a dog"], images=image, return_tensors="pt", padding=True)
+with torch.no_grad():
+    q_dog = F.normalize(clip(**inp).text_embeds, dim=-1)[0]
+
+cand = (db_embeds @ q_dog).topk(30).indices.tolist()
+diverse = mmr(q_dog, db_embeds, cand, k=8, lambda_=0.5)
+show(diverse, title="MMR: релевантно + разнообразно (λ=0.5)")
+'''
+)
+
+md(
+    """
+### 5.5 Решение №5: как выбрать порог отсева?
+
+#### ❓ **Вопрос**: для запроса «жираф» в базе нет ни одного жирафа — поиск всё равно вернёт top-k «ближайших». Как понять, что релевантного нет, и выбрать порог отсечения?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Абсолютные значения косинуса у CLIP **не калиброваны** и зависят от запроса, поэтому фиксированный «магический» порог хрупок. Что делают на практике:</br>
+— смотрят на **распределение** скоров и **разрыв** (gap) между верхними кандидатами: нет явного лидера → вероятно, релевантного нет;</br>
+— **калибруют порог по валидации** (размеченные пары запрос-картинка) под нужный precision/recall;</br>
+— учитывают **modality gap**: text↔image скоры систематически **ниже**, чем image↔image, поэтому порог с image-to-image нельзя переносить на text-to-image;</br>
+— иногда берут softmax по запросу (как в zero-shot), но это даёт **относительные**, а не абсолютные «вероятности».
+
+</details>
+"""
+)
+
+code(
+    """
+# Сравним скоры для запроса, который ЕСТЬ в базе, и которого НЕТ.
+for query in ["a photo of a dog", "a photo of a giraffe"]:
+    inp = clip_processor(text=[query], images=image, return_tensors="pt", padding=True)
+    with torch.no_grad():
+        q = F.normalize(clip(**inp).text_embeds, dim=-1)[0]
+    top = (db_embeds @ q).topk(5).values
+    print(f"{query:24s} top-5 cos: {[round(s, 3) for s in top.tolist()]}")
+"""
+)
+
+md(
+    """
+Обратите внимание: абсолютные косинусы для «giraffe» (которого в базе нет) могут быть **сравнимы** с «dog» — вот почему наивный фиксированный порог так ненадёжен.
+
+### 5.6 Прочие тонкие моменты production-поиска
+
+- **ANN-индекс вместо полного перебора.** Наш `db @ q` — это brute force $O(N)$. На миллионах картинок берут приближённый поиск (**FAISS HNSW / IVF-PQ, ScaNN**): сублинейно по времени ценой малой потери точности.
+- **Modality gap.** Текстовые и картиночные эмбеддинги CLIP лежат в **разных конусах** пространства; из-за этого text→image скоры ниже image→image. Часть систем центрирует/дообучает эмбеддинги, чтобы сгладить разрыв.
+- **Prompt-инжиниринг запроса.** Как и в zero-shot, `"a photo of a {запрос}"` и ансамбль шаблонов поднимают качество.
+- **Инкрементальная индексация.** Эмбеддинги картинок считают **один раз** офлайн и доиндексируют новые; пересчитывать всю базу на каждый запрос нельзя.
+- **Мультиязычность.** Базовый CLIP в основном англоязычный; для русских запросов берут мультиязычный CLIP или переводят запрос.
+- **Фильтрация и права.** Поверх идут фильтры NSFW/возрастные, дедуп по лицензиям, блокировки.
+- **Метрики качества.** Поиск оценивают как ранжирование: Recall@k, mAP, nDCG — на размеченных запросах.
+
+> **Итог-скелет:** нормированные эмбеддинги → cosine = dot product → top-k → дедуп near-duplicates → MMR для разнообразия → откалиброванный порог (с поправкой на modality gap) → ANN-индекс для масштаба.
+"""
+)
+
+# ---------------------------------------------------------------------------
+# Блиц
+# ---------------------------------------------------------------------------
+md("# Блиц")
+
+md(
+    """
+### Vision Transformers
+"""
+)
+
+md(
+    """
+#### ❓ **Вопрос**: чем `Swin` отличается от `ViT`?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+| Характеристика   | ViT                   | Swin                                 |
+| ---------------- | --------------------- | ------------------------------------ |
+| Область внимания | Глобальная            | Локальные окна со сдвигом            |
+| Сложность attention | $O(n^2)$           | $O(n)$ (линейная по числу патчей)   |
+| Иерархия         | Нет                   | Есть (как у CNN, через patch merging)|
+| Inductive bias   | Мало                  | Больше (локальность, как у CNN)     |
+
+</details>
+"""
+)
+
+md(
+    """
+#### ❓ **Вопрос**: что такое Shifted Window из названия `Swin`? Для чего оно используется?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Чтобы сделать attention дешёвым, `Swin` считает его только внутри небольших окон. Но при фиксированных окнах патчи из разных окон никогда бы не «общались».</br>
+Поэтому на следующем слое окна **сдвигают** (shifted windows): границы окон смещаются, и информация перетекает между соседними окнами. Так сохраняется и линейная сложность, и связь между удалёнными областями.
+
+</details>
+"""
+)
+
+md(
+    """
+### Self-supervised & Contrastive learning
+"""
+)
+
+md(
+    """
+#### ❓ **Вопрос**: что такое zero-shot learning? Приведите пример модели и задачи. Почему это работает?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Zero-shot learning — модель решает задачу, на которой её **напрямую не обучали**.</br>
+Пример: `CLIP` и классификация. CLIP не обучался классифицировать наши классы, но мы описываем каждый класс текстом и берём ближайший к картинке — задача классификации сводится к задаче «найди ближайший текст».</br>
+Работает потому, что CLIP обучался на **более общую** задачу (сопоставление картинок и текстов), к которой классификация сводится как частный случай.
+
+</details>
+"""
+)
+
+md(
+    """
+#### ❓ **Вопрос**: что такое мультимодальное обучение? Какие модальности бывают?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Модальность — это тип воспринимаемой информации. Мультимодальная модель работает сразу с несколькими типами.</br>
+`CLIP` мультимодален: текст (первая модальность) + изображение (вторая).</br>
+Другие модальности: видео, аудио, облака точек, карты глубины, тепловые карты.</br>
+
+`CLIP` на максималках (6 модальностей в одном пространстве): [ImageBind](https://github.com/facebookresearch/ImageBind).
+
+</details>
+"""
+)
+
+md(
+    """
+#### ❓ **Вопрос**: какая лосс-функция оптимизируется при обучении `CLIP`?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Симметричный **InfoNCE** (contrastive loss). В батче из $N$ пар максимизируется близость совпадающих пар картинка-текст и минимизируется для всех негативных пар.</br>
+Перед вычислением близости эмбеддинги **L2-нормируются** (близость = косинус). Получается матрица $N \\times N$, и cross-entropy считается симметрично — по строкам и по столбцам.</br>
+Логиты перед softmax дополнительно **масштабируются** — зачем именно и как это правильно реализовать, разбирается в домашке `clip`.
+
+</details>
+"""
+)
+
+md(
+    """
+#### ❓ **Вопрос**: какие ещё задачи, кроме zero-shot классификации, можно решать через CLIP-эмбеддинги?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+* поиск и ранжирование картинок по текстовому запросу (поиск в векторном пространстве);
+* поиск похожих картинок по картинке;
+* **CLIP-score** как метрика: насколько сгенерированная картинка соответствует текстовому запросу (используется при оценке text-to-image генерации);
+* guidance для диффузионных моделей (направлять генерацию текстом).
+
+</details>
+"""
+)
+
+md(
+    """
+#### ❓ **Вопрос**: `CLIP` получает на вход последовательность (и текст, и картинку), но contrastive learning работает с одним вектором-эмбеддингом. Как этот вектор выбирается?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+И для текста, и для картинки используется специальный агрегирующий токен (CLS-подобный), который «стягивает» в себя информацию со всей последовательности. Его выход проецируется в общее пространство.</br>
+Аналогично делали для классификации в `BERT`.
+
+</details>
+"""
+)
+
+md(
+    """
+#### ❓ **Вопрос (со звёздочкой)**: у нас есть обученная текстовая LLM (работает только с токенами текста) и есть vision-энкодер (ViT/CLIP). Придумайте, как научить LLM **понимать картинки** и отвечать на вопросы по ним. Что подать на вход, что и как обучать?
+
+<details>
+
+<summary><strong>Ответ</strong></summary>
+
+Ключевая идея: **LLM умеет работать с любой последовательностью векторов-«токенов» в своём пространстве эмбеддингов**. Значит, картинку надо превратить в такие же «токены» и подмешать к текстовым. Это ровно архитектура **LLaVA** ([Visual Instruction Tuning](https://arxiv.org/abs/2304.08485)):</br>
+
+1. **Vision-энкодер** (замороженный CLIP-ViT) превращает картинку в последовательность патч-эмбеддингов (визуальные признаки).</br>
+2. **Проектор** (маленький MLP) отображает визуальные признаки в **пространство токен-эмбеддингов LLM** — чтобы они были «той же природы», что и текстовые токены.</br>
+3. Эти спроецированные векторы **вставляются в последовательность** наравне с текстовыми токенами: `[<визуальные токены>] + [токены вопроса]`. LLM читает их как обычный контекст и авторегрессионно генерирует ответ.</br>
+
+Что обучать (а что нет):</br>
+— vision-энкодер обычно **замораживают** (он уже даёт хорошие признаки после CLIP);</br>
+— на первом этапе учат **только проектор** (выравнивание модальностей на парах картинка-описание);</br>
+— потом **instruction-tuning**: дообучают проектор (и часто саму LLM) на диалогах вида «картинка + вопрос → ответ».</br>
+
+Лосс — обычный **языковой** (cross-entropy на следующем токене ответа): мультимодальность сводится к тому, что часть входных токенов пришла из картинки. Картинка-как-токены — тот же приём, что и в ViT, только теперь токены читает LLM. Это и есть бонусная домашка `multimodal-llm`.
+
+<img width="640" src=\""""
+    + IMG_BASE
+    + """/llava_overview.png" alt="Архитектура LLaVA: vision-энкодер (CLIP-ViT) даёт визуальные признаки, проектор отображает их в пространство токенов LLM, визуальные токены вставляются в последовательность вместе с текстом, LLM авторегрессионно генерирует ответ">
+
+</details>
+"""
+)
+
+# ---------------------------------------------------------------------------
+# Дополнительные материалы
+# ---------------------------------------------------------------------------
+md(
+    """
+# Дополнительные материалы
+
+**Архитектуры:**
+- ViT — [An Image is Worth 16x16 Words](https://www.semanticscholar.org/reader/268d347e8a55b5eb82fb5e7d2f800e33c75ab18a)
+- Swin — [Hierarchical Vision Transformer using Shifted Windows](https://www.semanticscholar.org/reader/c8b25fab5608c3e033d34b4483ec47e68ba109b7)
+
+**Self-supervised:**
+- SimCLR — [A Simple Framework for Contrastive Learning](https://arxiv.org/abs/2002.05709)
+- MoCo — [Momentum Contrast](https://arxiv.org/abs/1911.05722)
+- BYOL — [Bootstrap Your Own Latent](https://arxiv.org/abs/2006.07733)
+- DINO — [Emerging Properties in Self-Supervised ViT](https://www.semanticscholar.org/reader/ad4a0938c48e61b7827869e4ac3baffd0aefab35)
+- MAE — [Masked Autoencoders Are Scalable Vision Learners](https://arxiv.org/abs/2111.06377)
+
+**Мультимодальность:**
+- CLIP — [Learning Transferable Visual Models From Natural Language Supervision](https://www.semanticscholar.org/reader/6f870f7f02a8c59c3e23f407f3ef00dd1dcf8fc4)
+- ImageBind — [One Embedding Space To Bind Them All](https://github.com/facebookresearch/ImageBind)
+- LLaVA — [Visual Instruction Tuning](https://arxiv.org/abs/2304.08485)
+
+**Курсы:** [CS231n](https://cs231n.github.io/) (CV), [d2l.ai](https://d2l.ai/) (раздел про attention и ViT).
+"""
+)
+
+
+# ---------------------------------------------------------------------------
+# Write notebook
+# ---------------------------------------------------------------------------
+NB = {
+    "cells": CELLS,
+    "metadata": {
+        "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+        "language_info": {"name": "python", "version": "3.10"},
+    },
+    "nbformat": 4,
+    "nbformat_minor": 5,
+}
+
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "13_seminar_vit_clip.ipynb")
+with open(OUT, "w", encoding="utf-8") as f:
+    json.dump(NB, f, ensure_ascii=False, indent=1)
+    f.write("\n")
+
+print(f"Wrote {OUT} ({len(CELLS)} cells)")
