@@ -242,8 +242,9 @@ def train(model: nn.Module,
 </details>
 ```
 - All questions in section `Блиц` must have answers hidden by spoilers. Add them if there is no answer yet.
-- Images in seminars: insert with a **local relative path** (e.g. `assets/clip_dual_encoder.png`), never an `http://`/`https://` URL. Store the image next to the notebook (e.g. in an `assets/` subdir) and commit it alongside the `.ipynb`. Transforming local image paths to remote GitHub URLs is processed automatically after pushing notebooks — do not hardcode raw-GitHub links.
-- Limit image width with an HTML tag: `<img width=400 src="assets/clip_dual_encoder.png">` (adjust `width` per image), not bare Markdown `![](...)`, so wide diagrams don't blow up the layout.
+- Seminar static assets (images, diagrams, generated PNG/PDF/TeX sources) **must** live in a `static/` subdirectory next to the notebook (e.g. `seminars/13_vit_clip/static/`) — this is the repo-wide convention for every seminar. Do not invent `assets/`, `img/`, etc.
+- Images in seminars: insert with a **local relative path** (e.g. `static/clip_dual_encoder.png`), never an `http://`/`https://` URL. Commit the image alongside the `.ipynb`. Transforming local image paths to remote GitHub URLs is processed automatically after pushing notebooks — do not hardcode raw-GitHub links.
+- Limit image width with an HTML tag: `<img width=400 src="static/clip_dual_encoder.png">` (adjust `width` per image), not bare Markdown `![](...)`, so wide diagrams don't blow up the layout.
 - Make experiments reproducible: fixed seeds, deterministic settings (when feasible), explicit dependencies.
 - Before committing notebooks: clear outputs; avoid huge artifacts in repo.
 - Do not run `./seminars/rm_widgets.sh` manually: it is executed automatically.
