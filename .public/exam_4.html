@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Экзамен 3 — Глубокое обучение</title>
+    <title>Экзамен 4 — Глубокое обучение</title>
     <style>
         :root {
             --bg: #f5f6f8;
@@ -121,7 +121,7 @@
         <a href="index.html" class="back-link">&larr; Назад</a>
 
         <header>
-            <h1>Экзамен 3 модуль</h1>
+            <h1>Экзамен 4 модуль</h1>
             <p>Программа экзамена по курсу «Глубокое обучение»</p>
         </header>
 
@@ -132,12 +132,12 @@
 
         <section>
             <h2>Рандомизатор билета</h2>
-            <a href="exam_3_randomizer.html" class="randomizer-btn">Открыть рандомизатор</a>
+            <a href="exam_4_randomizer.html" class="randomizer-btn">Открыть рандомизатор</a>
         </section>
     </div>
 
     <script>
-        fetch('exam3_questions.json')
+        fetch('exam4_questions.json')
             .then(r => r.json())
             .then(data => {
                 const list = document.getElementById('questionList');
