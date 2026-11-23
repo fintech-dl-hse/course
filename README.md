@@ -117,11 +117,11 @@ $ O_{exam3} $ и $ O_{exam4} $ - оценки за экзамен соответ
 | 11.01 | Введение в глубинное обучение. Обучение нейросетей. Алгоритм обратного распространения ошибки. | mlp, 🎁 autograd-mlp |
 | 18.01 | Функции активации. Задачи и функции потерь. Инициализация весов. Lottery Ticket Hypothesis | weight-init, activations |
 | 25.01 | Оптимизация. SGD, Adam, Muon. Регуляризация: dropout, weight decay | dropout, optimization, 🎁 muon |
-| 01.02 | 🎤 Защита домашек |  |
-| 08.02 | Сверточные сети. | pytorch-basics, batchnorm |
-| 15.02 | Задачи Computer Vision. | 🎁 letters |
-| 22.02 | Генеративные модели: GAN. |  |
-| 01.03 | Генеративные модели: AE, VAE, Diffusion. | vae, diffusion |
+| 01.02 | Сверточные сети. | pytorch-basics, batchnorm |
+| 08.02 | Задачи Computer Vision. | 🎁 letters |
+| 15.02 | Генеративные модели: GAN. |  |
+| 22.02 | Генеративные модели: AE, VAE, Diffusion. | vae, diffusion |
+| 01.03 | ? |  |
 | 08.03 | 📅 выходной |  |
 | 15.03 | — |  |
 | 22.03 | ? |  |
