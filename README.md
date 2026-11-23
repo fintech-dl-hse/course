@@ -110,6 +110,8 @@ $ O_{exam3} $ и $ O_{exam4} $ - оценки за экзамен соответ
 
 Третий модуль длится с 9 января по 24 марта, четвёртый — с 1 апреля по 20 июня.
 
+Прочерк (—) означает пропуск занятия по решению преподавателя.
+
 | Дата | Лекция | Домашка |
 |---|---|---|
 | 11.01 | Введение в глубинное обучение. Обучение нейросетей. Алгоритм обратного распространения ошибки. | mlp, 🎁 autograd-mlp |
@@ -120,22 +122,22 @@ $ O_{exam3} $ и $ O_{exam4} $ - оценки за экзамен соответ
 | 15.02 | Задачи Computer Vision. | 🎁 letters |
 | 22.02 | — |  |
 | 01.03 | Генеративные модели: GAN. |  |
-| 08.03 | — |  |
+| 08.03 | 📅 выходной |  |
 | 15.03 | — |  |
 | 22.03 | Генеративные модели: AE, VAE, Diffusion. | vae, diffusion |
-| 25–31.03 | _сессия_ |  |
+| 25–31.03 | 📝 сессия |  |
 | 05.04 | NLP, Word2vec. Tokenization: BPE, WordPiece | tokenization |
 | 12.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE. | transformer-attention, rnn-attention |
 | 19.04 | — |  |
 | 26.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models. Scaling Laws. In context learning. (Seminar: + Distributed Train, Evaluation) |  |
-| 03.05 | _каникулы_ |  |
-| 10.05 | — |  |
+| 03.05 | 🌿 каникулы |  |
+| 10.05 | 📅 выходной |  |
 | 17.05 | Evaluation. Test time scaling: majority voting, CoT. DPO, PPO, GRPO. (Seminar: + vllm, efficiency) | efficiency |
 | 24.05 | — |  |
 | 31.05 | Function Calling. Agentic patterns. Agentic RAG. MCP. Observability. | llm-agent (+mcp) |
 | 07.06 | Vision Transformers. Self-supervised, contrastive learning. | clip, 🎁 multimodal-llm |
 | 14.06 | — |  |
-| 21–30.06 | _сессия_ |  |
+| 21–30.06 | 📝 сессия |  |
 
 [График магистратуры, набор 2026 года (PDF)](https://www.hse.ru/dbs/education/sp_Schedule_27678.pdf) · [Типовой график ВШЭ с уточнёнными праздниками (PDF)](https://www.hse.ru/pubs/share/direct/1205380356.pdf)
 
