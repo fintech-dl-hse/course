@@ -38,7 +38,7 @@
 После занятия в [боте](https://t.me/fintech_dl_hse_bot) будет открываться квиз с открытыми вопросами по темам занятия.
 Вопросы несложные. Прохождение квизов будет допуском к экзаменам отдельно и за 3 и за 4 модуль.
 
-Дедлайны квизов на 2027 год уточним после назначения экзаменов.
+Дедлайны квизов на 2027 год объявим отдельно.
 
 
 ## Домашки
@@ -110,34 +110,35 @@ $ O_{exam3} $ и $ O_{exam4} $ - оценки за экзамен соответ
 
 Третий модуль длится с 9 января по 24 марта, четвёртый — с 1 апреля по 20 июня.
 
-Прочерк (—) означает пропуск занятия по решению преподавателя.
+Сессии ВШЭ проходят 25–31 марта и 21–30 июня. В таблице «—» обозначает пропуск по решению преподавателя, «?» — пока свободную дату.
 
 | Дата | Лекция | Домашка |
 |---|---|---|
 | 11.01 | Введение в глубинное обучение. Обучение нейросетей. Алгоритм обратного распространения ошибки. | mlp, 🎁 autograd-mlp |
-| 18.01 | — |  |
-| 25.01 | Функции активации. Задачи и функции потерь. Инициализация весов. Lottery Ticket Hypothesis | weight-init, activations |
-| 01.02 | Оптимизация. SGD, Adam, Muon. Регуляризация: dropout, weight decay | dropout, optimization, 🎁 muon |
+| 18.01 | Функции активации. Задачи и функции потерь. Инициализация весов. Lottery Ticket Hypothesis | weight-init, activations |
+| 25.01 | Оптимизация. SGD, Adam, Muon. Регуляризация: dropout, weight decay | dropout, optimization, 🎁 muon |
+| 01.02 | 🎤 Защита домашек |  |
 | 08.02 | Сверточные сети. | pytorch-basics, batchnorm |
 | 15.02 | Задачи Computer Vision. | 🎁 letters |
-| 22.02 | — |  |
-| 01.03 | Генеративные модели: GAN. |  |
+| 22.02 | Генеративные модели: GAN. |  |
+| 01.03 | Генеративные модели: AE, VAE, Diffusion. | vae, diffusion |
 | 08.03 | 📅 выходной |  |
 | 15.03 | — |  |
-| 22.03 | Генеративные модели: AE, VAE, Diffusion. | vae, diffusion |
-| 25–31.03 | 📝 сессия |  |
+| 22.03 | ? |  |
+| 29.03 | 🎓 Экзамен за 3-й модуль |  |
 | 05.04 | NLP, Word2vec. Tokenization: BPE, WordPiece | tokenization |
 | 12.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE. | transformer-attention, rnn-attention |
-| 19.04 | — |  |
-| 26.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models. Scaling Laws. In context learning. (Seminar: + Distributed Train, Evaluation) |  |
+| 19.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models. Scaling Laws. In context learning. (Seminar: + Distributed Train, Evaluation) |  |
+| 26.04 | Evaluation. Test time scaling: majority voting, CoT. DPO, PPO, GRPO. (Seminar: + vllm, efficiency) | efficiency |
 | 03.05 | 🌿 каникулы |  |
 | 10.05 | 📅 выходной |  |
-| 17.05 | Evaluation. Test time scaling: majority voting, CoT. DPO, PPO, GRPO. (Seminar: + vllm, efficiency) | efficiency |
-| 24.05 | — |  |
-| 31.05 | Function Calling. Agentic patterns. Agentic RAG. MCP. Observability. | llm-agent (+mcp) |
-| 07.06 | Vision Transformers. Self-supervised, contrastive learning. | clip, 🎁 multimodal-llm |
-| 14.06 | — |  |
-| 21–30.06 | 📝 сессия |  |
+| 17.05 | Function Calling. Agentic patterns. Agentic RAG. MCP. Observability. | llm-agent (+mcp) |
+| 24.05 | Vision Transformers. Self-supervised, contrastive learning. | clip, 🎁 multimodal-llm |
+| 31.05 | ? |  |
+| 07.06 | ? |  |
+| 14.06 | ? |  |
+| 21.06 | 🎓 Экзамен за 4-й модуль |  |
+| 28.06 | 📝 сессия |  |
 
 [График магистратуры, набор 2026 года (PDF)](https://www.hse.ru/dbs/education/sp_Schedule_27678.pdf) · [Типовой график ВШЭ с уточнёнными праздниками (PDF)](https://www.hse.ru/pubs/share/direct/1205380356.pdf)
 
