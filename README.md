@@ -113,31 +113,31 @@ $ O_{exam3} $ и $ O_{exam4} $ - оценки за экзамен соответ
 | Дата | Лекция | Домашка |
 |---|---|---|
 | 11.01 | Введение в глубинное обучение. Обучение нейросетей. Алгоритм обратного распространения ошибки. | mlp, 🎁 autograd-mlp |
-| 18.01 | Занятие пока не запланировано |  |
+| 18.01 | — |  |
 | 25.01 | Функции активации. Задачи и функции потерь. Инициализация весов. Lottery Ticket Hypothesis | weight-init, activations |
 | 01.02 | Оптимизация. SGD, Adam, Muon. Регуляризация: dropout, weight decay | dropout, optimization, 🎁 muon |
 | 08.02 | Сверточные сети. | pytorch-basics, batchnorm |
 | 15.02 | Задачи Computer Vision. | 🎁 letters |
-| 22.02 | Резерв курса |  |
+| 22.02 | — |  |
 | 01.03 | Генеративные модели: GAN. |  |
-| 08.03 | Международный женский день — занятий нет |  |
-| 15.03 | Занятия, скорее всего, не будет. Дату уточним. |  |
+| 08.03 | — |  |
+| 15.03 | — |  |
 | 22.03 | Генеративные модели: AE, VAE, Diffusion. | vae, diffusion |
-| 25–31.03 | _Сессия 3-го модуля. Дата экзамена по DL уточняется._ |  |
+| 25–31.03 | _сессия_ |  |
 | 05.04 | NLP, Word2vec. Tokenization: BPE, WordPiece | tokenization |
 | 12.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE. | transformer-attention, rnn-attention |
-| 19.04 | Резерв курса |  |
+| 19.04 | — |  |
 | 26.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models. Scaling Laws. In context learning. (Seminar: + Distributed Train, Evaluation) |  |
-| 03.05 | Весенние каникулы ВШЭ (2–8 мая) — занятий нет |  |
-| 10.05 | Выходной за 9 мая — занятий нет |  |
+| 03.05 | _каникулы_ |  |
+| 10.05 | — |  |
 | 17.05 | Evaluation. Test time scaling: majority voting, CoT. DPO, PPO, GRPO. (Seminar: + vllm, efficiency) | efficiency |
-| 24.05 | Резерв курса |  |
+| 24.05 | — |  |
 | 31.05 | Function Calling. Agentic patterns. Agentic RAG. MCP. Observability. | llm-agent (+mcp) |
 | 07.06 | Vision Transformers. Self-supervised, contrastive learning. | clip, 🎁 multimodal-llm |
-| 14.06 | Резерв курса |  |
-| 21–30.06 | _Сессия 4-го модуля. Дата экзамена по DL уточняется._ |  |
+| 14.06 | — |  |
+| 21–30.06 | _сессия_ |  |
 
-Резерв — свободная дата для возможного переноса занятия. В частности, 22 февраля и 14 июня оставлены свободными по плану курса. В учебном календаре ВШЭ оба понедельника входят в модуль. [График магистратуры, набор 2026 года (PDF)](https://www.hse.ru/dbs/education/sp_Schedule_27678.pdf) · [Типовой график ВШЭ с уточнёнными праздниками (PDF)](https://www.hse.ru/pubs/share/direct/1205380356.pdf)
+[График магистратуры, набор 2026 года (PDF)](https://www.hse.ru/dbs/education/sp_Schedule_27678.pdf) · [Типовой график ВШЭ с уточнёнными праздниками (PDF)](https://www.hse.ru/pubs/share/direct/1205380356.pdf)
 
 <!--
 **Дополнительные темы:**
