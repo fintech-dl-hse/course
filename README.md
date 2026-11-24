@@ -133,8 +133,8 @@ $ O_{exam3} $ и $ O_{exam4} $ - оценки за экзамен соответ
 | 03.05 | 🌿 каникулы |  |
 | 10.05 | 📅 выходной |  |
 | 17.05 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models. Scaling Laws. In context learning. (Seminar: + Distributed Train, Evaluation) |  |
-| 24.05 | Evaluation. Test time scaling: majority voting, CoT. DPO, PPO, GRPO. (Seminar: + vllm, efficiency) | efficiency |
-| 31.05 | Function Calling. Agentic patterns. Agentic RAG. MCP. Observability. | llm-agent (+mcp) |
+| 24.05 | Evaluation. Sampling strategies. Test time scaling: COT. RAG | efficiency |
+| 31.05 | Function Calling. MCP. Agent = LLM + Harness. Guardrails. AI Tokenomics. Agentic patterns. Agentic RAG. | llm-agent (+mcp) |
 | 07.06 | Vision Transformers. Self-supervised, contrastive learning. | clip, 🎁 multimodal-llm |
 | 14.06 | ? |  |
 | 21.06 | 🎓 Экзамен за 4-й модуль |  |
