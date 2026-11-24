@@ -126,15 +126,15 @@ $ O_{exam3} $ и $ O_{exam4} $ - оценки за экзамен соответ
 | 15.03 | — |  |
 | 22.03 | ? |  |
 | 29.03 | 🎓 Экзамен за 3-й модуль |  |
-| 05.04 | NLP, Word2vec. Tokenization: BPE, WordPiece | tokenization |
-| 12.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE. | transformer-attention, rnn-attention |
-| 19.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models. Scaling Laws. In context learning. (Seminar: + Distributed Train, Evaluation) |  |
-| 26.04 | Evaluation. Test time scaling: majority voting, CoT. DPO, PPO, GRPO. (Seminar: + vllm, efficiency) | efficiency |
+| 05.04 | — |  |
+| 12.04 | NLP, Word2vec. Tokenization: BPE, WordPiece | tokenization |
+| 19.04 | Рекуррентные сети. Attention, Transformers. Positional Encoding, RoPE. | transformer-attention, rnn-attention |
+| 26.04 | Pretrained transformers in NLP. Self-Supervised Learning. Large Language Models. Scaling Laws. In context learning. (Seminar: + Distributed Train, Evaluation) |  |
 | 03.05 | 🌿 каникулы |  |
 | 10.05 | 📅 выходной |  |
-| 17.05 | Function Calling. Agentic patterns. Agentic RAG. MCP. Observability. | llm-agent (+mcp) |
-| 24.05 | Vision Transformers. Self-supervised, contrastive learning. | clip, 🎁 multimodal-llm |
-| 31.05 | ? |  |
+| 17.05 | Evaluation. Test time scaling: majority voting, CoT. DPO, PPO, GRPO. (Seminar: + vllm, efficiency) | efficiency |
+| 24.05 | Function Calling. Agentic patterns. Agentic RAG. MCP. Observability. | llm-agent (+mcp) |
+| 31.05 | Vision Transformers. Self-supervised, contrastive learning. | clip, 🎁 multimodal-llm |
 | 07.06 | ? |  |
 | 14.06 | ? |  |
 | 21.06 | 🎓 Экзамен за 4-й модуль |  |
